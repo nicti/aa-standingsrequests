@@ -1,0 +1,38 @@
+{% load i18n %}
+{% load navactive %}
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">{% trans "Toggle navigation" %}</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">{% trans "Standings Tool" %}</a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+                <li class="{% navactive request 'standings-requests:index' %}">
+                    <a href="{% url 'standings-requests:index' %}">{% trans "Request Standings" %}</a>
+                </li>
+                {% if perms.standingsrequests.view %}
+                <li class="{% navactive request 'standings-requests:view_pilots' %}">
+                    <a href="{% url 'standings-requests:view_pilots' %}">{% trans "View Pilots Standings" %}</a>
+                </li>
+                <li class="{% navactive request 'standings-requests:view_groups' %}">
+                    <a href="{% url 'standings-requests:view_groups' %}">{% trans "View Groups Standings" %}</a>
+                </li>
+                {% endif %}
+                {% if perms.standingsrequests.affect_standings %}
+                <li class="{% navactive request 'standings-requests:manage' %}">
+                    <a href="{% url 'standings-requests:manage' %}">{% trans "Manage Requests" %}</a>
+                </li>
+                <li class="{% navactive request 'standings-requests:view_requests' %}">
+                    <a href="{% url 'standings-requests:view_requests' %}">{% trans "View Requests" %}</a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

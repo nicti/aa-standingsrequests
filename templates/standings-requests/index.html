@@ -1,0 +1,263 @@
+{% extends "public/base.html" %}
+{% load bootstrap %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}Alliance Auth - Standings Tool {% endblock %}
+
+{% block page_title %}Request Standings{% endblock page_title %}
+{% block extra_css %}
+
+{% endblock extra_css %}
+
+{% block content %}
+    {% include 'standings-requests/partials/_menu.html' %}
+    <div class="col-lg-12">
+        <h1 class="page-header">{% trans "Your Characters" %}</h1>
+
+        <div class="container">
+            {% if authinfo.main_char_id %}
+            {% else %}
+                <div class="alert alert-danger" role="alert">{% trans "No primary character set" %}</div>
+            {% endif %}
+            <div class="row">
+                <div class="table-responsive">
+                    <table class="table table-condensed table-hover table-striped">
+                        <tr>
+                            <th class="col-md-1"></th>
+                            <th class="col-md-2">{% trans "Character" %}</th>
+                            <th class="col-md-2">{% trans "Corporation" %}</th>
+                            <th class="col-md-2">{% trans "Alliance" %}</th>
+                            <th class="col-md-1">{% trans "Standing" %}</th>
+                            <th class="col-md-1">{% trans "Action" %}</th>
+                        </tr>
+                        {% for std in characters %}
+                            <tr>
+                                <td>
+                                    <img src="https://imageserver.eveonline.com/Character/{{ std.character.character_id }}_32.jpg"
+                                         class="img-circle">
+                                </td>
+                                <td>
+                                    <p>{{ std.character.character_name }}</p>
+                                </td>
+                                <td>
+                                    <p>[{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}</p>
+                                </td>
+                                <td>
+                                    <p>{{ std.character.alliance_name }}</p>
+                                </td>
+                                <td>
+                                    <p>
+                                        <span style="font-size:2em;">
+                                            {% if std.inOrganisation == True %}
+                                                <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}"
+                                                   style="color:#042177;"></i>
+                                            {% elif std.requestActioned == True %}
+                                                <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
+                                                   style="color:#00ba32;"></i>
+                                            {% elif std.pendingRequest == True %}
+                                                <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                                            {% elif std.pendingRevocation == True %}
+                                                <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}"
+                                                   style="color:#e81341;"></i>
+                                            {% elif std.standing == None and std.pendingRequest == False %}
+                                                <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
+                                                   title="{% trans "No Standing" %}"></i>
+                                            {% else %}
+                                                {% include 'standings-requests/partials/_standing.html' with standing=std.standing %}
+                                            {% endif %}
+                                        </span>
+                                    </p>
+                                </td>
+                                <td>
+                                    <p>
+                                        <span style="font-size:2em;">
+                                            {% if std.inOrganisation == True %}
+                                                <!-- Already in organisation, No actions -->
+                                            {% elif std.pendingRequest == True or std.requestActioned == True %}
+                                                <a href="{% url 'standings-requests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                    <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
+                                                       title="Remove Request"></i>
+                                                </a>
+                                            {% elif std.pendingRevocation == True %}
+                                                <!-- Revoked, No actions -->
+                                            {% elif std.standing == None or std.standing == 0 %}
+                                                <a href="{% url 'standings-requests:request_pilot_standing' character_id=std.character.character_id %}">
+                                                    <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
+                                                </a>
+                                            {% else %}
+                                                <a href="{% url 'standings-requests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                    <i class="fa fa-times-circle fa-fw grayiconecolor"
+                                                       style="color:#e81341;" title="Remove"></i>
+                                                </a>
+                                            {% endif %}
+                                        </span>
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-12">
+        <h1 class="page-header">{% trans "Your Corporations" %}</h1>
+
+        <div class="container">
+            {% if authinfo.main_char_id %}
+            {% else %}
+                <div class="alert alert-danger" role="alert">{% trans "No primary character set" %}</div>
+            {% endif %}
+            <div class="row">
+                <div class="table-responsive">
+                    <table class="table table-condensed table-hover table-striped">
+                        <tr>
+                            <th class="col-md-1"></th>
+                            <th class="col-md-2">{% trans "Corporation" %}</th>
+                            <th class="col-md-1">{% trans "Keys/Req" %}</th>
+                            <th class="col-md-1">{% trans "Standing" %}</th>
+                            <th class="col-md-1">{% trans "Action" %}</th>
+                        </tr>
+                        {% for st in corps %}
+                            <tr>
+                                <td>
+                                    <img src="https://imageserver.eveonline.com/Corporation/{{ st.corp.corporation_id }}_32.png"
+                                         class="img-circle">
+                                </td>
+                                <td>
+                                    <p>{{ st.corp.corporation_name }}</p>
+                                </td>
+                                <td>
+                                    <p>{{ st.have_keys }}/{{ st.corp.member_count }}</p>
+                                </td>
+                                <td>
+                                    <p>
+                                        <span style="font-size:2em;">
+                                            {% if st.inOrganisation == True %}
+                                                <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}"
+                                                   style="color:#042177;"></i>
+                                            {% elif st.requestActioned == True %}
+                                                <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
+                                                   style="color:#00ba32;"></i>
+                                            {% elif st.pendingRequest == True %}
+                                                <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                                            {% elif st.pendingRevocation == True %}
+                                                <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}"
+                                                   style="color:#e81341;"></i>
+                                            {% elif st.standing == None and st.pendingRequest == False %}
+                                                <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
+                                                   title="{% trans "No Standing" %}"></i>
+                                            {% else %}
+                                                {% include 'standings-requests/partials/_standing.html' with standing=st.standing %}
+                                            {% endif %}
+                                        </span>
+                                    </p>
+                                </td>
+                                <td>
+                                    <p>
+                                        <span style="font-size:2em;">
+                                            {% if st.pendingRequest == True or st.requestActioned == True %}
+                                                <a href="{% url 'standings-requests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
+                                                       title="Remove Request"></i>
+                                                </a>
+                                            {% elif st.pendingRevocation == True %}
+                                                <!-- Revoked, No actions -->
+                                            {% elif st.standing == None or st.standing == 0 %}
+                                                {% if st.have_keys >= st.corp.member_count %}
+                                                    <a href="{% url 'standings-requests:request_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                        <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <i class="glyphicon glyphicon-info-sign"
+                                                       style="color:#c34704"
+                                                       title="{% trans "More keys required to request standings" %}"></i>
+                                                {% endif %}
+                                            {% else %}
+                                                <a href="{% url 'standings-requests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    <i class="fa fa-times-circle fa-fw grayiconecolor"
+                                                       style="color:#e81341;" title="Remove"></i>
+                                                </a>
+                                            {% endif %}
+                                        </span>
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-12">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                {% trans "Icon Legend" %}
+            </div>
+            <div class="panel-body">
+                <table class="table">
+                    <tr>
+                        <td>
+                            <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}" style="color:#042177;"></i>
+                        </td>
+                        <td>
+                            {% blocktrans %}
+                                Character is in this organisation.
+                            {% endblocktrans %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
+                                                   title="{% trans "No Standing" %}"></i>
+                        </td>
+                        <td>
+                            {% blocktrans %}
+                                The character has no standings from this organisation towards it.
+                            {% endblocktrans %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                        </td>
+                        <td>
+                            {% blocktrans %}
+                                The standing has been requested and is pending action by a Standings Manager.
+                            {% endblocktrans %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
+                                                                               style="color:#00ba32;"></i>
+                        </td>
+                        <td>
+                            {% blocktrans %}
+                                The standing has been actioned by a Standings Manager but is waiting for API verification.
+                            {% endblocktrans %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}" style="color:#e81341;"></i>
+                        </td>
+                        <td>
+                            {% blocktrans %}
+                                The standing has been revoked by a Standings Manager or automatically if you no longer meet the requirements permitting blue standings access.
+                            {% endblocktrans %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock content %}
+
+{% block extra_script %}
+
+
+
+{% endblock extra_script %}

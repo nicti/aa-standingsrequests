@@ -1,0 +1,11 @@
+{% if standing < -5.0 %}
+    <i class="fa fa-minus-square fa-fw grayiconecolor" style="color:#930404;" title="{{ standing }}"></i>
+{% elif standing < 0.0 %}
+    <i class="fa fa-minus-square fa-fw grayiconecolor" style="color:#c34704;" title="{{ standing }}"></i>
+{% elif standing == 0.0 %}
+    <i class="fa fa-bars fa-fw grayiconecolor" style="color:#878787;" title="{{ standing }}"></i>
+{% elif standing <= 5.0 %}
+    <i class="fa fa-plus-square fa-fw grayiconecolor" style="color:#2a64c3;" title="{{ standing }}"></i>
+{% elif standing <= 10.0 %}
+    <i class="fa fa-plus-square fa-fw grayiconecolor" style="color:#042177;" title="{{ standing }}"></i>
+{% endif %}

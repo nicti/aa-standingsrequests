@@ -1,0 +1,146 @@
+{% extends "public/base.html" %}
+{% load bootstrap %}
+{% load staticfiles %}
+{% load i18n %}
+
+{% block title %}Alliance Auth - Standings Tool {% endblock %}
+
+{% block page_title %}Request Standings{% endblock page_title %}
+{% block extra_css %}
+{% include "standings-requests/bundles/angular.html" %}
+{% endblock extra_css %}
+
+{% block content %}
+    {% include 'standings-requests/partials/_menu.html' %}
+    <div ng-app="standingsApp" ng-controller="ManageStandingsController">
+        <error-messages></error-messages>
+        <!-- Requests -->
+        <div class="col-lg-12 container">
+            <h2 style="margin-top:0;">{% trans "Requests" %}</h2>
+            <div class="col-lg-12 container">
+                <div class="row">
+                    <div class="table-responsive">
+                        <table class="table table-condensed table-hover table-striped">
+                            <tr>
+                                <th class="col-md-3">{% trans "Contact Name" %}</th>
+                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Alliance" %}</th>
+                                <th class="col-md-2">{% trans "Main Character" %}</th>
+                                <th class="col-md-1">{% trans "API Key(s)" %}</th>
+                                <th class="col-md-1">{% trans "Member" %}</th>
+                                <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
+                                <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
+                            </tr>
+                            {% verbatim %}
+                            <tr ng-repeat="contact in requests">
+                                <td>
+                                    <clipboard-copy copy="contact.contact_name"></clipboard-copy>
+                                </td>
+                                <td>
+                                    <span ng-show="contact.corporation_ticker">
+                                        [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
+                                </td>
+                                <td>
+                                    <span ng-show="contact.main_character_ticker">
+                                        [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <bool-checkmark value="contact.api_key" true-title="API Key(s) on record" false-title="No API Key!"></bool-checkmark>
+                                </td>
+                                <td>
+                                    <bool-checkmark value="contact.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em; cursor: pointer;" title="Reject" ng-click="rejectRequest(contact)">
+                                        <i class="fa fa-thumbs-o-down" aria-hidden="true"></i>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em; color:#0006BA; cursor: pointer;" ng-click="actionRequest(contact)" title="Standing Set">
+                                        <i class="fa fa-thumbs-o-up" aria-hidden="true"></i>
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endverbatim %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Revocations -->
+        <div class="col-lg-12 container">
+            <h2 style="margin-top:0;">{% trans "Revocations" %}</h2>
+            <div class="col-lg-12 container">
+                <div class="row">
+                    <div class="table-responsive">
+                        <table class="table table-condensed table-hover table-striped">
+                            <tr>
+                                <th class="col-md-3">{% trans "Contact Name" %}</th>
+                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Main Character" %}</th>
+                                <th class="col-md-1">{% trans "API Key" %}</th>
+                                <th class="col-md-1">{% trans "Member" %}</th>
+                                <th class="col-md-1" title="Delete this standings request. Standing will become unmanaged">{% trans "Delete" %}</th>
+                                <th class="col-md-1" title="Undo this standings revocation and generate a new standings request">{% trans "Undo" %}</th>
+                                <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
+                            </tr>
+                            {% verbatim %}
+                            <tr ng-repeat="contact in revocations">
+                                <td>
+                                    <clipboard-copy copy="contact.contact_name"></clipboard-copy>
+                                </td>
+                                <td>
+                                    <span ng-show="contact.corporation_ticker">
+                                        [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span ng-show="contact.main_character_ticker">
+                                        [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <bool-checkmark value="contact.api_key" true-title="API Key on record" false-title="No API Key!"></bool-checkmark>
+                                </td>
+                                <td>
+                                    <bool-checkmark value="contact.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em; cursor: pointer;" title="Delete" ng-click="deleteRevocation(contact)">
+                                        <i class="fa fa-times" aria-hidden="true"></i>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em; cursor: pointer;" title="Undo" ng-click="undoRevocation(contact)">
+                                        <i class="fa fa-undo" aria-hidden="true"></i>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em; color:#575757; cursor: pointer;" title="Standing Set" ng-click="actionRevocation(contact)">
+                                        <i class="fa fa-thumbs-o-up" aria-hidden="true"></i>
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endverbatim %}
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block extra_javascript %}
+    <script type="text/javascript">
+        {% include 'standings-requests/partials/_angular_urls.html' %}
+    </script>
+    <script src="{% static 'standings-requests/app.js' %}"></script>
+    <script src="{% static 'standings-requests/error.js' %}"></script>
+    <script src="{% static 'standings-requests/standings_filter.js' %}"></script>
+    <script src="{% static 'standings-requests/manage.js' %}"></script>
+{% endblock extra_javascript %}

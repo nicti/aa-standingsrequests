@@ -1,0 +1,13 @@
+{% load staticfiles %}
+var urls = {
+    pilots_json: "{% url 'standings-requests:view_pilots_json' %}",
+    groups_json: "{% url 'standings-requests:view_groups_json' %}",
+    standings_icon_template: "{% static 'standings-requests/templates/standing.html' %}",
+    standings_filter_controls_template: "{% static 'standings-requests/templates/standings_filters.html' %}",
+    copy_field_template: "{% static 'standings-requests/templates/copy_field.html' %}",
+    standings_requests_json_base: "{% url 'standings-requests:manage_get_requests_json' %}",
+    standings_revocations_json_base: "{% url 'standings-requests:manage_get_revocations_json' %}",
+    bool_tick_template: "{% static 'standings-requests/templates/bool_tick.html' %}",
+    error_template: "{% static 'standings-requests/templates/error.html' %}",
+    view_requests_json_base: "{% url 'standings-requests:view_requests_json' %}",
+};

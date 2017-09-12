@@ -1,0 +1,50 @@
+<div id="filter-controls">
+    <div class="col-md-1">
+        <label>Standing</label><br>
+        From:<b ng-bind="filters.standing.from"></b>
+        <input ng-model="filters.standing.from" type="range" min="-10" max="10" step="1" value="-10">
+        To:<b ng-bind="filters.standing.to"></b>
+        <input ng-model="filters.standing.to" type="range" min="-10" max="10" step="1" value="10">
+    </div>
+    <div class="col-md-1" ng-show="apikey !== false">
+        <label>API Key</label>
+        <div class="btn-group-vertical " role="group" aria-label="API Key">
+            <button type="button" class="btn btn-default" title="Both"
+                    ng-class="{'btn-primary': filters.apikey === null}" ng-click="filters.apikey = null">
+              <i class="fa fa-circle-thin fa-fw"></i>
+            </button>
+            <button type="button" class="btn btn-default" title="API Key on record"
+                    ng-class="{'btn-primary': filters.apikey}" ng-click="filters.apikey = true">
+              <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
+            </button>
+            <button type="button" class="btn btn-default" title="No API Key on record"
+                    ng-class="{'btn-primary': filters.apikey === false}" ng-click="filters.apikey = false">
+              <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
+            </button>
+        </div>
+    </div>
+    <div class="col-md-1" ng-show="members !== false">
+        <label>Member</label>
+        <div class="btn-group-vertical " role="group" aria-label="Member Status">
+            <button type="button" class="btn btn-default" title="Both"
+                    ng-class="{'btn-primary': filters.member === null}" ng-click="filters.member = null">
+              <i class="fa fa-circle-thin fa-fw"></i>
+            </button>
+            <button type="button" class="btn btn-default" title="Is Member"
+                    ng-class="{'btn-primary': filters.member}" ng-click="filters.member = true">
+              <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
+            </button>
+            <button type="button" class="btn btn-default" title="Is Not Member"
+                    ng-class="{'btn-primary': filters.member === false}" ng-click="filters.member = false">
+              <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
+            </button>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <label>Search</label>
+        <input type="text" placeholder="Search" ng-model="filters.search">
+        <label>Label</label>
+        <input type="text" placeholder="Label Search" ng-model="filters.searchLabel">
+    </div>
+    <div class="clearfix"></div>
+</div>
