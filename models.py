@@ -41,7 +41,7 @@ class ContactSet(models.Model):
 
 
 class ContactLabel(models.Model):
-    labelID = models.IntegerField()
+    labelID = models.BigIntegerField()
     set = models.ForeignKey(ContactSet)
     name = models.CharField(max_length=254)
 
