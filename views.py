@@ -8,9 +8,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 from django.db.models import Q
-from future.utils import iteritems
 
-from .models import ContactSet, StandingsRequest, StandingsRevocation, PilotStanding, CorpStanding, EveNameCache
+from .models import ContactSet, StandingsRequest, StandingsRevocation
+from .models import PilotStanding, CorpStanding, EveNameCache
+from .models import CharacterAssociation
 from .managers.standings import StandingsManager
 from .managers.eveentity import EveEntityManager
 from .helpers.evecharacter import EveCharacterHelper
@@ -19,7 +20,6 @@ from .helpers.evecorporation import EveCorporation
 
 import logging
 from esi.decorators import token_required
-from allianceauth.eveonline.managers import EveCharacterManager
 from allianceauth.eveonline.models import EveCharacter
 from django.conf import settings
 from esi.models import Token
@@ -223,6 +223,15 @@ def view_pilots_standings_json(request):
         # lets catch these in bulk
         pilot_standings = contacts.pilotstanding_set.all().order_by('-standing')
         contact_ids = [p.contactID for p in pilot_standings]
+        for p in pilot_standings:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    contact_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    contact_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
         EveNameCache.get_names(contact_ids)
         for p in pilot_standings:
             char = EveCharacter.objects.get_character_by_id(p.contactID)
@@ -394,6 +403,15 @@ def manage_get_requests_json(request):
     response = []
     # precache missing names in bulk
     entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+        try:
+            assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+            if assoc.corporation_id is not None:
+                entity_ids.append(assoc.corporation_id)
+            if assoc.alliance_id is not None:
+                entity_ids.append(assoc.alliance_id)
+        except CharacterAssociation.DoesNotExist:
+            pass
     EveNameCache.get_names(entity_ids)
 
     for r in reqs:
@@ -465,7 +483,17 @@ def manage_get_revocations_json(request):
     response = []
 
     # precache names in bulk
-    EveNameCache.get_names([r.contactID for r in reqs])
+    entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    entity_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    entity_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
+    EveNameCache.get_names(entity_ids)
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
         is_member = False
@@ -575,7 +603,17 @@ def view_active_requests_json(request):
 
     response = []
     # pre cache names in bulk
-    EveNameCache.get_names([r.contactID for r in reqs])
+    entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    entity_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    entity_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
+    EveNameCache.get_names(entity_ids)
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
         is_member = False
