@@ -7,20 +7,14 @@
 
 {% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-
+{% include "standings-requests/bundles/angular.html" %}
 {% endblock extra_css %}
-
 {% block content %}
     {% include 'standings-requests/partials/_menu.html' %}
-    <div class="col-lg-12 container">
-        <div class="panel panel-danger">
-          <div class="panel-heading">{% trans "An Error Occurred" %}</div>
-          <div class="panel-body">
-              {{ error_message }}
-          </div>
-        </div>
-    </div>
-{% endblock content %}
-
-{% block extra_script %}
-{% endblock extra_script %}
+    <p>Have token setup for character with id={{char_id}}:{{have_token}}</p>
+{% endblock %}
+{% block extra_javascript %}
+    <script type="text/javascript">
+        {% include 'standings-requests/partials/_angular_urls.html' %}
+    </script>
+{% endblock extra_javascript %}

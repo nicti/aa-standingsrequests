@@ -1,6 +1,15 @@
-from eveonline.managers import EveManager
-import evelink
+
 import logging
+from allianceauth.eveonline.models import EveCorporationInfo, EveCharacter,\
+    EveAllianceInfo
+from esi.clients import esi_client_factory
+from allianceauth.eveonline.providers import ObjectNotFound
+from bravado.exception import HTTPNotFound, HTTPBadGateway
+from allianceauth.authentication.models import CharacterOwnership
+from . import SWAGGER_SPEC_PATH
+from time import sleep
+from past.builtins import xrange
+
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +20,16 @@ class EveEntityManager:
         pass
 
     @staticmethod
+    def get_name(eve_entity_id):
+        name = EveEntityManager.get_name_from_auth(eve_entity_id)
+        if name is None:
+            name = EveEntityManager.get_name_from_api(eve_entity_id)
+        if name is None:
+            logger.error('Could not get name for eve_entity_id %s',
+                         eve_entity_id)
+        return name
+
+    @staticmethod
     def get_name_from_auth(eve_entity_id):
         """
         Attempts to get an EVE entities (pilot/corp/alliance) name from auth
@@ -18,21 +37,73 @@ class EveEntityManager:
         :return: str name of the entity if successful or None
         """
         # Try pilots
-        pilot = EveManager.get_character_by_id(eve_entity_id)
-        if pilot is not None:
+        try:
+            pilot = EveCharacter.objects.get(character_id=eve_entity_id)
             return pilot.character_name
+        except EveCharacter.DoesNotExist:
+            # not a known character
+            pass
+
         # Try corps
-        corp = EveManager.get_corporation_info_by_id(eve_entity_id)
-        if corp is not None:
+        try:
+            corp = EveCorporationInfo.objects.get(corporation_id=eve_entity_id)
             return corp.corporation_name
+        except EveCorporationInfo.DoesNotExist:
+            # not a known corp
+            pass
 
         # Try alliances
-        alli = EveManager.get_alliance_info_by_id(eve_entity_id)
-        if alli is not None:
+        try:
+            alli = EveAllianceInfo.objects.get(alliance_id=eve_entity_id)
             return alli.alliance_name
+        except EveAllianceInfo.DoesNotExist:
+            # not this one either
+            pass
 
         # Unsuccessful
         return None
+
+    @staticmethod
+    def get_names_from_api(eve_entity_ids):
+        """
+        Get the names of the given entity ids from the EVE API servers
+        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :return: dict with entity_id as key and name as value
+        """
+        chunk_size = 1000
+        chunks = [eve_entity_ids[x:x+chunk_size] for x in xrange(0, len(eve_entity_ids), chunk_size)]
+        names_info = {}
+        for chunk in chunks:
+            infos = EveEntityManager.__get_names_from_api(chunk)
+            for info in infos:
+                names_info[info['id']] = info['name']
+        return names_info
+
+    @staticmethod
+    def __get_names_from_api(eve_entity_ids, count=1):
+        """
+        Get the names of the given entity ids from the EVE API servers
+        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :return: array of objects with keys id and name or None if unsuccessful
+        """
+        logger.debug("Attempting to get entity name from API for ids {0}".format(eve_entity_ids))
+        client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
+        try:
+            infos = client.Universe.post_universe_names(ids=eve_entity_ids).result()
+            return infos
+
+            logger.error("Error occured while trying to query api for entity name id=%s", eve_entity_ids)
+
+        except HTTPNotFound:
+            raise ObjectNotFound(eve_entity_ids, 'universe_entitys')
+        except HTTPBadGateway:
+            if count >= 5:
+                logger.exception('Failed to get entity name %s times.', count)
+                return None
+            else:
+                sleep(count**2)
+                return EveEntityManager.get_names_from_api(eve_entity_ids,
+                                                           count=count+1)
 
     @staticmethod
     def get_name_from_api(eve_entity_id):
@@ -41,14 +112,12 @@ class EveEntityManager:
         :param eve_entity_id: int entity id whos name to fetch
         :return: str entity name or None if unsuccessful
         """
-        logger.debug("Attempting to get entity name from API for id {0}".format(eve_entity_id))
-        try:
-            eve = evelink.eve.EVE()
-            response = eve.character_name_from_id(int(eve_entity_id))
-            return response.result
-        except evelink.api.APIError as error:
-            logger.debug("APIError occured while trying to query api server. Entity may not exist or API error")
-            return None
+        eve_entity_id = int(eve_entity_id)
+        infos = EveEntityManager.get_names_from_api([eve_entity_id])
+        if eve_entity_id in infos:
+            return infos[eve_entity_id]
+        
+        return None
 
     @staticmethod
     def get_owner_from_character_id(character_id):
@@ -57,8 +126,20 @@ class EveEntityManager:
         :param character_id: int character ID to get the owner for
         :return: User (django) or None
         """
-        char = EveManager.get_character_by_id(character_id)
+        char = EveCharacter.objects.get_character_by_id(character_id)
         if char is not None:
             return char.user
         else:
             return None
+
+    @staticmethod
+    def get_characters_by_user(user):
+        return [owner_ship.character for owner_ship in CharacterOwnership.objects.filter(user=user)]
+
+    @staticmethod
+    def is_character_owned_by_user(character_id, user):
+        try:
+            CharacterOwnership.objects.get(user=user, character__character_id=character_id)
+            return True
+        except CharacterOwnership.DoesNotExist:
+            return False

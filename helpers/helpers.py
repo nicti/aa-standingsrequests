@@ -1,8 +1,5 @@
 from django.db import models
-from django.http import HttpResponse
-from authentication.managers import AuthServicesInfo
-from authentication.states import MEMBER_STATE
-import json
+from django.conf import settings
 
 ##
 # QuerySet helpers for overriding StandingsRequest.objects.delete()
@@ -30,10 +27,10 @@ class StandingsRequestManager(models.Manager):
             d.delete()
 
 
-def auth_services_is_member(auth):
+def user_is_member(user):
     """
-    Determines if a auth info record is a member
-    :param auth: AuthServicesInfo
+    Determines if a user is a member
+    :param user: User
     :return: bool True if member, False otherwise
     """
-    return auth.state in [MEMBER_STATE]
+    return user.profile.state.name in settings.MEMBER_STATES

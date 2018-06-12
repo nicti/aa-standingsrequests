@@ -4,36 +4,38 @@ from django.utils import timezone
 
 from .managers.standings import StandingsManager
 from .models import ContactSet, StandingsRevocation
-
+from celery import task
 import logging
 import datetime
-
-from alliance_auth.celeryapp import app
+from builtins import Exception
 
 logger = logging.getLogger(__name__)
 
 
-@app.task(name="standings_requests.standings_update")
+@task(name="standings_requests.standings_update")
 def standings_update():
     logger.info("Standings API update running")
 
     # Run standings update first
-    st = StandingsManager.api_update_alliance_standings()
-    if st is None:
-        logger.warn("Standings API update returned None (API error probably), aborting standings update")
-        return
+    try:
+        st = StandingsManager.api_update_alliance_standings()
+        if st is None:
+            logger.warn("Standings API update returned None (API error probably), aborting standings update")
+            return
 
-    StandingsManager.process_pending_standings()
+        StandingsManager.process_pending_standings()
+    except Exception as e:
+        logger.exception('Failed to executre standings_update')
 
 
-@app.task(name="standings_requests.validate_standings_requests")
+@task(name="standings_requests.validate_standings_requests")
 def validate_standings_requests():
     logger.info("Validating standings request running")
     count = StandingsManager.validate_standings_requests()
     logger.info("Deleted {0} standings requests".format(count))
 
 
-@app.task(name="standings_requests.update_associations_auth")
+@task(name="standings_requests.update_associations_auth")
 def update_associations_auth():
     """
     Update associations from local auth data (Main character, corporations)
@@ -43,7 +45,7 @@ def update_associations_auth():
     logger.info("Finished Associations update from Auth")
 
 
-@app.task(name="standings_requests.update_associations_api")
+@task(name="standings_requests.update_associations_api")
 def update_associations_api():
     """
     Update character associations from the EVE API (corporations)
@@ -53,7 +55,7 @@ def update_associations_api():
     logger.info("Finished associations update from EVE API")
 
 
-@app.task(name="standings_requests.purge_stale_data")
+@task(name="standings_requests.purge_stale_data")
 def purge_stale_data():
     """
     Delete all the data which is beyond its useful life. There is no harm in disabling this

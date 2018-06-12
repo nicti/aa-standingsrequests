@@ -1,26 +1,14 @@
 # Bootstrap line for debugging, dont copy this
-from alliance_auth.settings import *
+from allianceauth.settings.local import *
 
 # Add everything below this comment to your settings.py
 # This is not a replacement for your existing settings.py
 
-###############################################
-# Standings Tool configuration
-###############################################
-# Access Mask: 16
-# You need a character API key from any
-# character in the alliance to pull standings
-# for.
-# STANDINGS_API_KEY: API key
-# STANDINGS_API_VCODE: API vCode
-# STANDINGS_API_CHARID: Character ID on the key
-# to use standings from
-###############################################
-STANDINGS_API_KEY = ''
-STANDINGS_API_VCODE = ''
+# id of character to use for updating alliance contacts
 STANDINGS_API_CHARID = ''
+MEMBER_STATES = ['Member',]
 
-
+# CELERY tasks
 if 'standings-requests' in INSTALLED_APPS:
     CELERYBEAT_SCHEDULE['standings_requests_standings_update'] = {
         'task': 'standings_requests.standings_update',
