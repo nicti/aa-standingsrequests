@@ -232,9 +232,10 @@ class StandingsManager:
             return
         pilots = list(pilots)  # Switch back to a list, don't attempt to add anything after this
         # Chunk the data into acceptable sizes for the API
-        chunks = [pilots[x:x+chunk_size] for x in xrange(0, len(pilots), chunk_size)]
+        length = len(pilots)
+        chunks = [pilots[x:x+chunk_size] for x in xrange(0, length, chunk_size)]
 
-        logger.debug('Got {} chunks of ~{} to process'.format(len(chunks), chunk_size))
+        logger.debug('Got %s chunks containing max %s each to process with a total of %s', len(chunks), chunk_size, length)
 
         api = cls.api_get_instance()
         for c in chunks:

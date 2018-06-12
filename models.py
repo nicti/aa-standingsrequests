@@ -414,6 +414,8 @@ class EveNameCache(models.Model):
         :param eve_entity_ids: array of int entity ids whos names to fetch
         :return: dict with entity_id as key and name as value
         """
+        # make sure there is no duplicates
+        entity_ids = set(entity_ids)
         name_info = {}
         entities_need_update = []
         entity_ids_not_found = []

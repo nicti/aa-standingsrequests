@@ -36,6 +36,8 @@ class EveEntityManager:
         :param eve_entity_ids: array of int entity ids whos names to fetch
         :return: dict with entity_id as key and name as value
         """
+        if not isinstance(eve_entity_ids, set):
+            eve_entity_ids = set(eve_entity_ids)
         need_api = []
         names_info = {}
         for entity_id in eve_entity_ids:
@@ -93,8 +95,16 @@ class EveEntityManager:
         :param eve_entity_ids: array of int entity ids whos names to fetch
         :return: dict with entity_id as key and name as value
         """
+        # this is to make sure there is no duplicates
+        if not isinstance(eve_entity_ids, set):
+            eve_entity_ids = set(eve_entity_ids)
+        eve_entity_ids = list(eve_entity_ids)
+
         chunk_size = 1000
-        chunks = [eve_entity_ids[x:x+chunk_size] for x in xrange(0, len(eve_entity_ids), chunk_size)]
+        length = len(eve_entity_ids)
+        chunks = [eve_entity_ids[x:x+chunk_size] for x in xrange(0, length, chunk_size)]
+        logger.debug('Got %s chunks containing max %s each to process with a total of %s', len(chunks), chunk_size, length)
+
         names_info = {}
         for chunk in chunks:
             infos = EveEntityManager.__get_names_from_api(chunk)
