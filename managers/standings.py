@@ -402,12 +402,12 @@ class ContactsWrapper:
 
             for label in allianceLabelInfo.result():
                 self.allianceLabels.append(self.Label(label))
-            
+
             entity_ids = []
             for contact in allianceContactsInfo.result():
                 entity_ids.append(contact['contact_id'])
 
-            name_info = EveEntityManager.get_names_from_api(entity_ids)
+            name_info = EveNameCache.get_names(entity_ids)
 
             for contact in allianceContactsInfo.result():
                 self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
