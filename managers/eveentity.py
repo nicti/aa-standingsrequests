@@ -125,8 +125,8 @@ class EveEntityManager:
                 return None
             else:
                 sleep(count**2)
-                return EveEntityManager.get_names_from_api(eve_entity_ids,
-                                                           count=count+1)
+                return EveEntityManager.__get_names_from_api(eve_entity_ids,
+                                                             count=count+1)
 
     @staticmethod
     def get_name_from_api(eve_entity_id):
