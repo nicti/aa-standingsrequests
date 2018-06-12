@@ -7,6 +7,8 @@ from allianceauth.settings.local import *
 # id of character to use for updating alliance contacts
 STANDINGS_API_CHARID = 1234
 MEMBER_STATES = ['Member',]
+STR_CORP_IDS = ['CORP1ID', 'CORP2ID', '...']
+STR_ALLIANCE_IDS = ['YOUR_ALLIANCE_ID', '...']
 
 # CELERY tasks
 if 'standings-requests' in INSTALLED_APPS:
