@@ -161,7 +161,11 @@ class EveEntityManager:
         """
         char = EveCharacter.objects.get_character_by_id(character_id)
         if char is not None:
-            return char.user
+            try:
+                ownership = CharacterOwnership.objects.get(character=char)
+                return ownership.user
+            except CharacterOwnership.DoesNotExist:
+                return None
         else:
             return None
 
