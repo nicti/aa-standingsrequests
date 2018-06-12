@@ -48,6 +48,6 @@ class StandingsRequestMenuItem(MenuItemHook):
         return ''
 
 
-@hooks.register('menu_util_hook')
+@hooks.register('menu_item_hook')
 def register_menu():
     return StandingsRequestMenuItem()
