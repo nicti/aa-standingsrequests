@@ -477,7 +477,7 @@ def manage_get_revocations_json(request):
         corp_user = None
         main = None
         if PilotStanding.is_pilot(r.contactType):
-            pilot = EveCharacter.get_character_by_id(r.contactID)
+            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
             if pilot:
                 api_key = ''# TODO:  check for token EveManager.check_if_api_key_pair_exist(pilot.api_id)
 
