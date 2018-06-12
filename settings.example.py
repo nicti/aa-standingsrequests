@@ -5,7 +5,7 @@ from allianceauth.settings.local import *
 # This is not a replacement for your existing settings.py
 
 # id of character to use for updating alliance contacts
-STANDINGS_API_CHARID = ''
+STANDINGS_API_CHARID = 1234
 MEMBER_STATES = ['Member',]
 
 # CELERY tasks
