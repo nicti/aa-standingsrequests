@@ -305,22 +305,17 @@ def download_pilot_standings(request):
         char = EveCharacter.objects.get_character_by_id(p.contactID)
         main = ''
         is_member = False
-        """
-        TODO: this should include roles instead of ismember state
-        if char:
-            try:
-                auth = AuthServicesInfo.objects.get(user=char.user)
-                main = EveManager.get_character_by_id(auth.main_char_id)
-                is_member = auth_services_is_member(auth)
-            except ObjectDoesNotExist:
-                pass
-        else:
-            char = EveCharacterHelper(p.contactID)
-        """
         try:
-            main_character_name = main.character_name if main else char.main_character.character_name
-        except AttributeError:
+            ownership = CharacterOwnership.objects.get(character=char)
+            is_member = user_is_member(ownership.user)
+            main = ownership.user.profile.main_character
+            if main is None:
+                main_character_name = ''
+            else:
+                main_character_name = main.character_name
+        except CharacterOwnership.DoesNotExist:
             main_character_name = ''
+            main = None
 
         pilot = [
             p.contactID,
