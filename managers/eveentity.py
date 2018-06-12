@@ -30,6 +30,29 @@ class EveEntityManager:
         return name
 
     @staticmethod
+    def get_names(eve_entity_ids):
+        """
+        Get the names of the given entity ids from auth or if not there api
+        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :return: dict with entity_id as key and name as value
+        """
+        need_api = []
+        names_info = {}
+        for entity_id in eve_entity_ids:
+            entity_id = int(entity_id)
+            entity_name = EveEntityManager.get_name_from_auth(entity_id)
+            if entity_name is None:
+                need_api.append(entity_id)
+            else:
+                names_info[entity_id] = entity_name
+
+        if len(need_api) > 0:
+            api_names_info = EveEntityManager.get_names_from_api(need_api)
+
+        names_info.update(api_names_info)
+        return names_info
+
+    @staticmethod
     def get_name_from_auth(eve_entity_id):
         """
         Attempts to get an EVE entities (pilot/corp/alliance) name from auth

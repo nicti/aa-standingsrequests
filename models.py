@@ -408,6 +408,51 @@ class EveNameCache(models.Model):
     cache_time = datetime.timedelta(days=30)
 
     @classmethod
+    def get_names(cls, entity_ids):
+        """
+        Get the names of the given entity ids from catch or other locations
+        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :return: dict with entity_id as key and name as value
+        """
+        name_info = {}
+        entities_need_update = []
+        entity_ids_not_found = []
+        for entity_id in entity_ids:
+            if cls.objects.filter(entityID=entity_id).exists():
+                # Cached
+                entity = cls.objects.get(entityID=entity_id)
+                if entity.cache_timeout():
+                    entities_need_update.append(entity)
+                else:
+                    name_info[entity.entity_id] = entity.name
+            else:
+                entity_ids_not_found.append(entity_id)
+
+        entities_need_names = [e.entityID for e in entities_need_update] + entity_ids_not_found
+
+        names_info_api = EveEntityManager.get_names(entities_need_names)
+
+        # update existing entities
+        for entity in entities_need_update:
+            if entity.entityID in names_info_api:
+                name = names_info_api[entity_id]
+                entity._set_name(name)
+            else:
+                entity._update_entity()
+
+            name_info[entity.entityID] = entity.name
+
+        # create new entities
+        for entity_id in entity_ids_not_found:
+            if entity_id in names_info_api:
+                entity = cls()
+                entity.entityID = entity_id
+                entity._set_name(names_info_api[entity_id])
+                name_info[entity.entityID] = entity.name
+
+        return name_info
+
+    @classmethod
     def get_name(cls, entity_id):
         """
         Get the name for the given entity

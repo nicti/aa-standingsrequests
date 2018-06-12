@@ -25,6 +25,7 @@ from django.conf import settings
 from esi.models import Token
 from allianceauth.authentication.models import CharacterOwnership
 from .helpers.helpers import user_is_member
+from allianceauth.standingsrequests.models import EveNameCache
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +221,11 @@ def view_pilots_standings_json(request):
 
     def get_pilots():
         pilots = []
-        for p in contacts.pilotstanding_set.all().order_by('-standing'):
+        # lets catch these in bulk
+        pilot_standings = contacts.pilotstanding_set.all().order_by('-standing')
+        contact_ids = [p.contactID for p in pilot_standings]
+        EveNameCache.get_names(contact_ids)
+        for p in pilot_standings:
             char = EveCharacter.objects.get_character_by_id(p.contactID)
             if char is None:
                 char = EveCharacterHelper(p.contactID)
@@ -292,7 +297,11 @@ def download_pilot_standings(request):
             'labels',
         ])
 
-    for p in contacts.pilotstanding_set.all().order_by('-standing'):
+    # lets request make sure all info is there in bulk
+    pilot_standings = contacts.pilotstanding_set.all().order_by('-standing')
+    EveNameCache.get_names([p.contactID for p in pilot_standings])
+
+    for p in pilot_standings:
         char = EveCharacter.objects.get_character_by_id(p.contactID)
         main = ''
         is_member = False
@@ -389,6 +398,9 @@ def manage_get_requests_json(request):
     reqs = StandingsRequest.objects.filter(Q(actionBy=None) & Q(effective=False)).order_by('requestDate')
 
     response = []
+    # precache missing names in bulk
+    entity_ids = [r.contactID for r in reqs]
+    EveNameCache.get_names(entity_ids)
 
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
@@ -458,6 +470,8 @@ def manage_get_revocations_json(request):
 
     response = []
 
+    # precache names in bulk
+    EveNameCache.get_names([r.contactID for r in reqs])
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
         is_member = False
@@ -565,7 +579,8 @@ def view_active_requests_json(request):
     reqs = StandingsRequest.objects.all().order_by('requestDate')
 
     response = []
-
+    # pre cache names in bulk
+    EveNameCache.get_names([r.contactID for r in reqs])
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
         is_member = False
