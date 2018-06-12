@@ -424,7 +424,7 @@ class EveNameCache(models.Model):
                 if entity.cache_timeout():
                     entities_need_update.append(entity)
                 else:
-                    name_info[entity.entity_id] = entity.name
+                    name_info[entity.entityID] = entity.name
             else:
                 entity_ids_not_found.append(entity_id)
 
@@ -435,7 +435,7 @@ class EveNameCache(models.Model):
         # update existing entities
         for entity in entities_need_update:
             if entity.entityID in names_info_api:
-                name = names_info_api[entity_id]
+                name = names_info_api[entity.entityID]
                 entity._set_name(name)
             else:
                 entity._update_entity()
@@ -448,7 +448,7 @@ class EveNameCache(models.Model):
                 entity = cls()
                 entity.entityID = entity_id
                 entity._set_name(names_info_api[entity_id])
-                name_info[entity.entityID] = entity.name
+                name_info[entity_id] = entity.name
 
         return name_info
 

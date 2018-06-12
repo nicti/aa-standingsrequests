@@ -48,8 +48,8 @@ class EveEntityManager:
 
         if len(need_api) > 0:
             api_names_info = EveEntityManager.get_names_from_api(need_api)
+            names_info.update(api_names_info)
 
-        names_info.update(api_names_info)
         return names_info
 
     @staticmethod

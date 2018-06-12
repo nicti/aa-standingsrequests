@@ -10,7 +10,7 @@ from django.utils.translation import ugettext as _
 from django.db.models import Q
 from future.utils import iteritems
 
-from .models import ContactSet, StandingsRequest, StandingsRevocation, PilotStanding, CorpStanding
+from .models import ContactSet, StandingsRequest, StandingsRevocation, PilotStanding, CorpStanding, EveNameCache
 from .managers.standings import StandingsManager
 from .managers.eveentity import EveEntityManager
 from .helpers.evecharacter import EveCharacterHelper
@@ -25,7 +25,6 @@ from django.conf import settings
 from esi.models import Token
 from allianceauth.authentication.models import CharacterOwnership
 from .helpers.helpers import user_is_member
-from allianceauth.standingsrequests.models import EveNameCache
 
 logger = logging.getLogger(__name__)
 
@@ -497,8 +496,9 @@ def manage_get_revocations_json(request):
 
         if pilot or corp_user:
             # Get member details if we found a user
-            main = pilot.user.profile.main_character
-            is_member = user_is_member(pilot.user)
+            user = CharacterOwnership.objects.get(character=pilot).user
+            main = user.profile.main_character
+            is_member = user_is_member(user)
 
         revoke = {
             'contact_id': r.contactID,
