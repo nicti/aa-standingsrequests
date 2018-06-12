@@ -4,7 +4,7 @@ from allianceauth.eveonline.models import EveCorporationInfo, EveCharacter,\
     EveAllianceInfo
 from esi.clients import esi_client_factory
 from allianceauth.eveonline.providers import ObjectNotFound
-from bravado.exception import HTTPNotFound, HTTPBadGateway
+from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
 from allianceauth.authentication.models import CharacterOwnership
 from . import SWAGGER_SPEC_PATH
 from time import sleep
@@ -119,7 +119,7 @@ class EveEntityManager:
 
         except HTTPNotFound:
             raise ObjectNotFound(eve_entity_ids, 'universe_entitys')
-        except HTTPBadGateway:
+        except (HTTPBadGateway, HTTPGatewayTimeout):
             if count >= 5:
                 logger.exception('Failed to get entity name %s times.', count)
                 return None
@@ -139,7 +139,7 @@ class EveEntityManager:
         infos = EveEntityManager.get_names_from_api([eve_entity_id])
         if eve_entity_id in infos:
             return infos[eve_entity_id]
-        
+
         return None
 
     @staticmethod
