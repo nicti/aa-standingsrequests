@@ -12,7 +12,6 @@ setup(name='standingsrequests',
       packages=['standingsrequests'],
       install_requires=[
           'future>=0.16.0',
-          'evelink>=0.7.5',
           'requests>=2.18.4',
       ],
       zip_safe=False,
