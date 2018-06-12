@@ -11,7 +11,7 @@ STR_CORP_IDS = ['CORP1ID', 'CORP2ID', '...']
 STR_ALLIANCE_IDS = ['YOUR_ALLIANCE_ID', '...']
 
 # CELERY tasks
-if 'standings-requests' in INSTALLED_APPS:
+if 'standingsrequests' in INSTALLED_APPS:
     CELERYBEAT_SCHEDULE['standings_requests_standings_update'] = {
         'task': 'standings_requests.standings_update',
         'schedule': crontab(minute='*/30'),
