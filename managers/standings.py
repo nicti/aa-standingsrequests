@@ -195,8 +195,9 @@ class StandingsManager:
         """
         chars = EveCharacter.objects.all()
         for c in chars:
+            logger.debug("Updating Association from Auth for %s", c.character_name)
             ownership = CharacterOwnership.objects.get(character=c)
-            main = ownership.profile.main_character.character_id if ownership.profile.main_character else None
+            main = ownership.user.profile.main_character.character_id if ownership.user.profile.main_character else None
             assoc, created = CharacterAssociation.objects.update_or_create(character_id=c.character_id,
                                                                            defaults={'corporation_id': c.corporation_id,
                                                                                      'main_character_id': main,
