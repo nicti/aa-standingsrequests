@@ -228,7 +228,7 @@ def view_pilots_standings_json(request):
             is_member = False
             main = None
             try:
-                ownership = CharacterOwnership.objects.get(character=char)
+                ownership = CharacterOwnership.objects.get(character__character_id=char.character_id)
                 user = ownership.user
                 main = user.profile.main_character
                 is_member = user_is_member(user)
