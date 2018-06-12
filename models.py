@@ -42,14 +42,14 @@ class ContactSet(models.Model):
 
 class ContactLabel(models.Model):
     labelID = models.BigIntegerField()
-    set = models.ForeignKey(ContactSet)
+    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     name = models.CharField(max_length=254)
 
 
 class AbstractStanding(models.Model):
     class Meta:
         abstract = True
-    set = models.ForeignKey(ContactSet)
+    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     contactID = models.IntegerField()
     name = models.CharField(max_length=254)
     standing = models.FloatField()
@@ -242,7 +242,7 @@ class AbstractStandingsRequest(models.Model):
 
 
 class StandingsRequest(AbstractStandingsRequest):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     expectStandingGTEQ = 0.01
 
     objects = StandingsRequestManager()
