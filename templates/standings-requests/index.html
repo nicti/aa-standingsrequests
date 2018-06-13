@@ -49,11 +49,11 @@
                                 </td>
                                 <td>
                                     <span style="font-size:2em;">
-	                                    {% if std.hasRequiredScopes %}
-	                                        <i class="fa fa-check fa-fw text-success" title="Has required scopes"></i>
-	                                    {% else %}
-	                                        <i class="fa fa-times fa-fw text-danger" title="Missing scopes, add them using Add Scopes"></i>
-	                                    {% endif %}
+                                        {% if std.hasRequiredScopes %}
+                                            <i class="fa fa-check fa-fw text-success" title="Has required scopes"></i>
+                                        {% else %}
+                                            <a title="{% trans "Add required scopes" %}" class="btn btn-danger btn-sm" href="{% url 'standings-requests:view_requester_add_scopes' %}"><i class="fa fa-plus fa-lg"></i> {% trans ""Required" %}</a>
+                                        {% endif %}
                                     </span>
                                 </td>
                                 <td>

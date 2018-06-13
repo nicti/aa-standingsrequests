@@ -18,9 +18,6 @@
                     <a href="{% url 'standings-requests:view_auth_page' %}">{% trans "Setup Alliance Token" %}</a>
                 </li>
                 {% endif %}
-                <li class="{% navactive request 'standings-requests:view_requester_add_scopes' %}">
-                    <a href="{% url 'standings-requests:view_requester_add_scopes' %}">{% trans "Add Scopes" %}</a>
-                </li>
                 <li class="{% navactive request 'standings-requests:index' %}">
                     <a href="{% url 'standings-requests:index' %}">{% trans "Request Standings" %}</a>
                 </li>
