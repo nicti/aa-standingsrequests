@@ -8,6 +8,7 @@ from celery import shared_task
 import logging
 import datetime
 from builtins import Exception
+from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +76,18 @@ def purge_stale_standings_data():
         standings = ContactSet.objects.filter(date__lt=cutoff_date).exclude(id=latest_standings.id)
         if standings.exists():
             logger.debug("Deleting old ContactSets")
+            # we can't just do standigs.delete() because with lots of them it uses lots of memory
+            # lets go over them one by one and delete
+            for contact_set in standings:
+                #we need to delete character
+                PilotStanding.objects.filter(set=contact_set).delete()
+                #we need to delete corp
+                CorpStanding.objects.filter(set=contact_set).delete()
+                #we need to delete alliance
+                AllianceStanding.objects.filter(set=contact_set).delete()
+                #we need to remove labels
+                ContactLabel.objects.filter(set=contact_set).delete()
+
             standings.delete()
         else:
             logger.debug("No ContactSets to delete")
