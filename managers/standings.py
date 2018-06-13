@@ -21,6 +21,7 @@ from allianceauth.eveonline.providers import Character, Alliance
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.authentication.models import CharacterOwnership
+from past.builtins import xrange
 
 logger = logging.getLogger(__name__)
 
@@ -435,21 +436,31 @@ class ContactsWrapper:
         self.allianceLabels = []
 
         alliance_id = EveCharacter.objects.get_character_by_id(character_id).alliance_id
-        try:
-            allianceLabelInfo = api.Contacts.get_alliances_alliance_id_contacts_labels(alliance_id=alliance_id)
-            allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(alliance_id=alliance_id)
+        allianceLabelInfo = api.Contacts.get_alliances_alliance_id_contacts_labels(alliance_id=alliance_id)
+        allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(alliance_id=alliance_id, page=1)
+        allianceContactsInfo.also_return_response = True
 
-            for label in allianceLabelInfo.result():
-                self.allianceLabels.append(self.Label(label))
+        for label in allianceLabelInfo.result():
+            self.allianceLabels.append(self.Label(label))
 
-            entity_ids = []
-            for contact in allianceContactsInfo.result():
-                entity_ids.append(contact['contact_id'])
+        entity_ids = []
 
-            name_info = EveNameCache.get_names(entity_ids)
+        contacts, response = allianceContactsInfo.result()
+        # get the x-pages header
+        pages = response.headers['X-Pages'] if 'X-Pages' in response.headers else 1
 
-            for contact in allianceContactsInfo.result():
-                self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
+        for page in xrange(2, pages+1):
+            allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=alliance_id,
+                page=page
+                )
+            contacts = contacts + allianceContactsInfo.result()
 
-        except Exception:
-            logger.exception('Failed to retrive contacts data')
+        for contact in contacts:
+            entity_ids.append(contact['contact_id'])
+
+        name_info = EveNameCache.get_names(entity_ids)
+
+        for contact in allianceContactsInfo.result():
+            self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
+
