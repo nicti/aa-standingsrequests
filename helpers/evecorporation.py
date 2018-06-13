@@ -2,8 +2,11 @@ from __future__ import unicode_literals
 
 from django.core.cache import cache
 
-import requests
 import logging
+from esi.clients import esi_client_factory
+from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
+from time import sleep
+from ..managers import SWAGGER_SPEC_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +50,25 @@ class EveCorporation:
         return cls.CACHE_PREFIX + str(corp_id)
 
     @classmethod
-    def get_corp_esi(cls, corp_id):
-        url = 'https://esi.tech.ccp.is/v3/corporations/{corporation_id}/'.format(corporation_id=int(corp_id))
-        logger.debug("Getting corp_id {} from ESI {}".format(corp_id, url))
+    def get_corp_esi(cls, corp_id, count=1):
+        logger.debug("Attempting to get corp from esi with id %s", corp_id)
+        client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
         try:
-            r = requests.get(url)
-            r.raise_for_status()
-            return cls(corporation_id=corp_id, **r.json())
-        except requests.HTTPError:
-            logger.exception("Failed to get corp_id {} from ESI".format(corp_id))
-            return None
+            info = client.Corporation.get_corporations_corporation_id(corporation_id=corp_id).result()
+            return cls(corporation_id=corp_id,
+                       corporation_name=info['name'],
+                       ticker=info['ticker'],
+                       member_count=info['member_count'],
+                       ceo_id=info['ceo_id'],
+                       alliance_id=info['alliance_id'] if 'alliance_id' in info else None
+                       )
+
+        except HTTPNotFound:
+            raise None
+        except (HTTPBadGateway, HTTPGatewayTimeout):
+            if count >= 5:
+                logger.exception('Failed to get entity name %s times.', count)
+                return None
+            else:
+                sleep(count**2)
+                return cls.get_corp_esi(corp_id, count+1)
