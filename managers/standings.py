@@ -119,7 +119,7 @@ class StandingsManager:
         """
         # TODO: Need to figure out how to check if esi keys exists.....
         keys_recorded = sum([1 for a in EveCharacter.objects.filter(user=user).filter(corporation_id=corp_id)
-                             if True]) #  if EveManager.check_if_api_key_pair_exist(a.api_id)
+                             if StandingsManager.has_required_scopes_for_request(a)])
         corp = EveCorporation.get_corp_by_id(int(corp_id))
         logger.debug("Got {} keys recorded for {} total corp members".format(keys_recorded, corp.member_count or None))
         return corp is not None and keys_recorded >= corp.member_count
@@ -287,6 +287,37 @@ class StandingsManager:
             count += 1
             req.delete()
         return count
+
+    @staticmethod
+    def has_required_scopes_for_request(char):
+        state = None
+        try:
+            ownership = CharacterOwnership.objects.get(
+                character__character_id=char.character_id)
+            user = ownership.user
+            state = user.profile.state.name
+        except CharacterOwnership.DoesNotExist:
+            pass
+
+        scopes_string = ' '.join(
+            StandingsManager.get_required_scopes_for_state(state))
+        has_required_scopes = Token.objects.filter(
+            character_id=char.character_id
+            ).require_scopes(scopes_string).require_valid().exists()
+        return has_required_scopes
+
+    @staticmethod
+    def get_required_scopes_for_state(state):
+        if state is None:
+            state = ''
+
+        if hasattr(settings, 'SR_REQUIRED_SCOPES'):
+            if state in settings.SR_REQUIRED_SCOPES:
+                return settings.SR_REQUIRED_SCOPES[state]
+            else:
+                return []
+        else:
+            return []
 
 
 class StandingFactory:

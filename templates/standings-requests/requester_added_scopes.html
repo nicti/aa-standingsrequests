@@ -11,11 +11,9 @@
 {% endblock extra_css %}
 {% block content %}
     {% include 'standings-requests/partials/_menu.html' %}
-    {% if have_token %}
-    <div class="alert alert-success" role="alert">Successfully setup token for {{char_name}} with character_id={{char_id}}</div>
-    {% else %}
-    <div class="alert alert-danger" role="alert">Failed to setup token for {{char_name}} with character_id={{char_id}} got token for {{token_char_name}} with character_id={{token_char_id}}</div>
-    {% endif %}
+    <div class="alert alert-success" role="alert">
+    Successfully added token with scopes {% for scope in scopes %}{%if not forloop.first %}, {% endif %}{{scope}}{% endfor %} for {{char_name}}.
+    </div>
 {% endblock %}
 {% block extra_javascript %}
     <script type="text/javascript">

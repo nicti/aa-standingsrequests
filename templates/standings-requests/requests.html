@@ -27,7 +27,7 @@
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-1">{% trans "Type" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "API Key(s)" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "Member" %}</th>
                                 <th class="col-md-1">{% trans "Actioned" %}</th>
                                 <th class="col-md-1">{% trans "Effective" %}</th>
@@ -56,9 +56,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.api_key" true-title="API Key(s) on record" false-title="No API Key!"></bool-checkmark>
+                                    <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
                                 </td>
                                 <td>
+                                    {{contact.state}}
                                     <bool-checkmark value="contact.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
                                 </td>
                                 <td>

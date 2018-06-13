@@ -13,7 +13,7 @@
 {% block content %}
     {% include 'standings-requests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="GroupsListController">
-        <standings-filter-controls apikey="false"></standings-filter-controls>
+        <standings-filter-controls></standings-filter-controls>
         <div class="col-lg-12 container">
             <h1 class="page-header">{% trans "Groups" %}</h1>
             <div class="pull-right">

@@ -26,8 +26,8 @@
                                 <th class="col-md-2">{% trans "Corporation" %}</th>
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "API Key(s)" %}</th>
-                                <th class="col-md-1">{% trans "Member" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
+                                <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
                             </tr>
@@ -50,10 +50,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.api_key" true-title="API Key(s) on record" false-title="No API Key!"></bool-checkmark>
+                                    <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
+                                    {{contact.state}}
                                 </td>
                                 <td>
                                     <span style="font-size:1.5em; cursor: pointer;" title="Reject" ng-click="rejectRequest(contact)">
@@ -83,8 +83,8 @@
                                 <th class="col-md-3">{% trans "Contact Name" %}</th>
                                 <th class="col-md-2">{% trans "Corporation" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "API Key" %}</th>
-                                <th class="col-md-1">{% trans "Member" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
+                                <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1" title="Delete this standings request. Standing will become unmanaged">{% trans "Delete" %}</th>
                                 <th class="col-md-1" title="Undo this standings revocation and generate a new standings request">{% trans "Undo" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
@@ -105,10 +105,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.api_key" true-title="API Key on record" false-title="No API Key!"></bool-checkmark>
+                                    <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
+                                    {{contact.state}}
                                 </td>
                                 <td>
                                     <span style="font-size:1.5em; cursor: pointer;" title="Delete" ng-click="deleteRevocation(contact)">

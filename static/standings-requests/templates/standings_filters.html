@@ -6,36 +6,19 @@
         To:<b ng-bind="filters.standing.to"></b>
         <input ng-model="filters.standing.to" type="range" min="-10" max="10" step="1" value="10">
     </div>
-    <div class="col-md-1" ng-show="apikey !== false">
-        <label>API Key</label>
-        <div class="btn-group-vertical " role="group" aria-label="API Key">
+    <div class="col-md-1" ng-show="scopes !== false">
+        <label>Scopes</label>
+        <div class="btn-group-vertical " role="group" aria-label="Scopes">
             <button type="button" class="btn btn-default" title="Both"
-                    ng-class="{'btn-primary': filters.apikey === null}" ng-click="filters.apikey = null">
+                    ng-class="{'btn-primary': filters.has_scopes === null}" ng-click="filters.has_scopes = null">
               <i class="fa fa-circle-thin fa-fw"></i>
             </button>
-            <button type="button" class="btn btn-default" title="API Key on record"
-                    ng-class="{'btn-primary': filters.apikey}" ng-click="filters.apikey = true">
+            <button type="button" class="btn btn-default" title="Has required scopes"
+                    ng-class="{'btn-primary': filters.has_scopes}" ng-click="filters.has_scopes = true">
               <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
             </button>
-            <button type="button" class="btn btn-default" title="No API Key on record"
-                    ng-class="{'btn-primary': filters.apikey === false}" ng-click="filters.apikey = false">
-              <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
-            </button>
-        </div>
-    </div>
-    <div class="col-md-1" ng-show="members !== false">
-        <label>Member</label>
-        <div class="btn-group-vertical " role="group" aria-label="Member Status">
-            <button type="button" class="btn btn-default" title="Both"
-                    ng-class="{'btn-primary': filters.member === null}" ng-click="filters.member = null">
-              <i class="fa fa-circle-thin fa-fw"></i>
-            </button>
-            <button type="button" class="btn btn-default" title="Is Member"
-                    ng-class="{'btn-primary': filters.member}" ng-click="filters.member = true">
-              <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
-            </button>
-            <button type="button" class="btn btn-default" title="Is Not Member"
-                    ng-class="{'btn-primary': filters.member === false}" ng-click="filters.member = false">
+            <button type="button" class="btn btn-default" title="Is missing required scopes"
+                    ng-class="{'btn-primary': filters.has_scopes === false}" ng-click="filters.has_scopes = false">
               <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
             </button>
         </div>
@@ -45,6 +28,9 @@
         <input type="text" placeholder="Search" ng-model="filters.search">
         <label>Label</label>
         <input type="text" placeholder="Label Search" ng-model="filters.searchLabel">
+
+        <label ng-show="states !== false">State</label>
+        <input ng-show="states !== false" type="text" placeholder="State Search" ng-model="filters.searchState">
     </div>
     <div class="clearfix"></div>
 </div>

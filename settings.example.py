@@ -6,9 +6,16 @@ from allianceauth.settings.local import *
 
 # id of character to use for updating alliance contacts
 STANDINGS_API_CHARID = 1234
-MEMBER_STATES = ['Member',]
 STR_CORP_IDS = ['CORP1ID', 'CORP2ID', '...']
 STR_ALLIANCE_IDS = ['YOUR_ALLIANCE_ID', '...']
+
+# This is a map, where the key is the State the user is in
+# and the value is a list of required scopes to check
+SR_REQUIRED_SCOPES = {
+    'Member': ['publicData'],
+    'Blue': [],
+    '': []  # no state
+}
 
 # CELERY tasks
 if 'standingsrequests' in INSTALLED_APPS:

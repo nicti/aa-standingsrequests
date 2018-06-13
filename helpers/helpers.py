@@ -25,12 +25,3 @@ class StandingsRequestManager(models.Manager):
         # We have to delete each one manually in order to trigger the logic
         for d in to_delete:
             d.delete()
-
-
-def user_is_member(user):
-    """
-    Determines if a user is a member
-    :param user: User
-    :return: bool True if member, False otherwise
-    """
-    return user.profile.state.name in settings.MEMBER_STATES

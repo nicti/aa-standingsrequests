@@ -28,6 +28,7 @@
                             <th class="col-md-2">{% trans "Character" %}</th>
                             <th class="col-md-2">{% trans "Corporation" %}</th>
                             <th class="col-md-2">{% trans "Alliance" %}</th>
+                            <th class="col-md-1">{% trans "Scopes" %}</th>
                             <th class="col-md-1">{% trans "Standing" %}</th>
                             <th class="col-md-1">{% trans "Action" %}</th>
                         </tr>
@@ -45,6 +46,15 @@
                                 </td>
                                 <td>
                                     <p>{{ std.character.alliance_name }}</p>
+                                </td>
+                                <td>
+                                    <span style="font-size:2em;">
+	                                    {% if std.hasRequiredScopes %}
+	                                        <i class="fa fa-check fa-fw text-success" title="Has required scopes"></i>
+	                                    {% else %}
+	                                        <i class="fa fa-times fa-fw text-danger" title="Missing scopes, add them using Add Scopes"></i>
+	                                    {% endif %}
+                                    </span>
                                 </td>
                                 <td>
                                     <p>
@@ -129,7 +139,7 @@
                                     <p>{{ st.corp.corporation_name }}</p>
                                 </td>
                                 <td>
-                                    <p>{{ st.have_keys }}/{{ st.corp.member_count }}</p>
+                                    <p>{{ st.have_scopes }}/{{ st.corp.member_count }}</p>
                                 </td>
                                 <td>
                                     <p>

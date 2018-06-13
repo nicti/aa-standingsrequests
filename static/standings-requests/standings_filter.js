@@ -4,10 +4,10 @@ standingsApp.service('FilterStandingsService',  function(){
     fac.standing = {};
     fac.standing.from = -10;
     fac.standing.to = 10;
-    fac.apikey = null;
-    fac.member = null;
+    fac.has_scopes = null;
     fac.search = "";
     fac.searchLabel = "";
+    fac.searchState = "";
     return fac;
 });
 
@@ -25,12 +25,18 @@ standingsApp.filter('filterStandings', ['FilterStandingsService', function(Filte
                 // Standing not in range
                 return;
             }
-            if (svc.apikey === true && item.api_key === false) {
+
+            if (svc.has_scopes === true && item.has_required_scopes === false) {
                 return;
-            } else if (svc.apikey === false && item.api_key === true) {
+            } else if (svc.has_scopes === false && item.has_required_scopes === true) {
                 return;
             }
-
+            
+            if (svc.searchState.length > 0) {
+                if (! item.state.includes(svc.searchState)){
+                    return;
+                }
+            }
             if (svc.member === true && item.member === false) {
                 return;
             } else if (svc.member === false && item.member === true) {
@@ -68,14 +74,14 @@ standingsApp.filter('filterStandings', ['FilterStandingsService', function(Filte
 standingsApp.component('standingsFilterControls', {
     templateUrl: urls.standings_filter_controls_template,
     bindings: {
-        apikey: '<',
-        members: '<',
+        scopes: '<',
+        states: '<',
     },
     controller: function StandingsFilterControls ($scope, FilterStandingsService) {
         this.$onInit = function () {
             $scope.filters = FilterStandingsService;
-            $scope.apikey = this.apikey !== undefined ? this.apikey : true;
-            $scope.members = this.members !== undefined ? this.members : false;
+            $scope.scopes = this.scopes !== undefined ? this.scopes : false;
+            $scope.states = this.states !== undefined ? this.states : false;
         };
     },
 });

@@ -180,3 +180,11 @@ class EveEntityManager:
             return True
         except CharacterOwnership.DoesNotExist:
             return False
+
+    @staticmethod
+    def get_state_of_character(char):
+        try:
+            ownership = CharacterOwnership.objects.get(character__character_id=char.character_id)
+            return ownership.user.profile.state.name
+        except CharacterOwnership.DoesNotExist:
+            return None
