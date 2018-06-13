@@ -4,7 +4,7 @@ from django.utils import timezone
 
 from .managers.standings import StandingsManager
 from .models import ContactSet, StandingsRevocation
-from celery import task
+from celery import shared_task
 import logging
 import datetime
 from builtins import Exception
@@ -12,7 +12,7 @@ from builtins import Exception
 logger = logging.getLogger(__name__)
 
 
-@task(name="standings_requests.standings_update")
+@shared_task(name="standings_requests.standings_update")
 def standings_update():
     logger.info("Standings API update running")
 
@@ -28,14 +28,14 @@ def standings_update():
         logger.exception('Failed to executre standings_update')
 
 
-@task(name="standings_requests.validate_standings_requests")
+@shared_task(name="standings_requests.validate_standings_requests")
 def validate_standings_requests():
     logger.info("Validating standings request running")
     count = StandingsManager.validate_standings_requests()
     logger.info("Deleted {0} standings requests".format(count))
 
 
-@task(name="standings_requests.update_associations_auth")
+@shared_task(name="standings_requests.update_associations_auth")
 def update_associations_auth():
     """
     Update associations from local auth data (Main character, corporations)
@@ -45,7 +45,7 @@ def update_associations_auth():
     logger.info("Finished Associations update from Auth")
 
 
-@task(name="standings_requests.update_associations_api")
+@shared_task(name="standings_requests.update_associations_api")
 def update_associations_api():
     """
     Update character associations from the EVE API (corporations)
@@ -55,7 +55,7 @@ def update_associations_api():
     logger.info("Finished associations update from EVE API")
 
 
-@task(name="standings_requests.purge_stale_data")
+@shared_task(name="standings_requests.purge_stale_data")
 def purge_stale_data():
     """
     Delete all the data which is beyond its useful life. There is no harm in disabling this
