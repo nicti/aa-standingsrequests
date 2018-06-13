@@ -73,20 +73,19 @@ def purge_stale_standings_data():
     latest_standings = ContactSet.objects.latest()
     if latest_standings is not None:
         standings = ContactSet.objects.filter(date__lt=cutoff_date).exclude(id=latest_standings.id)
-
-        if len(standings):
-            logger.debug("Deleting Standings {0}".format(standings))
+        if standings.exists():
+            logger.debug("Deleting old ContactSets")
             standings.delete()
         else:
-            logger.debug("No Standings to delete")
+            logger.debug("No ContactSets to delete")
     else:
-        logger.warn("No standings available, nothing to delete")
+        logger.warn("No ContactSets available, nothing to delete")
 
 
 def purge_stale_revocations():
     logger.info("Purging stale revocations data")
     cutoff_date = timezone.now() - datetime.timedelta(days=7)
     revocs = StandingsRevocation.objects.exclude(effective=False).filter(effectiveDate__lt=cutoff_date)
-    count = len(revocs)
+    count = revocs.count()
     revocs.delete()
-    logger.debug("Deleted {0} standings revocations".format(count))
+    logger.debug("Deleted %d standings revocations", count)
