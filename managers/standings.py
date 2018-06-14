@@ -5,7 +5,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 import logging
 
-from past.builtins import xrange
 from future.utils import python_2_unicode_compatible, iteritems
 
 from ..models import ContactSet, ContactLabel, PilotStanding, CorpStanding, AllianceStanding
@@ -446,21 +445,26 @@ class ContactsWrapper:
         entity_ids = []
 
         contacts, response = allianceContactsInfo.result()
+        logger.debug("Got %d contacs with 1st page", len(contacts))
         # get the x-pages header
-        pages = response.headers['X-Pages'] if 'X-Pages' in response.headers else 1
+        pages = int(response.headers['X-Pages']) if 'X-Pages' in response.headers else 1
+        logger.debug("We need to get %d page(s) of contacts in total", pages)
 
         for page in xrange(2, pages+1):
+            logger.debug("Getting page %d/%d of contacts", page, pages)
             allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(
                 alliance_id=alliance_id,
                 page=page
                 )
-            contacts = contacts + allianceContactsInfo.result()
-
+            new_contacts = allianceContactsInfo.result()
+            logger.debug("Got %d contacs with %d page", len(new_contacts), page)
+            contacts = contacts + new_contacts
+        logger.debug("Got %d contact in total from %d pages", len(contacts), pages)
         for contact in contacts:
             entity_ids.append(contact['contact_id'])
 
         name_info = EveNameCache.get_names(entity_ids)
 
-        for contact in allianceContactsInfo.result():
+        for contact in contacts:
             self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
 
