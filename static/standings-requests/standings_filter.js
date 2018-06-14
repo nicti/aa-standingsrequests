@@ -37,11 +37,7 @@ standingsApp.filter('filterStandings', ['FilterStandingsService', function(Filte
                     return;
                 }
             }
-            if (svc.member === true && item.member === false) {
-                return;
-            } else if (svc.member === false && item.member === true) {
-                return;
-            }
+
             // Text search
             if (svc.search.length > 0) {
                 var content = (
