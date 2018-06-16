@@ -9,10 +9,13 @@ from .managers.standings import StandingsManager
 
 logger = logging.getLogger(__name__)
 
+
 def token_required_by_state(new=False):
     """
     Decorator for views which supplies a single, user-selected token for the view to process.
-    Same parameters as tokens_required.
+    No scopes can be provided instead scopes are selected from the scopes that are set as
+    required for a specific state in the settings.
+    param: new if a new token should be aquired
     """
 
     def decorator(view_func):
