@@ -277,7 +277,7 @@ class StandingsManager:
 
         for req in requests:
             logger.debug("Checking request for contactID {0}".format(req.contactID))
-            if req.user.has_perm('standings-requests.request_standings'):
+            if req.user.has_perm('standingsrequests.request_standings'):
                 if CorpStanding.is_corp(req.contactType) and not cls.all_corp_apis_recorded(req.contactID, req.user):
                     logger.debug("Request is invalid, not all corp API keys recorded.")
                 else:
