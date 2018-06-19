@@ -42,14 +42,14 @@ class ContactSet(models.Model):
 
 class ContactLabel(models.Model):
     labelID = models.BigIntegerField()
-    set = models.ForeignKey(ContactSet)
+    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     name = models.CharField(max_length=254)
 
 
 class AbstractStanding(models.Model):
     class Meta:
         abstract = True
-    set = models.ForeignKey(ContactSet)
+    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     contactID = models.IntegerField()
     name = models.CharField(max_length=254)
     standing = models.FloatField()
@@ -242,7 +242,7 @@ class AbstractStandingsRequest(models.Model):
 
 
 class StandingsRequest(AbstractStandingsRequest):
-    user = models.ForeignKey(User)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     expectStandingGTEQ = 0.01
 
     objects = StandingsRequestManager()
@@ -406,6 +406,53 @@ class EveNameCache(models.Model):
     updated = models.DateTimeField(auto_now_add=True)
 
     cache_time = datetime.timedelta(days=30)
+
+    @classmethod
+    def get_names(cls, entity_ids):
+        """
+        Get the names of the given entity ids from catch or other locations
+        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :return: dict with entity_id as key and name as value
+        """
+        # make sure there is no duplicates
+        entity_ids = set(entity_ids)
+        name_info = {}
+        entities_need_update = []
+        entity_ids_not_found = []
+        for entity_id in entity_ids:
+            if cls.objects.filter(entityID=entity_id).exists():
+                # Cached
+                entity = cls.objects.get(entityID=entity_id)
+                if entity.cache_timeout():
+                    entities_need_update.append(entity)
+                else:
+                    name_info[entity.entityID] = entity.name
+            else:
+                entity_ids_not_found.append(entity_id)
+
+        entities_need_names = [e.entityID for e in entities_need_update] + entity_ids_not_found
+
+        names_info_api = EveEntityManager.get_names(entities_need_names)
+
+        # update existing entities
+        for entity in entities_need_update:
+            if entity.entityID in names_info_api:
+                name = names_info_api[entity.entityID]
+                entity._set_name(name)
+            else:
+                entity._update_entity()
+
+            name_info[entity.entityID] = entity.name
+
+        # create new entities
+        for entity_id in entity_ids_not_found:
+            if entity_id in names_info_api:
+                entity = cls()
+                entity.entityID = entity_id
+                entity._set_name(names_info_api[entity_id])
+                name_info[entity_id] = entity.name
+
+        return name_info
 
     @classmethod
     def get_name(cls, entity_id):

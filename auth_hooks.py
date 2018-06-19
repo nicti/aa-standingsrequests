@@ -1,12 +1,11 @@
 from __future__ import unicode_literals
 
-from services.hooks import ServicesHook, MenuItemHook
-from alliance_auth import hooks
-
 from .urls import urlpatterns
 from .models import StandingsRequest
 
 import logging
+from allianceauth import hooks
+from allianceauth.services.hooks import ServicesHook, MenuItemHook
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +48,6 @@ class StandingsRequestMenuItem(MenuItemHook):
         return ''
 
 
-@hooks.register('menu_util_hook')
+@hooks.register('menu_item_hook')
 def register_menu():
     return StandingsRequestMenuItem()

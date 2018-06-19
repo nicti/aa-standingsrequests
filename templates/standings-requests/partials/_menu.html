@@ -13,6 +13,11 @@
         </div>
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
+                {% if perms.standingsrequests.affect_standings %}
+                <li class="{% navactive request 'standings-requests:view_auth_page' %}">
+                    <a href="{% url 'standings-requests:view_auth_page' %}">{% trans "Setup Alliance Token" %}</a>
+                </li>
+                {% endif %}
                 <li class="{% navactive request 'standings-requests:index' %}">
                     <a href="{% url 'standings-requests:index' %}">{% trans "Request Standings" %}</a>
                 </li>

@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 from django.conf.urls import url, include
 from . import views
 
+app_name = 'standings-requests'
+
 local_urlpatterns = [
     url(r'^$', views.index_view, name='index'),
     url(r'^request_pilot_standings/(?P<character_id>\d+)/', views.request_pilot_standings,
@@ -30,8 +32,10 @@ local_urlpatterns = [
 
     url(r'^view/requests/$', views.view_active_requests, name='view_requests'),
     url(r'^view/requests/json/$', views.view_active_requests_json, name='view_requests_json'),
+    url(r'^manage/setuptoken/$', views.view_auth_page, name='view_auth_page'),
+    url(r'^requester_add_scopes/$', views.view_requester_add_scopes, name='view_requester_add_scopes')
 ]
 
 urlpatterns = [
-    url(r'^standings-requests/', include(local_urlpatterns, namespace='standings-requests')),
+    url(r'^standings-requests/', include((local_urlpatterns, 'standings-requests'))),
 ]

@@ -1,4 +1,4 @@
-{% extends "public/base.html" %}
+{% extends "allianceauth/base.html" %}
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
@@ -13,7 +13,7 @@
 {% block content %}
     {% include 'standings-requests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="PilotListController">
-        <standings-filter-controls members="true" apikey="true"></standings-filter-controls>
+        <standings-filter-controls states="true" scopes="true"></standings-filter-controls>
         <div class="col-lg-12 container">
             <h1 class="page-header">
                 {% trans "Pilots" %}
@@ -39,6 +39,7 @@
                 </div>
                 <ul uib-pagination total-items="filteredStandings.length" ng-model="currentPage" max-size="5"
                     boundary-link-numbers="true" boundary-links="true" style="margin:0;"
+                    items-per-page="pageSize"
                     previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
             </div>
             <div class="col-lg-12 container">
@@ -46,13 +47,13 @@
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
-                                <th class="col-md-3">{% trans "Character" %}</th>
+                                <th class="col-md-2">{% trans "Character" %}</th>
                                 <th class="col-md-2">{% trans "Corporation" %}</th>
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th>{% trans "Standing" %}</th>
-                                <th class="col-md-1">{% trans "API Key" %}</th>
-                                <th>{% trans "Member" %}</th>
+                                <th class="col-md-1">{% trans "Standing" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
+                                <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
                             </tr>
                             {% verbatim %}
@@ -85,10 +86,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="character.api_key" true-title="API Key on record" false-title="No API Key!"></bool-checkmark>
+                                    <bool-checkmark value="character.has_required_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="character.member" true-title="Is Member" false-title="Is NOT Member"></bool-checkmark>
+                                    {{character.state}}
                                 </td>
                                 <td>
                                     <span ng-repeat="label in character.labels" ng-bind="label"></span>

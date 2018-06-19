@@ -8,21 +8,22 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 from django.db.models import Q
-from future.utils import iteritems
 
-from eveonline.managers import EveManager
-from eveonline.models import EveCharacter
-from authentication.managers import AuthServicesInfo
-
-from .models import ContactSet, StandingsRequest, StandingsRevocation, PilotStanding, CorpStanding
+from .models import ContactSet, StandingsRequest, StandingsRevocation
+from .models import PilotStanding, CorpStanding, EveNameCache
+from .models import CharacterAssociation
 from .managers.standings import StandingsManager
 from .managers.eveentity import EveEntityManager
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.writers import UnicodeWriter
-from .helpers.helpers import auth_services_is_member
 from .helpers.evecorporation import EveCorporation
 
 import logging
+from esi.decorators import token_required
+from allianceauth.eveonline.models import EveCharacter
+from django.conf import settings
+from allianceauth.authentication.models import CharacterOwnership
+from .decorators import token_required_by_state
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 @permission_required('standingsrequests.request_standings')
 def index_view(request):
     logger.debug("Start index_view request")
-    characters = EveManager.get_characters_by_owner_id(request.user.id)
+    characters = EveEntityManager.get_characters_by_user(request.user)
 
     char_ids = [c.character_id for c in characters]
 
@@ -63,6 +64,7 @@ def index_view(request):
             'pendingRevocation': StandingsRevocation.pending_request(c.character_id),
             'requestActioned': StandingsRequest.actioned_request(c.character_id),
             'inOrganisation': StandingsManager.pilot_in_organisation(c.character_id),
+            'hasRequiredScopes': StandingsManager.has_required_scopes_for_request(c),
         })
 
     standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
@@ -74,9 +76,10 @@ def index_view(request):
             standing = standings.get(contactID=c).standing
         except ObjectDoesNotExist:
             standing = None
+
         corp_st_data.append({
-            'have_keys': sum([1 for a in EveCharacter.objects.filter(user=request.user).filter(corporation_id=c)
-                              if EveManager.check_if_api_key_pair_exist(a.api_id)]),
+            'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
+                                if StandingsManager.has_required_scopes_for_request(a.character)]),
             'corp': EveCorporation.get_corp_by_id(c),
             'standing': standing,
             'pendingRequest': StandingsRequest.pending_request(c),
@@ -86,7 +89,10 @@ def index_view(request):
 
     render_items = {'characters': st_data,
                     'corps': corp_st_data,
-                    'authinfo': AuthServicesInfo.objects.get(user=request.user)}
+                    'authinfo': {
+                        'main_char_id': request.user.profile.main_character.character_id
+                        }
+                    }
     return render(request, 'standings-requests/index.html', render_items)
 
 
@@ -97,7 +103,7 @@ def request_pilot_standings(request, character_id):
     For a user to request standings for their own pilots
     """
     logger.debug("Standings request from user {0} for characterID {1}".format(request.user, character_id))
-    if EveManager.check_if_character_owned_by_user(character_id, request.user):
+    if EveEntityManager.is_character_owned_by_user(character_id, request.user):
         if not StandingsRequest.pending_request(character_id) and not StandingsRevocation.pending_request(character_id):
             StandingsRequest.add_request(request.user, character_id, PilotStanding.get_contact_type(character_id))
         else:
@@ -115,7 +121,7 @@ def remove_pilot_standings(request, character_id):
     Handles both removing requests and removing existing standings
     """
     logger.debug('remove_pilot_standings called by %s' % request.user)
-    if EveManager.check_if_character_owned_by_user(character_id, request.user):
+    if EveEntityManager.is_character_owned_by_user(character_id, request.user):
         if (not StandingsManager.pilot_in_organisation(character_id) and
                 (StandingsRequest.pending_request(character_id) or StandingsRequest.actioned_request(character_id)) and
                 not StandingsRevocation.pending_request(character_id)):
@@ -213,21 +219,36 @@ def view_pilots_standings_json(request):
 
     def get_pilots():
         pilots = []
-        for p in contacts.pilotstanding_set.all().order_by('-standing'):
-            char = EveManager.get_character_by_id(p.contactID)
-            main = None
-            is_member = False
-            if char:
-                try:
-                    auth = AuthServicesInfo.objects.get(user=char.user)
-                    main = EveManager.get_character_by_id(auth.main_char_id)
-                    is_member = auth_services_is_member(auth)
-                except ObjectDoesNotExist:
-                    pass
-            else:
-                # Wondering why this view is slow? Its doing API calls here probably.
+        # lets catch these in bulk
+        pilot_standings = contacts.pilotstanding_set.all().order_by('-standing')
+        contact_ids = [p.contactID for p in pilot_standings]
+        for p in pilot_standings:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    contact_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    contact_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
+        EveNameCache.get_names(contact_ids)
+        for p in pilot_standings:
+            char = EveCharacter.objects.get_character_by_id(p.contactID)
+            if char is None:
                 char = EveCharacterHelper(p.contactID)
 
+            main = None
+            state = ''
+            try:
+                ownership = CharacterOwnership.objects.get(character__character_id=char.character_id)
+                user = ownership.user
+                main = user.profile.main_character
+                if user.profile.state:
+                    state = user.profile.state.name
+            except CharacterOwnership.DoesNotExist:
+                pass
+
+            has_required_scopes = StandingsManager.has_required_scopes_for_request(char)
             pilot = {
                 'character_id': p.contactID,
                 'character_name': p.name,
@@ -236,8 +257,8 @@ def view_pilots_standings_json(request):
                 'corporation_ticker': char.corporation_ticker if char else None,
                 'alliance_id': char.alliance_id if char else None,
                 'alliance_name': char.alliance_name if char else None,
-                'api_key': True if len(char.api_id if char else "") > 0 else False,
-                'member': is_member,
+                'has_required_scopes': has_required_scopes,
+                'state': state,
                 'main_character_ticker': main.corporation_ticker if main else None,
                 'standing': p.standing,
                 'labels': [l.name for l in p.labels.all()]
@@ -249,7 +270,6 @@ def view_pilots_standings_json(request):
                 pilot['main_character_name'] = None
 
             pilots.append(pilot)
-
         return pilots
 
     # Cache result for 10 minutes, with a large number of standings this view can be very CPU intensive
@@ -277,32 +297,33 @@ def download_pilot_standings(request):
             'corporation_ticker',
             'alliance_id',
             'alliance_name',
-            'api_key',
-            'member',
+            'has_scopes',
+            'state',
             'main_character_name',
             'main_character_ticker',
             'standing',
             'labels',
         ])
 
-    for p in contacts.pilotstanding_set.all().order_by('-standing'):
-        char = EveManager.get_character_by_id(p.contactID)
-        main = ''
-        is_member = False
-        if char:
-            try:
-                auth = AuthServicesInfo.objects.get(user=char.user)
-                main = EveManager.get_character_by_id(auth.main_char_id)
-                is_member = auth_services_is_member(auth)
-            except ObjectDoesNotExist:
-                pass
-        else:
-            char = EveCharacterHelper(p.contactID)
+    # lets request make sure all info is there in bulk
+    pilot_standings = contacts.pilotstanding_set.all().order_by('-standing')
+    EveNameCache.get_names([p.contactID for p in pilot_standings])
 
+    for p in pilot_standings:
+        char = EveCharacter.objects.get_character_by_id(p.contactID)
+        main = ''
+        state = ''
         try:
-            main_character_name = main.character_name if main else char.main_character.character_name
-        except AttributeError:
+            ownership = CharacterOwnership.objects.get(character=char)
+            state = ownership.user.profile.state.name
+            main = ownership.user.profile.main_character
+            if main is None:
+                main_character_name = ''
+            else:
+                main_character_name = main.character_name
+        except CharacterOwnership.DoesNotExist:
             main_character_name = ''
+            main = None
 
         pilot = [
             p.contactID,
@@ -312,8 +333,8 @@ def download_pilot_standings(request):
             char.corporation_ticker if char else '',
             char.alliance_id if char else '',
             char.alliance_name if char else '',
-            True if len(char.api_id if char else "") > 0 else False,
-            is_member,
+            StandingsManager.has_required_scopes_for_request(char),
+            state,
             main_character_name,
             main.corporation_ticker if main else '',
             p.standing,
@@ -380,26 +401,37 @@ def manage_get_requests_json(request):
     reqs = StandingsRequest.objects.filter(Q(actionBy=None) & Q(effective=False)).order_by('requestDate')
 
     response = []
+    # precache missing names in bulk
+    entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+        try:
+            assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+            if assoc.corporation_id is not None:
+                entity_ids.append(assoc.corporation_id)
+            if assoc.alliance_id is not None:
+                entity_ids.append(assoc.alliance_id)
+        except CharacterAssociation.DoesNotExist:
+            pass
+    EveNameCache.get_names(entity_ids)
 
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
-        is_member = False
-        api_key = False
-        try:
-            auth = AuthServicesInfo.objects.get(user=r.user)
-            main = EveManager.get_character_by_id(auth.main_char_id)
-            is_member = auth_services_is_member(auth)
-        except ObjectDoesNotExist:
-            pass
+        main = r.user.profile.main_character
+
+        state = ''
 
         pilot = None
         corp = None
+
         if PilotStanding.is_pilot(r.contactType):
-            pilot = EveManager.get_character_by_id(r.contactID)
-            if pilot:
-                api_key = EveManager.check_if_api_key_pair_exist(pilot.api_id)
-            else:
+            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
+            if not pilot:
                 pilot = EveCharacterHelper(r.contactID)
+
+            state_name = EveEntityManager.get_state_of_character(pilot)
+            if state_name is not None:
+                state = state_name
+
         elif CorpStanding.is_corp(r.contactType):
             corp = EveCorporation.get_corp_by_id(r.contactID)
 
@@ -411,9 +443,9 @@ def manage_get_requests_json(request):
             'corporation_ticker': pilot.corporation_ticker if pilot else corp.ticker if corp else None,
             'alliance_id': pilot.alliance_id if pilot else None,
             'alliance_name': pilot.alliance_name if pilot else None,
-            'api_key': api_key if pilot else
+            'has_scopes': StandingsManager.has_required_scopes_for_request(pilot) if pilot else
             StandingsManager.all_corp_apis_recorded(corp.corporation_id, r.user) if corp else False,
-            'member': is_member,
+            'state': state,
             'main_character_name': main.character_name if main else None,
             'main_character_ticker': main.corporation_ticker if main else None,
         })
@@ -452,22 +484,35 @@ def manage_get_revocations_json(request):
 
     response = []
 
+    # precache names in bulk
+    entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    entity_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    entity_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
+    EveNameCache.get_names(entity_ids)
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
-        is_member = False
-        api_key = False
+        state = ''
 
         pilot = None
         corp = None
         corp_user = None
         main = None
         if PilotStanding.is_pilot(r.contactType):
-            pilot = EveManager.get_character_by_id(r.contactID)
-            if pilot:
-                api_key = EveManager.check_if_api_key_pair_exist(pilot.api_id)
+            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
 
-            else:
+            if not pilot:
                 pilot = EveCharacterHelper(r.contactID)
+            state_name = EveEntityManager.get_state_of_character(pilot)
+            if state_name is not None:
+                state = state_name
+
         elif CorpStanding.is_corp(r.contactType):
             corp = EveCorporation.get_corp_by_id(r.contactID)
             user_election = {}
@@ -482,12 +527,8 @@ def manage_get_revocations_json(request):
 
         if pilot or corp_user:
             # Get member details if we found a user
-            try:
-                auth = AuthServicesInfo.objects.get(user=pilot.user if pilot else corp_user)
-                main = EveManager.get_character_by_id(auth.main_char_id)
-                is_member = auth_services_is_member(auth)
-            except ObjectDoesNotExist:
-                pass
+            user = CharacterOwnership.objects.get(character=pilot).user
+            main = user.profile.main_character
 
         revoke = {
             'contact_id': r.contactID,
@@ -497,9 +538,9 @@ def manage_get_revocations_json(request):
             'corporation_ticker': pilot.corporation_ticker if pilot else corp.ticker if corp else None,
             'alliance_id': pilot.alliance_id if pilot else None,
             'alliance_name': pilot.alliance_name if pilot else None,
-            'api_key': api_key if pilot else
+            'has_scopes': StandingsManager.has_required_scopes_for_request(pilot) if pilot else
             StandingsManager.all_corp_apis_recorded(corp.corporation_id, corp_user) if corp and corp_user else False,
-            'member': is_member,
+            'state': state,
             'main_character_name': main.character_name if main else None,
             'main_character_ticker': main.corporation_ticker if main else None,
         }
@@ -563,26 +604,33 @@ def view_active_requests_json(request):
     reqs = StandingsRequest.objects.all().order_by('requestDate')
 
     response = []
-
+    # pre cache names in bulk
+    entity_ids = [r.contactID for r in reqs]
+    for p in reqs:
+            try:
+                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
+                if assoc.corporation_id is not None:
+                    entity_ids.append(assoc.corporation_id)
+                if assoc.alliance_id is not None:
+                    entity_ids.append(assoc.alliance_id)
+            except CharacterAssociation.DoesNotExist:
+                pass
+    EveNameCache.get_names(entity_ids)
     for r in reqs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots (at least can potentially be corps/alliances)
-        is_member = False
-        api_key = False
-        try:
-            auth = AuthServicesInfo.objects.get(user=r.user)
-            main = EveManager.get_character_by_id(auth.main_char_id)
-            is_member = auth_services_is_member(auth)
-        except ObjectDoesNotExist:
-            pass
+        state = ''
+        if r.user.profile.state:
+            state = r.user.profile.state.name
+
+        main = r.user.profile.main_character
 
         pilot = None
         corp = None
         if PilotStanding.is_pilot(r.contactType):
-            pilot = EveManager.get_character_by_id(r.contactID)
-            if pilot:
-                api_key = EveManager.check_if_api_key_pair_exist(pilot.api_id)
-            else:
+            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
+            if not pilot:
                 pilot = EveCharacterHelper(r.contactID)
+
         elif CorpStanding.is_corp(r.contactType):
             corp = EveCorporation.get_corp_by_id(r.contactID)
 
@@ -594,9 +642,9 @@ def view_active_requests_json(request):
             'corporation_ticker': pilot.corporation_ticker if pilot else corp.ticker if corp else None,
             'alliance_id': pilot.alliance_id if pilot else None,
             'alliance_name': pilot.alliance_name if pilot else None,
-            'api_key': api_key if pilot else
+            'has_scopes': StandingsManager.has_required_scopes_for_request(pilot) if pilot else
             StandingsManager.all_corp_apis_recorded(corp.corporation_id, r.user) if corp else False,
-            'member': is_member,
+            'state': state,
             'main_character_name': main.character_name if main else None,
             'main_character_ticker': main.corporation_ticker if main else None,
             'actioned': r.actionBy is not None,
@@ -607,3 +655,33 @@ def view_active_requests_json(request):
         })
 
     return JsonResponse(response, safe=False)
+
+
+@login_required
+@permission_required('standingsrequests.affect_standings')
+@token_required(new=False, scopes='esi-alliances.read_contacts.v1')
+def view_auth_page(request, token):
+    got_token_for_right_char = token.character_id == settings.STANDINGS_API_CHARID
+    return render(request, 'standings-requests/view_sso.html',
+                  {
+                      'have_token': got_token_for_right_char,
+                      'char_id': settings.STANDINGS_API_CHARID,
+                      'char_name': EveNameCache.get_name(settings.STANDINGS_API_CHARID),
+                      'token_char_id': token.character_id,
+                      'token_char_name': EveNameCache.get_name(token.character_id),
+                   }
+                  )
+
+
+@login_required
+@permission_required('standingsrequests.request_standings')
+@token_required_by_state(new=False)
+def view_requester_add_scopes(request, token):
+    return render(request, 'standings-requests/requester_added_scopes.html',
+                  {
+                      'char_name': EveNameCache.get_name(token.character_id),
+                      'char_id': token.character_id,
+                      'scopes': [scope.friendly_name for scope in token.scopes.all()],
+                  }
+                  )
+

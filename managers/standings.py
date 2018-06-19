@@ -3,28 +3,29 @@ from django.conf import settings
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from notifications import notify
-import evelink.api
-import evelink.char
 import logging
-from eveonline.managers import EveManager
-from eveonline.models import EveCharacter
-from authentication.managers import AuthServicesInfo
 
-from past.builtins import xrange
 from future.utils import python_2_unicode_compatible, iteritems
 
 from ..models import ContactSet, ContactLabel, PilotStanding, CorpStanding, AllianceStanding
 from ..models import AbstractStandingsRequest, StandingsRequest, StandingsRevocation
 from ..models import CharacterAssociation, EveNameCache
 from ..helpers.evecorporation import EveCorporation
+from ..managers import SWAGGER_SPEC_PATH,\
+    REQUIRED_TOKENS
+from ..managers.eveentity import EveEntityManager
+from esi.clients import esi_client_factory
+from esi.models import Token
+from allianceauth.eveonline.providers import Character, Alliance
+from allianceauth.eveonline.models import EveCharacter
+from allianceauth.notifications import notify
+from allianceauth.authentication.models import CharacterOwnership
+from past.builtins import xrange
 
 logger = logging.getLogger(__name__)
 
 
 class StandingsManager:
-    key = settings.STANDINGS_API_KEY
-    vcode = settings.STANDINGS_API_VCODE
     charID = settings.STANDINGS_API_CHARID
 
     def __init__(self):
@@ -32,7 +33,9 @@ class StandingsManager:
 
     @classmethod
     def api_get_instance(cls):
-        return evelink.api.API(api_key=(cls.key, cls.vcode))
+        token = Token.objects.filter(character_id=cls.charID)\
+                .require_scopes(REQUIRED_TOKENS).require_valid()[0]
+        return esi_client_factory(token=token, spec_file=SWAGGER_SPEC_PATH)
 
     @classmethod
     @transaction.atomic
@@ -40,7 +43,7 @@ class StandingsManager:
         try:
             api = cls.api_get_instance()
             contacts = ContactsWrapper(api, cls.charID)
-        except evelink.api.APIError as error:
+        except Exception:
             logger.exception("APIError occured while trying to query api server.")
             return
 
@@ -93,29 +96,13 @@ class StandingsManager:
             )
 
     @classmethod
-    def api_add_labels(cls, contact_set, labels):
-        """
-
-        :param contact_set: Django ContactSet model to add labels to
-        :param labels: List of ContactsWrapper.Label to add
-        :return:
-        """
-        for l in labels:
-            label = ContactLabel(
-                labelID=l.id,
-                name=l.name,
-                set=contact_set
-            )
-            label.save()
-
-    @classmethod
     def pilot_in_organisation(cls, character_id):
         """
         Check if the Pilot is in the auth instances organisation
         :param character_id: str EveCharacter character_id
         :return: bool True if the character is in the organisation, False otherwise
         """
-        pilot = EveManager.get_character_by_id(character_id)
+        pilot = EveCharacter.objects.get_character_by_id(character_id)
         if pilot is None:
             return False
         if str(pilot.corporation_id) in settings.STR_CORP_IDS or str(pilot.alliance_id) in settings.STR_ALLIANCE_IDS:
@@ -130,8 +117,9 @@ class StandingsManager:
         :param user: User to check for
         :return: True if they can request standings, False if they cannot
         """
+        # TODO: Need to figure out how to check if esi keys exists.....
         keys_recorded = sum([1 for a in EveCharacter.objects.filter(user=user).filter(corporation_id=corp_id)
-                             if EveManager.check_if_api_key_pair_exist(a.api_id)])
+                             if StandingsManager.has_required_scopes_for_request(a)])
         corp = EveCorporation.get_corp_by_id(int(corp_id))
         logger.debug("Got {} keys recorded for {} total corp members".format(keys_recorded, corp.member_count or None))
         return corp is not None and keys_recorded >= corp.member_count
@@ -207,16 +195,23 @@ class StandingsManager:
         """
         chars = EveCharacter.objects.all()
         for c in chars:
-            auth = AuthServicesInfo.objects.get(user=c.user)
-            main = auth.main_char_id or None
-            assoc, created = CharacterAssociation.objects.update_or_create(character_id=c.character_id,
-                                                                           defaults={'corporation_id': c.corporation_id,
-                                                                                     'main_character_id': main,
-                                                                                     'alliance_id': c.alliance_id,
-                                                                                     'updated': timezone.now(),
-                                                                                     })
+            logger.debug("Updating Association from Auth for %s", c.character_name)
+            try:
+                try:
+                    ownership = CharacterOwnership.objects.get(character=c)
+                    main = ownership.user.profile.main_character.character_id if ownership.user.profile.main_character else None
+                except CharacterOwnership.DoesNotExist:
+                    main = None
 
-            EveNameCache.update_name(assoc.character_id, c.character_name)
+                assoc, created = CharacterAssociation.objects.update_or_create(character_id=c.character_id,
+                                                                               defaults={'corporation_id': c.corporation_id,
+                                                                                         'main_character_id': main,
+                                                                                         'alliance_id': c.alliance_id,
+                                                                                         'updated': timezone.now(),
+                                                                                         })
+                EveNameCache.update_name(assoc.character_id, c.character_name)
+            except CharacterAssociation.DoesNotExist:
+                pass
 
     @classmethod
     def update_character_associations_api(cls):
@@ -226,7 +221,7 @@ class StandingsManager:
         prevent unnecessarily updating characters we already have local data for.
         :return:
         """
-        chunk_size = 50  # Size of characterID API chunks
+        chunk_size = 1000  # Size of characterID API chunks
         try:
             # Sort out a set of character_ids we want to fetch
             standings = ContactSet.objects.latest()
@@ -244,41 +239,28 @@ class StandingsManager:
             return
         pilots = list(pilots)  # Switch back to a list, don't attempt to add anything after this
         # Chunk the data into acceptable sizes for the API
-        chunks = [pilots[x:x+chunk_size] for x in xrange(0, len(pilots), chunk_size)]
+        length = len(pilots)
+        chunks = [pilots[x:x+chunk_size] for x in xrange(0, length, chunk_size)]
 
-        logger.debug('Got {} chunks of ~{} to process'.format(len(chunks), chunk_size))
+        logger.debug('Got %s chunks containing max %s each to process with a total of %s', len(chunks), chunk_size, length)
 
-        eve = evelink.eve.EVE()
-        updated_corps = []
-        updated_alliances = []
+        api = cls.api_get_instance()
         for c in chunks:
             try:
-                response = eve.affiliations_for_characters(c)
-                for k, v in iteritems(response.result):
-                    corp_id = v['corp']['id']
-                    try:
-                        alliance_id = v['alliance']['id']
-                    except KeyError:
-                        alliance_id = None
+                esi_response = api.Character.post_characters_affiliation(characters=c).result()
+                for association in esi_response:
+                    corp_id = association['corporation_id']
+                    all_id = association['alliance_id'] if 'alliance_id' in association else None
+                    character_id = association['character_id']
                     CharacterAssociation.objects.update_or_create(
-                        character_id=k,
+                        character_id=character_id,
                         defaults={
                             'corporation_id': corp_id,
-                            'alliance_id': alliance_id,
+                            'alliance_id': all_id,
                             'updated': timezone.now(),
                         })
-                    # Cache names
-                    EveNameCache.update_name(k, v['name'])
-                    # Update the corp/alliance name only if it hasn't already been updated
-                    if corp_id not in updated_corps:
-                        EveNameCache.update_name(corp_id, v['corp']['name'])
-                        updated_corps.append(corp_id)
 
-                    if alliance_id is not None and alliance_id not in updated_alliances:
-                        EveNameCache.update_name(alliance_id, v['alliance']['name'])
-                        updated_alliances.append(alliance_id)
-
-            except evelink.api.APIError:
+            except Exception:
                 logging.exception("Could not fetch associations chunk")
 
     @classmethod
@@ -309,6 +291,37 @@ class StandingsManager:
             count += 1
             req.delete()
         return count
+
+    @staticmethod
+    def has_required_scopes_for_request(char):
+        state = None
+        try:
+            ownership = CharacterOwnership.objects.get(
+                character__character_id=char.character_id)
+            user = ownership.user
+            state = user.profile.state.name
+        except CharacterOwnership.DoesNotExist:
+            pass
+
+        scopes_string = ' '.join(
+            StandingsManager.get_required_scopes_for_state(state))
+        has_required_scopes = Token.objects.filter(
+            character_id=char.character_id
+            ).require_scopes(scopes_string).require_valid().exists()
+        return has_required_scopes
+
+    @staticmethod
+    def get_required_scopes_for_state(state):
+        if state is None:
+            state = ''
+
+        if hasattr(settings, 'SR_REQUIRED_SCOPES'):
+            if state in settings.SR_REQUIRED_SCOPES:
+                return settings.SR_REQUIRED_SCOPES[state]
+            else:
+                return []
+        else:
+            return []
 
 
 class StandingFactory:
@@ -363,9 +376,9 @@ class ContactsWrapper:
 
     @python_2_unicode_compatible
     class Label:
-        def __init__(self, xml):
-            self.id = int(xml.get('labelID'))
-            self.name = xml.get('name')
+        def __init__(self, json):
+            self.id = json['label_id']
+            self.name = json['label_name']
 
         def __str__(self):
             return u'{}'.format(self.name)
@@ -375,15 +388,41 @@ class ContactsWrapper:
 
     @python_2_unicode_compatible
     class Contact:
-        def __init__(self, xml, labels):
-            self.id = int(xml.get('contactID'))
-            self.name = xml.get('contactName')
-            self.standing = float(xml.get('standing'))
-            self.in_watchlist = xml.get('inWatchlist') == 'True' if 'inWatchlist' in xml.attrib else None
-            self.label_mask = int(xml.get('labelMask') or 0)
-            self.type_id = int(xml.get('contactTypeID') or 0)
-            # Bit mask to determine the labels (can be multiple)
-            self.labels = [l for l in labels if l.id & self.label_mask == l.id]
+
+        @staticmethod
+        def get_type_id_from_name(type_name):
+            """
+            Mapps new ESI name to old type id.
+            Character type is allways mapped to 1373
+            And faction type to 500000
+            Determines the contact type:
+            2 = Corporation
+            1373-1386 = Character
+            16159 = Alliance
+            500001 - 500024 = Faction
+            """
+            if type_name == 'character':
+                return 1373
+            if type_name == 'alliance':
+                return 16159
+            if type_name == 'faction':
+                return 500001
+            if type_name == 'corporation':
+                return 2
+
+            raise NotImplementedError('This contact type is not mapped')
+
+        def __init__(self, json, labels, names_info):
+            self.id = json['contact_id']
+            # TODO: remove this and translate id to name when displayed
+            self.name = names_info[self.id] if self.id in names_info else 'Could not get name from API'
+            self.standing = json['standing']
+            self.in_watchlist = json['in_watchlist'] if 'in_watchlist' in json else None
+            self.label_ids = json['label_ids'] if 'label_ids' in json and json['label_ids'] is not None else []
+            self.type_id = self.__class__.get_type_id_from_name(
+                json['contact_type'])
+            # list of lanbels
+            self.labels = [l for l in labels if l.id in self.label_ids]
 
         def __str__(self):
             return u'{}'.format(self.name)
@@ -392,28 +431,40 @@ class ContactsWrapper:
             return str(self)
 
     def __init__(self, api, character_id):
-        response = api.get('char/ContactList', {'characterID': character_id})
-        self.personal = []
-        self.corp = []
         self.alliance = []
-
-        self.personalLabels = []
-        self.corpLabels = []
         self.allianceLabels = []
 
-        # Map Labels first (we need them for contacts)
-        for rowset in response.result.findall('rowset'):
-            setname = rowset.get('name')
-            if setname in self.LABEL_MAP:
-                selfset = getattr(self, self.LABEL_MAP[setname])
-                for row in rowset.findall('row'):
-                    selfset.append(self.Label(row))
+        alliance_id = EveCharacter.objects.get_character_by_id(character_id).alliance_id
+        allianceLabelInfo = api.Contacts.get_alliances_alliance_id_contacts_labels(alliance_id=alliance_id)
+        allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(alliance_id=alliance_id, page=1)
+        allianceContactsInfo.also_return_response = True
 
-        # Now load contact list and we can map label objects to them
-        for rowset in response.result.findall('rowset'):
-            setname = rowset.get('name')
-            if setname in self.CONTACTS_MAP:
-                selfset = getattr(self, self.CONTACTS_MAP[setname])
-                labels = getattr(self, "{0}Labels".format(self.CONTACTS_MAP[setname]))
-                for row in rowset.findall('row'):
-                    selfset.append(self.Contact(row, labels))
+        for label in allianceLabelInfo.result():
+            self.allianceLabels.append(self.Label(label))
+
+        entity_ids = []
+
+        contacts, response = allianceContactsInfo.result()
+        logger.debug("Got %d contacs with 1st page", len(contacts))
+        # get the x-pages header
+        pages = int(response.headers['X-Pages']) if 'X-Pages' in response.headers else 1
+        logger.debug("We need to get %d page(s) of contacts in total", pages)
+
+        for page in xrange(2, pages+1):
+            logger.debug("Getting page %d/%d of contacts", page, pages)
+            allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=alliance_id,
+                page=page
+                )
+            new_contacts = allianceContactsInfo.result()
+            logger.debug("Got %d contacs with %d page", len(new_contacts), page)
+            contacts = contacts + new_contacts
+        logger.debug("Got %d contact in total from %d pages", len(contacts), pages)
+        for contact in contacts:
+            entity_ids.append(contact['contact_id'])
+
+        name_info = EveNameCache.get_names(entity_ids)
+
+        for contact in contacts:
+            self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
+
