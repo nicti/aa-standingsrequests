@@ -7,18 +7,18 @@
 
 {% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-{% include "standings-requests/bundles/angular.html" %}
+{% include "standingsrequests/bundles/angular.html" %}
 {% endblock extra_css %}
 
 {% block content %}
-    {% include 'standings-requests/partials/_menu.html' %}
+    {% include 'standingsrequests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="PilotListController">
         <standings-filter-controls states="true" scopes="true"></standings-filter-controls>
         <div class="col-lg-12 container">
             <h1 class="page-header">
                 {% trans "Pilots" %}
                 {% if perms.standingstool.download %}
-                <div class="pull-right"><a href="{% url "standings-requests:download_pilots" %}" class="btn btn-info">{% trans "Download" %}</a></div>
+                <div class="pull-right"><a href="{% url "standingsrequests:download_pilots" %}" class="btn btn-info">{% trans "Download" %}</a></div>
                 {% endif %}
             </h1>
             <div class="pull-left">
@@ -106,9 +106,9 @@
 
 {% block extra_javascript %}
     <script type="text/javascript">
-        {% include 'standings-requests/partials/_angular_urls.html' %}
+        {% include 'standingsrequests/partials/_angular_urls.html' %}
     </script>
-    <script src="{% static 'standings-requests/app.js' %}"></script>
-    <script src="{% static 'standings-requests/standings_filter.js' %}"></script>
-    <script src="{% static 'standings-requests/view_pilots.js' %}"></script>
+    <script src="{% static 'standingsrequests/app.js' %}"></script>
+    <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
+    <script src="{% static 'standingsrequests/view_pilots.js' %}"></script>
 {% endblock extra_javascript %}

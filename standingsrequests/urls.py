@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 from django.conf.urls import url, include
 from . import views
 
-app_name = 'standings-requests'
+app_name = 'standingsrequests'
 
 local_urlpatterns = [
     url(r'^$', views.index_view, name='index'),
@@ -37,5 +37,5 @@ local_urlpatterns = [
 ]
 
 urlpatterns = [
-    url(r'^standings-requests/', include((local_urlpatterns, 'standings-requests'))),
+    url(r'^standingsrequests/', include((local_urlpatterns, 'standingsrequests'))),
 ]

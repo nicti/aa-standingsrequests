@@ -7,16 +7,16 @@
 
 {% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-{% include "standings-requests/bundles/angular.html" %}
+{% include "standingsrequests/bundles/angular.html" %}
 {% endblock extra_css %}
 {% block content %}
-    {% include 'standings-requests/partials/_menu.html' %}
+    {% include 'standingsrequests/partials/_menu.html' %}
     <div class="alert alert-success" role="alert">
     Successfully added token with scopes {% for scope in scopes %}{%if not forloop.first %}, {% endif %}{{scope}}{% endfor %} for {{char_name}}.
     </div>
 {% endblock %}
 {% block extra_javascript %}
     <script type="text/javascript">
-        {% include 'standings-requests/partials/_angular_urls.html' %}
+        {% include 'standingsrequests/partials/_angular_urls.html' %}
     </script>
 {% endblock extra_javascript %}

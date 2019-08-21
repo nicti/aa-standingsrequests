@@ -43,7 +43,7 @@ def index_view(request):
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
-        return render(request, 'standings-requests/error.html', {
+        return render(request, 'standingsrequests/error.html', {
             'error_message':
                 _('You must fetch contacts using the standings_update task before using the standings tool')
         })
@@ -57,6 +57,11 @@ def index_view(request):
             standing = standings.get(contactID=c.character_id).standing
         except ObjectDoesNotExist:
             standing = None
+        try:
+            standing_req = StandingsRequest.objects.get(contactID=c.character_id)
+        except ObjectDoesNotExist:
+            standing_req = None
+
         st_data.append({
             'character': c,
             'standing': standing,
@@ -65,6 +70,7 @@ def index_view(request):
             'requestActioned': StandingsRequest.actioned_request(c.character_id),
             'inOrganisation': StandingsManager.pilot_in_organisation(c.character_id),
             'hasRequiredScopes': StandingsManager.has_required_scopes_for_request(c),
+            'standingReqExists': standing_req,
         })
 
     standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
@@ -76,6 +82,10 @@ def index_view(request):
             standing = standings.get(contactID=c).standing
         except ObjectDoesNotExist:
             standing = None
+        try:
+            standing_req = StandingsRequest.objects.get(contactID=c)
+        except ObjectDoesNotExist:
+            standing_req = None
 
         corp_st_data.append({
             'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
@@ -85,6 +95,8 @@ def index_view(request):
             'pendingRequest': StandingsRequest.pending_request(c),
             'pendingRevocation': StandingsRevocation.pending_request(c),
             'requestActioned': StandingsRequest.actioned_request(c),
+            'standingReqExists': standing_req,
+
         })
 
     render_items = {'characters': st_data,
@@ -93,7 +105,7 @@ def index_view(request):
                         'main_char_id': request.user.profile.main_character.character_id
                         }
                     }
-    return render(request, 'standings-requests/index.html', render_items)
+    return render(request, 'standingsrequests/index.html', render_items)
 
 
 @login_required
@@ -111,7 +123,7 @@ def request_pilot_standings(request, character_id):
             logger.warn("Contact ID {0} already has a pending request".format(character_id))
     else:
         logger.warn("User {0} does not own Pilot ID {1}, forbidden".format(request.user, character_id))
-    return redirect('standings-requests:index')
+    return redirect('standingsrequests:index')
 
 
 @login_required
@@ -142,7 +154,7 @@ def remove_pilot_standings(request, character_id):
         logger.warn('User {0} tried to remove standings for characterID {1} but was not permitted'.format(
             request.user, character_id))
 
-    return redirect('standings-requests:index')
+    return redirect('standingsrequests:index')
 
 
 @login_required
@@ -162,7 +174,7 @@ def request_corp_standings(request, corp_id):
             logger.warn("Contact ID {0} already has a pending request".format(corp_id))
     else:
         logger.warn("User {0} does not have enough keys for corpID {1}, forbidden".format(request.user, corp_id))
-    return redirect('standings-requests:index')
+    return redirect('standingsrequests:index')
 
 
 @login_required
@@ -194,7 +206,7 @@ def remove_corp_standings(request, corp_id):
         logger.warn('User {0} tried to remove standings for corpID {1} but was not permitted'.format(
             request.user, corp_id))
 
-    return redirect('standings-requests:index')
+    return redirect('standingsrequests:index')
 
 
 ####################
@@ -208,7 +220,7 @@ def view_pilots_standings(request):
         last_update = ContactSet.objects.latest().date
     except ObjectDoesNotExist:
         last_update = None
-    return render(request, 'standings-requests/view_pilots.html', {'lastUpdate': last_update})
+    return render(request, 'standingsrequests/view_pilots.html', {'lastUpdate': last_update})
 
 
 @login_required
@@ -353,7 +365,7 @@ def view_groups_standings(request):
         last_update = ContactSet.objects.latest().date
     except ObjectDoesNotExist:
         last_update = None
-    return render(request, 'standings-requests/view_groups.html', {'lastUpdate': last_update})
+    return render(request, 'standingsrequests/view_groups.html', {'lastUpdate': last_update})
 
 
 @login_required
@@ -391,7 +403,7 @@ def view_groups_standings_json(request):
 @permission_required('standingsrequests.affect_standings')
 def manage_standings(request):
     logger.debug('manage_standings called by %s' % request.user)
-    return render(request, 'standings-requests/manage.html')
+    return render(request, 'standingsrequests/manage.html')
 
 
 @login_required
@@ -595,7 +607,7 @@ def manage_revocations_undo(request, contact_id):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def view_active_requests(request):
-    return render(request, 'standings-requests/requests.html')
+    return render(request, 'standingsrequests/requests.html')
 
 
 @login_required
@@ -662,7 +674,7 @@ def view_active_requests_json(request):
 @token_required(new=False, scopes='esi-alliances.read_contacts.v1')
 def view_auth_page(request, token):
     got_token_for_right_char = token.character_id == settings.STANDINGS_API_CHARID
-    return render(request, 'standings-requests/view_sso.html',
+    return render(request, 'standingsrequests/view_sso.html',
                   {
                       'have_token': got_token_for_right_char,
                       'char_id': settings.STANDINGS_API_CHARID,
@@ -677,7 +689,7 @@ def view_auth_page(request, token):
 @permission_required('standingsrequests.request_standings')
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
-    return render(request, 'standings-requests/requester_added_scopes.html',
+    return render(request, 'standingsrequests/requester_added_scopes.html',
                   {
                       'char_name': EveNameCache.get_name(token.character_id),
                       'char_id': token.character_id,

@@ -7,11 +7,11 @@
 
 {% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-{% include "standings-requests/bundles/angular.html" %}
+{% include "standingsrequests/bundles/angular.html" %}
 {% endblock extra_css %}
 
 {% block content %}
-    {% include 'standings-requests/partials/_menu.html' %}
+    {% include 'standingsrequests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="ViewRequestsController">
         <error-messages></error-messages>
         <!-- Requests -->
@@ -84,11 +84,11 @@
 
 {% block extra_javascript %}
     <script type="text/javascript">
-        {% include 'standings-requests/partials/_angular_urls.html' %}
+        {% include 'standingsrequests/partials/_angular_urls.html' %}
     </script>
-    <script src="{% static 'standings-requests/app.js' %}"></script>
-    <script src="{% static 'standings-requests/error.js' %}"></script>
-    <script src="{% static 'standings-requests/standings_filter.js' %}"></script>
-    <script src="{% static 'standings-requests/manage.js' %}"></script>
-    <script src="{% static 'standings-requests/requests.js' %}"></script>
+    <script src="{% static 'standingsrequests/app.js' %}"></script>
+    <script src="{% static 'standingsrequests/error.js' %}"></script>
+    <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
+    <script src="{% static 'standingsrequests/manage.js' %}"></script>
+    <script src="{% static 'standingsrequests/requests.js' %}"></script>
 {% endblock extra_javascript %}

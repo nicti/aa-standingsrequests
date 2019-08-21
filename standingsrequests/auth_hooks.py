@@ -40,7 +40,7 @@ class StandingsRequestMenuItem(MenuItemHook):
         MenuItemHook.__init__(self,
                               'Standings Requests',
                               'fa fa-plus-square fa-fw grayiconecolor',
-                              'standings-requests:index')
+                              'standingsrequests:index')
 
     def render(self, request):
         if request.user.has_perm('standingsrequests.request_standings'):
