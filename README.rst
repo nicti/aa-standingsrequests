@@ -1,20 +1,24 @@
-==================
 Standings Requests
 ==================
 
 Quick start
 -----------
 
-1. Add ``standingsrequests`` to your ``INSTALLED_APPS`` in your Django config file. Add the other settings from the ``settings.example.py`` file.
-2. Run database migrations, ``python manage.py migrate standingsrequests``.
-3. Restart Django and Celery.
-4. Do the initial pull of standings data. ``celery -A alliance_auth call standings_requests.standings_update``
-5. When that's completed, pull all the name data available locally. ``celery -A alliance_auth call standings_requests.update_associations_auth``
-6. When *that's* completed, pull the rest of the data from API. ``celery -A alliance_auth call standings_requests.update_associations_api``
-7. Add permissions to groups where required.
+1. Activate your virtual environment and install this app with: ``pip install git+https://gitlab.com/basraah/standingsrequests.git``
+2. Add the scope ``esi-alliances.read_contacts.v1`` to your Eve Online app
+3. Add ``standingsrequests`` to ``INSTALLED_APPS`` in your Alliance Auth settings file. Also add the other settings from the ``settings.example.py`` file and update the example config for your alliance.
+4. Run database migrations: ``python manage.py migrate standingsrequests``
+5. Copy static files to your webserver: ``python manage.py collectstatic``
+6. Restart Django and Celery.
+7. Open the standingsrequests app in Alliance Auth and add your alliance token
+8. Do the initial pull of standings data: ``celery -A myauth call standings_requests.standings_update``
+9. When that's completed, pull all the name data available locally: ``celery -A myauth call standings_requests.update_associations_auth``
+10. When *that's* completed, pull the rest of the data from API: ``celery -A myauth call standings_requests.update_associations_api``
+11. Add permissions to groups where required.
 
 That's it, you should be ready to roll
 
+**Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has ``manage.py``).
 
 Permissions
 -----------

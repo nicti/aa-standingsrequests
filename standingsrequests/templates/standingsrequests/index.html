@@ -11,7 +11,7 @@
 {% endblock extra_css %}
 
 {% block content %}
-    {% include 'standings-requests/partials/_menu.html' %}
+    {% include 'standingsrequests/partials/_menu.html' %}
     <div class="col-lg-12">
         <h1 class="page-header">{% trans "Your Characters" %}</h1>
 
@@ -52,7 +52,7 @@
                                         {% if std.hasRequiredScopes %}
                                             <i class="fa fa-check fa-fw text-success" title="Has required scopes"></i>
                                         {% else %}
-                                            <a title="{% trans "Add required scopes" %}" class="btn btn-danger btn-sm" href="{% url 'standings-requests:view_requester_add_scopes' %}"><i class="fa fa-plus fa-lg"></i> {% trans "Required" %}</a>
+                                            <a title="{% trans "Add required scopes" %}" class="btn btn-danger btn-sm" href="{% url 'standingsrequests:view_requester_add_scopes' %}"><i class="fa fa-plus fa-lg"></i> {% trans "Required" %}</a>
                                         {% endif %}
                                     </span>
                                 </td>
@@ -74,7 +74,7 @@
                                                 <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
                                                    title="{% trans "No Standing" %}"></i>
                                             {% else %}
-                                                {% include 'standings-requests/partials/_standing.html' with standing=std.standing %}
+                                                {% include 'standingsrequests/partials/_standing.html' with standing=std.standing %}
                                             {% endif %}
                                         </span>
                                     </p>
@@ -85,18 +85,18 @@
                                             {% if std.inOrganisation == True %}
                                                 <!-- Already in organisation, No actions -->
                                             {% elif std.pendingRequest == True or std.requestActioned == True %}
-                                                <a href="{% url 'standings-requests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                <a href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
                                                        title="Remove Request"></i>
                                                 </a>
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
-                                            {% elif std.standing == None or std.standing == 0 %}
-                                                <a href="{% url 'standings-requests:request_pilot_standing' character_id=std.character.character_id %}">
+                                            {% elif std.standing == None or std.standing == 0  or std.standingReqExists == None%}
+                                                <a href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
                                                 </a>
                                             {% else %}
-                                                <a href="{% url 'standings-requests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                <a href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fa fa-times-circle fa-fw grayiconecolor"
                                                        style="color:#e81341;" title="Remove"></i>
                                                 </a>
@@ -159,7 +159,7 @@
                                                 <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
                                                    title="{% trans "No Standing" %}"></i>
                                             {% else %}
-                                                {% include 'standings-requests/partials/_standing.html' with standing=st.standing %}
+                                                {% include 'standingsrequests/partials/_standing.html' with standing=st.standing %}
                                             {% endif %}
                                         </span>
                                     </p>
@@ -168,15 +168,15 @@
                                     <p>
                                         <span style="font-size:2em;">
                                             {% if st.pendingRequest == True or st.requestActioned == True %}
-                                                <a href="{% url 'standings-requests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                <a href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
                                                     <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
                                                        title="Remove Request"></i>
                                                 </a>
                                             {% elif st.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
-                                            {% elif st.standing == None or st.standing == 0 %}
+                                            {% elif st.standing == None or st.standing == 0 or st.standingReqExists == None%}
                                                 {% if st.have_keys >= st.corp.member_count %}
-                                                    <a href="{% url 'standings-requests:request_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    <a href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
                                                         <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
                                                     </a>
                                                 {% else %}
@@ -185,7 +185,7 @@
                                                        title="{% trans "More keys required to request standings" %}"></i>
                                                 {% endif %}
                                             {% else %}
-                                                <a href="{% url 'standings-requests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                <a href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
                                                     <i class="fa fa-times-circle fa-fw grayiconecolor"
                                                        style="color:#e81341;" title="Remove"></i>
                                                 </a>

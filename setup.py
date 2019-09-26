@@ -1,5 +1,5 @@
-from setuptools import setup
-from . import __version__
+from setuptools import setup, find_packages
+from standingsrequests import __version__
 
 
 setup(name='standingsrequests',
@@ -9,12 +9,13 @@ setup(name='standingsrequests',
       author='Basraah',
       author_email='basraaheve@gmail.com',
       license='GPL-3.0',
-      packages=['standingsrequests'],
+      packages=find_packages(),
       install_requires=[
           'future>=0.16.0',
           'requests>=2.18.4',
       ],
       zip_safe=False,
+      include_package_data=True,
       classifiers=[
           'License :: OSI Approved :: GNU General Public License v3',
           'Natural Language :: English',
