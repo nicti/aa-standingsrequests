@@ -42,10 +42,7 @@ def index_view(request):
 @permission_required('standingsrequests.request_standings')
 def partial_request_entities(request):    
     logger.debug("Start partial_request_entities request")
-    characters = EveEntityManager.get_characters_by_user(request.user)
-
-    char_ids = [c.character_id for c in characters]
-
+        
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -54,6 +51,8 @@ def partial_request_entities(request):
                 _('You must fetch contacts using the standings_update task before using the standings tool')
         })
 
+    characters = EveEntityManager.get_characters_by_user(request.user)
+    char_ids = [c.character_id for c in characters]
     standings = contact_set.pilotstanding_set.filter(contactID__in=char_ids)
 
     st_data = []
@@ -78,35 +77,35 @@ def partial_request_entities(request):
             'standingReqExists': standing_req,
         })
 
-    corp_ids = set([int(c.corporation_id) for c in characters
-                    if not StandingsManager.pilot_in_organisation(c.character_id)])
+    corp_st_data = []
+    if SR_CORPORATIONS_ENABLED:
+        corp_ids = set([int(c.corporation_id) for c in characters
+                        if not StandingsManager.pilot_in_organisation(c.character_id)])
 
-    standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
+        standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
+        
+        for c in corp_ids:
+            try:
+                standing = standings.get(contactID=c).standing
+            except ObjectDoesNotExist:
+                standing = None
+            try:
+                standing_req = StandingsRequest.objects.get(contactID=c)
+            except ObjectDoesNotExist:
+                standing_req = None
 
-    corp_st_data = []    
-    for c in corp_ids:
-        try:
-            standing = standings.get(contactID=c).standing
-        except ObjectDoesNotExist:
-            standing = None
-        try:
-            standing_req = StandingsRequest.objects.get(contactID=c)
-        except ObjectDoesNotExist:
-            standing_req = None
+            corp_st_data.append({
+                'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
+                                    if StandingsManager.has_required_scopes_for_request(a.character)]),
+                'corp': EveCorporation.get_corp_by_id(c),
+                'standing': standing,
+                'pendingRequest': StandingsRequest.pending_request(c),
+                'pendingRevocation': StandingsRevocation.pending_request(c),
+                'requestActioned': StandingsRequest.actioned_request(c),
+                'standingReqExists': standing_req,
 
-        corp_st_data.append({
-            'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
-                                if StandingsManager.has_required_scopes_for_request(a.character)]),
-            'corp': EveCorporation.get_corp_by_id(c),
-            'standing': standing,
-            'pendingRequest': StandingsRequest.pending_request(c),
-            'pendingRevocation': StandingsRevocation.pending_request(c),
-            'requestActioned': StandingsRequest.actioned_request(c),
-            'standingReqExists': standing_req,
-
-        })
-
-
+            })
+    
     render_items = {'characters': st_data,
                     'corps': corp_st_data,
                     'corporations_enabled': SR_CORPORATIONS_ENABLED,                  
