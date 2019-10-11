@@ -6,6 +6,9 @@ app_name = 'standingsrequests'
 
 local_urlpatterns = [
     url(r'^$', views.index_view, name='index'),
+    url(r'^request_characters$', views.partial_request_characters, name='request_characters'),
+    url(r'^request_corporations$', views.partial_request_corporations, name='request_corporations'),
+
     url(r'^request_pilot_standings/(?P<character_id>\d+)/', views.request_pilot_standings,
         name='request_pilot_standing'),
     url(r'^remove_pilot_standings/(?P<character_id>\d+)/', views.remove_pilot_standings,

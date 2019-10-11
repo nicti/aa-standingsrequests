@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-from django.conf import settings
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
@@ -21,12 +20,13 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.authentication.models import CharacterOwnership
 from past.builtins import xrange
+from ..app_settings import STANDINGS_API_CHARID, STR_CORP_IDS, STR_ALLIANCE_IDS, SR_REQUIRED_SCOPES
 
 logger = logging.getLogger(__name__)
 
 
 class StandingsManager:
-    charID = settings.STANDINGS_API_CHARID
+    charID = STANDINGS_API_CHARID
 
     def __init__(self):
         pass
@@ -105,7 +105,7 @@ class StandingsManager:
         pilot = EveCharacter.objects.get_character_by_id(character_id)
         if pilot is None:
             return False
-        if str(pilot.corporation_id) in settings.STR_CORP_IDS or str(pilot.alliance_id) in settings.STR_ALLIANCE_IDS:
+        if str(pilot.corporation_id) in STR_CORP_IDS or str(pilot.alliance_id) in STR_ALLIANCE_IDS:
             return True
         return False
 
@@ -174,7 +174,7 @@ class StandingsManager:
             elif not sat and r.effective:
                 # Standing is not effective, but has previously been marked as effective.
                 # Unset effective
-                logger.info("Standing for {0} is marked as effective but is not satisifed in game. "
+                logger.info("Standing for {0} is marked as effective but is not satisfied in game. "
                             "Resetting to initial state".format(r.contactID))
                 r.reset_to_initial()
             else:
@@ -315,13 +315,11 @@ class StandingsManager:
         if state is None:
             state = ''
 
-        if hasattr(settings, 'SR_REQUIRED_SCOPES'):
-            if state in settings.SR_REQUIRED_SCOPES:
-                return settings.SR_REQUIRED_SCOPES[state]
-            else:
-                return []
+        if state in SR_REQUIRED_SCOPES:
+            return SR_REQUIRED_SCOPES[state]
         else:
             return []
+    
 
 
 class StandingFactory:
