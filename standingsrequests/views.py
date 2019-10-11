@@ -40,8 +40,8 @@ def index_view(request):
 
 @login_required
 @permission_required('standingsrequests.request_standings')
-def partial_request_characters(request):    
-    logger.debug("Start partial_request_characters request")
+def partial_request_entities(request):    
+    logger.debug("Start partial_request_entities request")
     characters = EveEntityManager.get_characters_by_user(request.user)
 
     char_ids = [c.character_id for c in characters]
@@ -57,7 +57,6 @@ def partial_request_characters(request):
     standings = contact_set.pilotstanding_set.filter(contactID__in=char_ids)
 
     st_data = []
-
     for c in characters:
         try:
             standing = standings.get(contactID=c.character_id).standing
@@ -79,42 +78,12 @@ def partial_request_characters(request):
             'standingReqExists': standing_req,
         })
 
-
-    render_items = {'characters': st_data,                    
-                    'authinfo': {
-                        'main_char_id': request.user.profile.main_character.character_id
-                        }
-                    }
-
-    return render(
-        request, 
-        'standingsrequests/partials/_request_characters.html', 
-        render_items
-    )
-
-
-@login_required
-@permission_required('standingsrequests.request_standings')
-def partial_request_corporations(request):    
-    logger.debug("Start partial_request_corporations request")
-    
-    # Get all the unique corp IDs of non-member characters
-    characters = EveEntityManager.get_characters_by_user(request.user)
     corp_ids = set([int(c.corporation_id) for c in characters
                     if not StandingsManager.pilot_in_organisation(c.character_id)])
 
-    try:
-        contact_set = ContactSet.objects.latest()
-    except ContactSet.DoesNotExist:
-        return render(request, 'standingsrequests/error.html', {
-            'error_message':
-                _('You must fetch contacts using the standings_update task before using the standings tool')
-        })
-
     standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
 
-    corp_st_data = []
-
+    corp_st_data = []    
     for c in corp_ids:
         try:
             standing = standings.get(contactID=c).standing
@@ -137,15 +106,18 @@ def partial_request_corporations(request):
 
         })
 
-    render_items = {
+
+    render_items = {'characters': st_data,
                     'corps': corp_st_data,
+                    'corporations_enabled': SR_CORPORATIONS_ENABLED,                  
                     'authinfo': {
                         'main_char_id': request.user.profile.main_character.character_id
                         }
                     }
 
     return render(
-        request, 'standingsrequests/partials/_request_corporations.html', 
+        request, 
+        'standingsrequests/partials/_request_entities.html', 
         render_items
     )
 
