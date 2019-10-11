@@ -20,6 +20,22 @@ That's it, you should be ready to roll
 
 **Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has ``manage.py``).
 
+Settings
+-----------
+
+Here is a brief explanation of all available settings. You also find examples of all mandatory settings in ``settings.example.py`` on this repo.
+
+- ``STANDINGS_API_CHARID``: id of character to use for updating alliance contacts (Mandatory)
+
+- ``STR_ALLIANCE_IDS``: id of standing alliances (Mandatory)
+
+- ``STR_CORP_IDS``: id of standing corporations (Mandatory, can be [])
+
+- ``SR_REQUIRED_SCOPES``: map of required scopes per state (Mandatory, can be [] per state)
+
+- ``SR_CORPORATIONS_ENABLED``: switch to enable/disable ability to request standings for corporations (Optional, default is True = enabled)
+
+
 Permissions
 -----------
 

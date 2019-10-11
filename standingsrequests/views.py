@@ -21,24 +21,30 @@ from .helpers.evecorporation import EveCorporation
 import logging
 from esi.decorators import token_required
 from allianceauth.eveonline.models import EveCharacter
-from django.conf import settings
 from allianceauth.authentication.models import CharacterOwnership
 from .decorators import token_required_by_state
+from .app_settings import STANDINGS_API_CHARID, SR_CORPORATIONS_ENABLED
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
 @permission_required('standingsrequests.request_standings')
-def index_view(request):
-    logger.debug("Start index_view request")
+def index_view(request):    
+    logger.debug("Start index_view request")    
+    context = {
+        'corporations_enabled': SR_CORPORATIONS_ENABLED
+    }
+    return render(request, 'standingsrequests/index.html', context)
+
+
+@login_required
+@permission_required('standingsrequests.request_standings')
+def partial_request_characters(request):    
+    logger.debug("Start partial_request_characters request")
     characters = EveEntityManager.get_characters_by_user(request.user)
 
     char_ids = [c.character_id for c in characters]
-
-    # Get all the unique corp IDs of non-member characters
-    corp_ids = set([int(c.corporation_id) for c in characters
-                    if not StandingsManager.pilot_in_organisation(c.character_id)])
 
     try:
         contact_set = ContactSet.objects.latest()
@@ -73,6 +79,38 @@ def index_view(request):
             'standingReqExists': standing_req,
         })
 
+
+    render_items = {'characters': st_data,                    
+                    'authinfo': {
+                        'main_char_id': request.user.profile.main_character.character_id
+                        }
+                    }
+
+    return render(
+        request, 
+        'standingsrequests/partials/_request_characters.html', 
+        render_items
+    )
+
+
+@login_required
+@permission_required('standingsrequests.request_standings')
+def partial_request_corporations(request):    
+    logger.debug("Start partial_request_corporations request")
+    
+    # Get all the unique corp IDs of non-member characters
+    characters = EveEntityManager.get_characters_by_user(request.user)
+    corp_ids = set([int(c.corporation_id) for c in characters
+                    if not StandingsManager.pilot_in_organisation(c.character_id)])
+
+    try:
+        contact_set = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        return render(request, 'standingsrequests/error.html', {
+            'error_message':
+                _('You must fetch contacts using the standings_update task before using the standings tool')
+        })
+
     standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
 
     corp_st_data = []
@@ -99,13 +137,17 @@ def index_view(request):
 
         })
 
-    render_items = {'characters': st_data,
+    render_items = {
                     'corps': corp_st_data,
                     'authinfo': {
                         'main_char_id': request.user.profile.main_character.character_id
                         }
                     }
-    return render(request, 'standingsrequests/index.html', render_items)
+
+    return render(
+        request, 'standingsrequests/partials/_request_corporations.html', 
+        render_items
+    )
 
 
 @login_required
@@ -539,9 +581,12 @@ def manage_get_revocations_json(request):
 
         if pilot or corp_user:
             # Get member details if we found a user
-            user = CharacterOwnership.objects.get(character=pilot).user
-            main = user.profile.main_character
-
+            try:
+                user = CharacterOwnership.objects.get(character=pilot).user
+                main = user.profile.main_character
+            except CharacterOwnership.DoesNotExist:
+                main = None
+            
         revoke = {
             'contact_id': r.contactID,
             'contact_name': pilot.character_name if pilot else corp.corporation_name if corp else None,
@@ -673,12 +718,12 @@ def view_active_requests_json(request):
 @permission_required('standingsrequests.affect_standings')
 @token_required(new=False, scopes='esi-alliances.read_contacts.v1')
 def view_auth_page(request, token):
-    got_token_for_right_char = token.character_id == settings.STANDINGS_API_CHARID
+    got_token_for_right_char = token.character_id == STANDINGS_API_CHARID
     return render(request, 'standingsrequests/view_sso.html',
                   {
                       'have_token': got_token_for_right_char,
-                      'char_id': settings.STANDINGS_API_CHARID,
-                      'char_name': EveNameCache.get_name(settings.STANDINGS_API_CHARID),
+                      'char_id': STANDINGS_API_CHARID,
+                      'char_name': EveNameCache.get_name(STANDINGS_API_CHARID),
                       'token_char_id': token.character_id,
                       'token_char_name': EveNameCache.get_name(token.character_id),
                    }
