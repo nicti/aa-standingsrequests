@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 from django.db.models import Q
+from django.contrib import messages
 
 from .models import ContactSet, StandingsRequest, StandingsRevocation
 from .models import PilotStanding, CorpStanding, EveNameCache
@@ -629,6 +630,11 @@ def view_active_requests(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def view_active_requests_json(request):
+    
+    import cProfile, pstats, io
+    pr = cProfile.Profile()
+    pr.enable()
+    
     reqs = StandingsRequest.objects.all().order_by('requestDate')
 
     response = []
@@ -682,34 +688,54 @@ def view_active_requests_json(request):
             'action_by': r.actionBy.username if r.actionBy is not None else None,
         })
 
+    pr.disable()
+    s = io.StringIO()
+    sort_by = 'cumulative'
+    ps = pstats.Stats(pr, stream=s).sort_stats(sort_by)
+    ps.print_stats()
+    with open('profile_view_active_requests_json.txt', 'w', encoding='utf-8') as f:
+        f.write(s.getvalue())
+
     return JsonResponse(response, safe=False)
 
 
 @login_required
 @permission_required('standingsrequests.affect_standings')
 @token_required(new=False, scopes='esi-alliances.read_contacts.v1')
-def view_auth_page(request, token):
-    got_token_for_right_char = token.character_id == STANDINGS_API_CHARID
-    return render(request, 'standingsrequests/view_sso.html',
-                  {
-                      'have_token': got_token_for_right_char,
-                      'char_id': STANDINGS_API_CHARID,
-                      'char_name': EveNameCache.get_name(STANDINGS_API_CHARID),
-                      'token_char_id': token.character_id,
-                      'token_char_name': EveNameCache.get_name(token.character_id),
-                   }
-                  )
+def view_auth_page(request, token):    
+    char_name = EveNameCache.get_name(STANDINGS_API_CHARID)    
+    if token.character_id == STANDINGS_API_CHARID:
+        messages.success(
+            request, 
+            'Successfully setup alliance token for configured character {}'.format(
+                char_name
+            )
+        )
+    else:
+        messages.error(
+            request, 
+            'Failed to setup alliance token for configured character {} '.format(
+                char_name,
+            )
+            + '(id:{}). '.format(                
+                STANDINGS_API_CHARID
+            )
+            + 'Instead got token for different character: {} (id:{})'.format(
+                EveNameCache.get_name(token.character_id),
+                token.character_id
+            )
+        )        
+    return redirect('standingsrequests:index')
 
 
 @login_required
 @permission_required('standingsrequests.request_standings')
 @token_required_by_state(new=False)
-def view_requester_add_scopes(request, token):
-    return render(request, 'standingsrequests/requester_added_scopes.html',
-                  {
-                      'char_name': EveNameCache.get_name(token.character_id),
-                      'char_id': token.character_id,
-                      'scopes': [scope.friendly_name for scope in token.scopes.all()],
-                  }
-                  )
-
+def view_requester_add_scopes(request, token):            
+    messages.success(
+        request,
+        'Successfully added token with required scopes for {}'.format(            
+            EveNameCache.get_name(token.character_id)
+    ))
+    
+    return redirect('standingsrequests:index')

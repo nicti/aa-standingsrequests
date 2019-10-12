@@ -22,6 +22,7 @@ local_urlpatterns = [
     url(r'^view/pilots/download/$', views.download_pilot_standings, name='download_pilots'),
     url(r'^view/corps/$', views.view_groups_standings, name='view_groups'),
     url(r'^view/corps/json$', views.view_groups_standings_json, name='view_groups_json'),
+    
     url(r'^manage/$', views.manage_standings, name='manage'),
     url(r'^manage/requests/$', views.manage_get_requests_json, name='manage_get_requests_json'),
     # Should always follow the path of the GET path above
@@ -34,7 +35,9 @@ local_urlpatterns = [
 
     url(r'^view/requests/$', views.view_active_requests, name='view_requests'),
     url(r'^view/requests/json/$', views.view_active_requests_json, name='view_requests_json'),
+
     url(r'^manage/setuptoken/$', views.view_auth_page, name='view_auth_page'),
+    
     url(r'^requester_add_scopes/$', views.view_requester_add_scopes, name='view_requester_add_scopes')
 ]
 
