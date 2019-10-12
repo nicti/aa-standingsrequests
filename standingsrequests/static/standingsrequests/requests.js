@@ -7,7 +7,8 @@ angular.module('standingsApp')
     function getRequestData() {        
         viewRequestsDataFactory.getRequests().then(function(response) {            
             // Success
-            document.getElementById("tr_spinner").style.display = 'none';
+            document.getElementById("div_spinner").style.display = 'none';
+            document.getElementById("div_requests").style.visibility = 'visible';
             $scope.requests = response.data;
         }, ErrorMessageService.error);
     }

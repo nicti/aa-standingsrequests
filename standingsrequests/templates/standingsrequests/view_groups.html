@@ -16,11 +16,19 @@
         <standings-filter-controls></standings-filter-controls>
         <div class="col-lg-12 container">
             <h1 class="page-header">{% trans "Groups" %}</h1>
-            <div class="pull-right">
-                Last API Update: {{ lastUpdate | date:"SHORT_DATETIME_FORMAT" }}
-            </div>
+            <div class="pull-left">
+                <p>This data is cached for up to 10 minutes.<br/>
+                Last API Update: {{ lastUpdate | date:"SHORT_DATETIME_FORMAT" }}</p>
+            </div>            
             <div class="col-lg-12 container">
-                <div class="row">                    
+
+                <div id="div_spinner" class="row">                    
+                    <div class="col-md-12">
+                        <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
+                    </div>
+                </div>
+                
+                <div id="div_results" class="row" style="visibility: hidden">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             
@@ -29,14 +37,9 @@
                                 <th class="col-md-3">{% trans "Corporation" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
-                            </tr>
-                            <tr id="tr_spinner_corporations">
-                                <td colspan="10" style="text-align: left; vertical-align: middle;">
-                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
-                                </td>
-                            </tr>
+                            </tr>                            
                             {% verbatim %}
-                            <tr ng-repeat="entity in corps | filterStandings">
+                            <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">
                                 <td>
                                     <span ng-bind="entity.corporation_name"></span>
                                 </td>
@@ -49,6 +52,12 @@
                                     <span ng-repeat="label in entity.labels" ng-bind="label"></span>
                                 </td>
                             </tr>
+                            
+                            <tr ng-hide="corpsFiltered.length > 0">
+                                <td class="text-muted" colspan="3" style="text-align: left; vertical-align: middle;">
+                                Empty
+                                </td>
+                            </tr>
                             {% endverbatim %}
                             
                             <!-- Alliances -->
@@ -56,15 +65,10 @@
                                 <th class="col-md-3">{% trans "Alliance" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
-                            </tr>
-                            <tr id="tr_spinner_alliances">
-                                <td colspan="10" style="text-align: left; vertical-align: middle;">
-                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
-                                </td>
-                            </tr>
+                            </tr>                            
                             {% verbatim %}
                             <!-- Should DRY this -->
-                            <tr ng-repeat="entity in alliances | filterStandings">
+                            <tr ng-repeat="entity in alliances | filterStandings as alliancesFiltered">
                                 <td>
                                     <span ng-bind="entity.alliance_name"></span>
                                 </td>
@@ -77,10 +81,18 @@
                                     <span ng-repeat="label in entity.labels" ng-bind="label"></span>
                                 </td>
                             </tr>
+
+                            <tr ng-hide="alliancesFiltered.length > 0">
+                                <td class="text-muted" colspan="3" style="text-align: left; vertical-align: middle;">
+                                Empty
+                                </td>
+                            </tr>
+
                             {% endverbatim %}
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>

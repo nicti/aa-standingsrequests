@@ -2,7 +2,8 @@ standingsApp.controller('PilotListController', function ($scope, $http) {
     $scope.getData = function () {
         $http.get(urls.pilots_json).then(function(response) {
             // Success
-            document.getElementById("tr_spinner").style.display = 'none';
+            document.getElementById("div_spinner").style.display = 'none';
+            document.getElementById("div_results").style.visibility = 'visible';
             $scope.pilots = response.data;
         }, function(response) {
             // Unsuccessful
