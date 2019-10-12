@@ -631,10 +631,6 @@ def view_active_requests(request):
 @permission_required('standingsrequests.affect_standings')
 def view_active_requests_json(request):
     
-    import cProfile, pstats, io
-    pr = cProfile.Profile()
-    pr.enable()
-    
     reqs = StandingsRequest.objects.all().order_by('requestDate')
 
     response = []
@@ -687,14 +683,6 @@ def view_active_requests_json(request):
             'is_pilot': PilotStanding.is_pilot(r.contactType),
             'action_by': r.actionBy.username if r.actionBy is not None else None,
         })
-
-    pr.disable()
-    s = io.StringIO()
-    sort_by = 'cumulative'
-    ps = pstats.Stats(pr, stream=s).sort_stats(sort_by)
-    ps.print_stats()
-    with open('profile_view_active_requests_json.txt', 'w', encoding='utf-8') as f:
-        f.write(s.getvalue())
 
     return JsonResponse(response, safe=False)
 
