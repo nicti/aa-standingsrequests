@@ -24,11 +24,14 @@ Here are some example screenshots:
 
 **Requesting standings for a character**
 
-.. image:: https://i.imgur.com/SQnL141.png
+.. image:: https://i.imgur.com/zrKCW1D.png
+   :target: https://i.imgur.com/SQnL141.png
+
 
 **Reviewing standings requests**
 
-.. image:: https://i.imgur.com/Pk0NV9e.png
+.. image:: https://i.imgur.com/6vCpFm0.png
+   :target: https://i.imgur.com/Pk0NV9e.png
    
 Installation
 ------------
