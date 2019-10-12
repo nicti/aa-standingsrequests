@@ -14,6 +14,7 @@
     {% include 'standingsrequests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="ViewRequestsController">
         <error-messages></error-messages>
+        
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">{% trans "Requests" %}</h2>
@@ -32,6 +33,11 @@
                                 <th class="col-md-1">{% trans "Actioned" %}</th>
                                 <th class="col-md-1">{% trans "Effective" %}</th>
                                 <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
+                            </tr>
+                            <tr id="tr_spinner">
+                                <td colspan="10" style="text-align: left; vertical-align: middle;">
+                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
+                                </td>
                             </tr>
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">

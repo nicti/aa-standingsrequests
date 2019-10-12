@@ -32,6 +32,11 @@
                                 <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
                             </tr>
+                            <tr id="tr_spinner_requests">
+                                <td colspan="10" style="text-align: left; vertical-align: middle;">
+                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
+                                </td>
+                            </tr>
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
@@ -91,6 +96,11 @@
                                 <th class="col-md-1" title="Delete this standings request. Standing will become unmanaged">{% trans "Delete" %}</th>
                                 <th class="col-md-1" title="Undo this standings revocation and generate a new standings request">{% trans "Undo" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
+                            </tr>
+                            <tr id="tr_spinner_revocations">
+                                <td colspan="10" style="text-align: left; vertical-align: middle;">
+                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
+                                </td>
                             </tr>
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">

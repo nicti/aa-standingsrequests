@@ -4,9 +4,10 @@ angular.module('standingsApp')
 
     getRequestData();
 
-    function getRequestData() {
-        viewRequestsDataFactory.getRequests().then(function(response) {
+    function getRequestData() {        
+        viewRequestsDataFactory.getRequests().then(function(response) {            
             // Success
+            document.getElementById("tr_spinner").style.display = 'none';
             $scope.requests = response.data;
         }, ErrorMessageService.error);
     }

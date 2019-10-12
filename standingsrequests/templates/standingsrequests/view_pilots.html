@@ -56,6 +56,11 @@
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
                             </tr>
+                             <tr id="tr_spinner">
+                                <td colspan="10" style="text-align: left; vertical-align: middle;">
+                                    <img src="{% static "standingsrequests/Spinner-1s-200px.svg" %}" width=32 height=32 alt="Spinner"/>
+                                </td>
+                            </tr>
                             {% verbatim %}
                             <tr ng-repeat="character in filteredStandings = (pilots | filterStandings) | limitTo : pageSize : (currentPage-1) * pageSize">
                                 <td>
