@@ -14,11 +14,19 @@
     {% include 'standingsrequests/partials/_menu.html' %}
     <div ng-app="standingsApp" ng-controller="ManageStandingsController">
         <error-messages></error-messages>
+        
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">{% trans "Requests" %}</h2>
             <div class="col-lg-12 container">
-                <div class="row">
+                
+                <div id="div_spinner_requests" class="row">                    
+                    <div class="col-md-12">
+                        <img src="{% static "standingsrequests/Spinner-1s-64px.gif" %}" alt="Spinner"/>
+                    </div>
+                </div>
+
+                <div id="div_requests" class="row" style="visibility: hidden">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
@@ -30,7 +38,7 @@
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
-                            </tr>
+                            </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
@@ -66,17 +74,32 @@
                                     </span>
                                 </td>
                             </tr>
+
+                            <tr ng-hide="requests.length > 0">
+                                <td class="text-muted" colspan="9" style="text-align: left; vertical-align: middle;">
+                                    Empty
+                                </td>
+                            </tr>
+
                             {% endverbatim %}
                         </table>
                     </div>
                 </div>
             </div>
         </div>
+        
         <!-- Revocations -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">{% trans "Revocations" %}</h2>
             <div class="col-lg-12 container">
-                <div class="row">
+
+                <div id="div_spinner_revocations" class="row">                    
+                    <div class="col-md-12">
+                        <img src="{% static "standingsrequests/Spinner-1s-64px.gif" %}" alt="Spinner"/>
+                    </div>
+                </div>
+
+                <div id="div_revocations" class="row" style="visibility: hidden">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
@@ -89,7 +112,7 @@
                                 <th class="col-md-1" title="Delete this standings request. Standing will become unmanaged">{% trans "Delete" %}</th>
                                 <th class="col-md-1" title="Undo this standings revocation and generate a new standings request">{% trans "Undo" %}</th>
                                 <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
-                            </tr>
+                            </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
                                 <td>
@@ -130,6 +153,13 @@
                                     </span>
                                 </td>
                             </tr>
+
+                            <tr ng-hide="revocations.length > 0">
+                                <td class="text-muted" colspan="9" style="text-align: left; vertical-align: middle;">
+                                    Empty
+                                </td>
+                            </tr>
+
                             {% endverbatim %}
                         </table>
                     </div>

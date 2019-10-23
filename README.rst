@@ -1,8 +1,40 @@
 Standings Requests
 ==================
 
-Quick start
+Alliance Auth compatible standings tool module for requesting alt character standings and checking API key registration.
+
+Features
+--------
+
+- User can requests alliance standings for their characters
+
+- Standing managers can approve / deny standings requests from users
+
+- Automatic verification that approved / revoked standings are added / removed in-game
+
+- When user leaves alliance app will automatically identify required standing revocations
+
+- Tool for researching all current alliance standing incl. link to their owners
+
+
+Screenshots
 -----------
+
+Here are some example screenshots:
+
+**Requesting standings for a character**
+
+.. image:: https://i.imgur.com/zrKCW1D.png
+   :target: https://i.imgur.com/SQnL141.png
+
+
+**Reviewing standings requests**
+
+.. image:: https://i.imgur.com/6vCpFm0.png
+   :target: https://i.imgur.com/Pk0NV9e.png
+   
+Installation
+------------
 
 1. Activate your virtual environment and install this app with: ``pip install git+https://gitlab.com/basraah/standingsrequests.git``
 2. Add the scope ``esi-alliances.read_contacts.v1`` to your Eve Online app
@@ -20,16 +52,32 @@ That's it, you should be ready to roll
 
 **Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has ``manage.py``).
 
+Settings
+-----------
+
+Here is a brief explanation of all available settings. You also find examples of all mandatory settings in ``settings.example.py`` on this repo.
+
+- ``STANDINGS_API_CHARID``: id of character to use for updating alliance contacts (Mandatory)
+
+- ``STR_ALLIANCE_IDS``: id of standing alliances (Mandatory)
+
+- ``STR_CORP_IDS``: id of standing corporations (Mandatory, can be [])
+
+- ``SR_REQUIRED_SCOPES``: map of required scopes per state (Mandatory, can be [] per state)
+
+- ``SR_CORPORATIONS_ENABLED``: switch to enable/disable ability to request standings for corporations (Optional, default is True = enabled)
+
+
 Permissions
 -----------
 
-``standingsrequests.request_standings | User can request standings`` User can request standings. This is the permission required to request and maintain blue standings without them being revoked. When the user no longer has this permission all of their standings will be revoked.
+- ``standingsrequests.request_standings | User can request standings``: This is the permission required to request and maintain blue standings without them being revoked. When the user no longer has this permission all of their standings will be revoked.
 
-``standingsrequests.view | User can view standings`` This includes seeing if the user has API keys for that character (but not the API keys themselves) and who the character belongs to. Typically you'll probably only want standings managers to have this.
+- ``standingsrequests.view | User can view standings``: This includes seeing if the user has API keys for that character (but not the API keys themselves) and who the character belongs to. Typically you'll probably only want standings managers to have this.
 
-``standingsrequests.affect_standings | User can process standings requests`` User can see standings requests and process/approve/reject them.
+- ``standingsrequests.affect_standings | User can process standings requests``: User can see standings requests and process/approve/reject them.
 
-``standingsrequests.download | User can export standings to a CSV file`` User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
+- ``standingsrequests.download | User can export standings to a CSV file`` User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
 
 Standings Requirements
 ----------------------
@@ -47,8 +95,10 @@ ALL Corporation member API keys recorded in auth.
 Users main character is a member of one of the tenant corps.
 User has the ``request_standings`` permission.
 
-Manager Actions
----------------
+Manual for Standing Managers
+----------------------------
+
+Standing managers have the ability to review standings requests on the "Manage Requests" page.
 
 Standings Requests
 ##################

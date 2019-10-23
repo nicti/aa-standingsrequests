@@ -8,6 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.utils.translation import ugettext as _
 from django.db.models import Q
+from django.contrib import messages
 
 from .models import ContactSet, StandingsRequest, StandingsRevocation
 from .models import PilotStanding, CorpStanding, EveNameCache
@@ -21,25 +22,28 @@ from .helpers.evecorporation import EveCorporation
 import logging
 from esi.decorators import token_required
 from allianceauth.eveonline.models import EveCharacter
-from django.conf import settings
 from allianceauth.authentication.models import CharacterOwnership
 from .decorators import token_required_by_state
+from .app_settings import STANDINGS_API_CHARID, SR_CORPORATIONS_ENABLED
 
 logger = logging.getLogger(__name__)
 
 
 @login_required
 @permission_required('standingsrequests.request_standings')
-def index_view(request):
-    logger.debug("Start index_view request")
-    characters = EveEntityManager.get_characters_by_user(request.user)
+def index_view(request):    
+    logger.debug("Start index_view request")    
+    context = {
+        'corporations_enabled': SR_CORPORATIONS_ENABLED
+    }
+    return render(request, 'standingsrequests/index.html', context)
 
-    char_ids = [c.character_id for c in characters]
 
-    # Get all the unique corp IDs of non-member characters
-    corp_ids = set([int(c.corporation_id) for c in characters
-                    if not StandingsManager.pilot_in_organisation(c.character_id)])
-
+@login_required
+@permission_required('standingsrequests.request_standings')
+def partial_request_entities(request):    
+    logger.debug("Start partial_request_entities request")
+        
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -48,10 +52,11 @@ def index_view(request):
                 _('You must fetch contacts using the standings_update task before using the standings tool')
         })
 
+    characters = EveEntityManager.get_characters_by_user(request.user)
+    char_ids = [c.character_id for c in characters]
     standings = contact_set.pilotstanding_set.filter(contactID__in=char_ids)
 
     st_data = []
-
     for c in characters:
         try:
             standing = standings.get(contactID=c.character_id).standing
@@ -73,39 +78,48 @@ def index_view(request):
             'standingReqExists': standing_req,
         })
 
-    standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
-
     corp_st_data = []
+    if SR_CORPORATIONS_ENABLED:
+        corp_ids = set([int(c.corporation_id) for c in characters
+                        if not StandingsManager.pilot_in_organisation(c.character_id)])
 
-    for c in corp_ids:
-        try:
-            standing = standings.get(contactID=c).standing
-        except ObjectDoesNotExist:
-            standing = None
-        try:
-            standing_req = StandingsRequest.objects.get(contactID=c)
-        except ObjectDoesNotExist:
-            standing_req = None
+        standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
+        
+        for c in corp_ids:
+            try:
+                standing = standings.get(contactID=c).standing
+            except ObjectDoesNotExist:
+                standing = None
+            try:
+                standing_req = StandingsRequest.objects.get(contactID=c)
+            except ObjectDoesNotExist:
+                standing_req = None
 
-        corp_st_data.append({
-            'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
-                                if StandingsManager.has_required_scopes_for_request(a.character)]),
-            'corp': EveCorporation.get_corp_by_id(c),
-            'standing': standing,
-            'pendingRequest': StandingsRequest.pending_request(c),
-            'pendingRevocation': StandingsRevocation.pending_request(c),
-            'requestActioned': StandingsRequest.actioned_request(c),
-            'standingReqExists': standing_req,
+            corp_st_data.append({
+                'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
+                                    if StandingsManager.has_required_scopes_for_request(a.character)]),
+                'corp': EveCorporation.get_corp_by_id(c),
+                'standing': standing,
+                'pendingRequest': StandingsRequest.pending_request(c),
+                'pendingRevocation': StandingsRevocation.pending_request(c),
+                'requestActioned': StandingsRequest.actioned_request(c),
+                'standingReqExists': standing_req,
 
-        })
-
+            })
+    
     render_items = {'characters': st_data,
                     'corps': corp_st_data,
+                    'corporations_enabled': SR_CORPORATIONS_ENABLED,                  
                     'authinfo': {
                         'main_char_id': request.user.profile.main_character.character_id
                         }
                     }
-    return render(request, 'standingsrequests/index.html', render_items)
+
+    return render(
+        request, 
+        'standingsrequests/partials/_request_entities.html', 
+        render_items
+    )
 
 
 @login_required
@@ -539,9 +553,12 @@ def manage_get_revocations_json(request):
 
         if pilot or corp_user:
             # Get member details if we found a user
-            user = CharacterOwnership.objects.get(character=pilot).user
-            main = user.profile.main_character
-
+            try:
+                user = CharacterOwnership.objects.get(character=pilot).user
+                main = user.profile.main_character
+            except CharacterOwnership.DoesNotExist:
+                main = None
+            
         revoke = {
             'contact_id': r.contactID,
             'contact_name': pilot.character_name if pilot else corp.corporation_name if corp else None,
@@ -613,6 +630,7 @@ def view_active_requests(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def view_active_requests_json(request):
+    
     reqs = StandingsRequest.objects.all().order_by('requestDate')
 
     response = []
@@ -672,28 +690,40 @@ def view_active_requests_json(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 @token_required(new=False, scopes='esi-alliances.read_contacts.v1')
-def view_auth_page(request, token):
-    got_token_for_right_char = token.character_id == settings.STANDINGS_API_CHARID
-    return render(request, 'standingsrequests/view_sso.html',
-                  {
-                      'have_token': got_token_for_right_char,
-                      'char_id': settings.STANDINGS_API_CHARID,
-                      'char_name': EveNameCache.get_name(settings.STANDINGS_API_CHARID),
-                      'token_char_id': token.character_id,
-                      'token_char_name': EveNameCache.get_name(token.character_id),
-                   }
-                  )
+def view_auth_page(request, token):    
+    char_name = EveNameCache.get_name(STANDINGS_API_CHARID)    
+    if token.character_id == STANDINGS_API_CHARID:
+        messages.success(
+            request, 
+            'Successfully setup alliance token for configured character {}'.format(
+                char_name
+            )
+        )
+    else:
+        messages.error(
+            request, 
+            'Failed to setup alliance token for configured character {} '.format(
+                char_name,
+            )
+            + '(id:{}). '.format(                
+                STANDINGS_API_CHARID
+            )
+            + 'Instead got token for different character: {} (id:{})'.format(
+                EveNameCache.get_name(token.character_id),
+                token.character_id
+            )
+        )        
+    return redirect('standingsrequests:index')
 
 
 @login_required
 @permission_required('standingsrequests.request_standings')
 @token_required_by_state(new=False)
-def view_requester_add_scopes(request, token):
-    return render(request, 'standingsrequests/requester_added_scopes.html',
-                  {
-                      'char_name': EveNameCache.get_name(token.character_id),
-                      'char_id': token.character_id,
-                      'scopes': [scope.friendly_name for scope in token.scopes.all()],
-                  }
-                  )
-
+def view_requester_add_scopes(request, token):            
+    messages.success(
+        request,
+        'Successfully added token with required scopes for {}'.format(            
+            EveNameCache.get_name(token.character_id)
+    ))
+    
+    return redirect('standingsrequests:index')

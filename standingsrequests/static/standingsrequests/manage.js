@@ -7,7 +7,9 @@ angular.module('standingsApp')
 
     function getRequestData() {
         requestsDataFactory.getRequests().then(function(response) {
-            // Success
+            // Success            
+            document.getElementById("div_spinner_requests").style.display = 'none';
+            document.getElementById("div_requests").style.visibility = 'visible';
             $scope.requests = response.data;
         }, ErrorMessageService.error);
     };
@@ -33,7 +35,9 @@ angular.module('standingsApp')
     // Revocations
     function getRevocationData() {
         revocationsDataFactory.getRevocations().then(function(response) {
-            // Success
+            // Success            
+            document.getElementById("div_spinner_revocations").style.display = 'none';
+            document.getElementById("div_revocations").style.visibility = 'visible';
             $scope.revocations = response.data;
         }, ErrorMessageService.error);
     };
