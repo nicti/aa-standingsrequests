@@ -414,7 +414,7 @@ class EveNameCache(models.Model):
         :param eve_entity_ids: array of int entity ids whos names to fetch
         :return: dict with entity_id as key and name as value
         """
-        # make sure there is no duplicates
+        # make sure there are no duplicates
         entity_ids = set(entity_ids)
         name_info = {}
         entities_need_update = []
@@ -495,14 +495,29 @@ class EveNameCache(models.Model):
         Attempt to update the entity from the latest contacts data
         :return: bool True if successful, False otherwise
         """
-        contacts = ContactSet.objects.latest()
         contact = None
-        if contacts.pilotstanding_set.filter(contactID=self.entityID).exists():
-            contact = contacts.pilotstanding_set.get(contactID=self.entityID)
-        elif contacts.corpstanding_set.filter(contactID=self.entityID).exists():
-            contact = contacts.corpstanding_set.get(contactID=self.entityID)
-        elif contacts.alliancestanding_set.filter(contactID=self.entityID).exists():
-            contact = contacts.alliancestanding_set.get(contactID=self.entityID)
+        try:
+            contacts = ContactSet.objects.latest()
+            if (contacts.pilotstanding_set\
+                .filter(contactID=self.entityID).exists()
+            ):
+                contact = \
+                    contacts.pilotstanding_set.get(contactID=self.entityID)
+            
+            elif (contacts.corpstanding_set\
+                .filter(contactID=self.entityID).exists()
+            ):
+                contact = \
+                    contacts.corpstanding_set.get(contactID=self.entityID)
+            
+            elif (contacts.alliancestanding_set\
+                .filter(contactID=self.entityID).exists()
+            ):
+                contact = \
+                    contacts.alliancestanding_set.get(contactID=self.entityID)
+        
+        except ContactSet.DoesNotExist:
+            pass
 
         if contact is not None:
             self._set_name(contact.name)
