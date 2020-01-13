@@ -3,6 +3,18 @@ Standings Requests
 
 Alliance Auth compatible standings tool module for requesting alt character standings and checking API key registration.
 
+Contents
+--------
+
+- `Features`_
+- `Screenshots`_
+- `Installation`_
+- `Settings`_
+- `Permissions`_
+- `Standings Requirements`_
+- `Manual for Standing Managers`_ 
+- `Change Log <CHANGELOG.md>`_
+
 Features
 --------
 
@@ -22,13 +34,15 @@ Screenshots
 
 Here are some example screenshots:
 
-**Requesting standings for a character**
+Requesting standings for a character
+####################################
 
 .. image:: https://i.imgur.com/zrKCW1D.png
    :target: https://i.imgur.com/SQnL141.png
 
 
-**Reviewing standings requests**
+Reviewing standings requests
+############################
 
 .. image:: https://i.imgur.com/6vCpFm0.png
    :target: https://i.imgur.com/Pk0NV9e.png
@@ -53,7 +67,7 @@ That's it, you should be ready to roll
 **Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has ``manage.py``).
 
 Settings
------------
+--------
 
 Here is a brief explanation of all available settings. You also find examples of all mandatory settings in ``settings.example.py`` on this repo.
 
