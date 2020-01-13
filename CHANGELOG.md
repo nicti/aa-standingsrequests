@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.3.6] - 2020-01-13
+
+### Fixed
+
+- Error 500 when trying to add token during installation for the first time ([#9](https://gitlab.com/basraah/standingsrequests/issues/9))
+
 ## [0.3.5] - 2019-10-12
 
 ### Added
