@@ -1,22 +1,13 @@
-{% extends "allianceauth/base.html" %}
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
 
-{% block title %}Alliance Auth - Standings Tool {% endblock %}
-
-{% block page_title %}Request Standings{% endblock page_title %}
-{% block extra_css %}
-
-{% endblock extra_css %}
-
 {% block content %}
-    {% include 'standingsrequests/partials/_menu.html' %}
     <div class="col-lg-12 container">
         <div class="panel panel-danger">
-          <div class="panel-heading">{% trans "An Error Occurred" %}</div>
+          <div class="panel-heading">{% trans "Not yet initialized" %}</div>
           <div class="panel-body">
-              {{ error_message }}
+              This app has not yet been initiliazed. Admin must first fetch contacts using the standings_update task before using the standings tool. Please see the README for details.
           </div>
         </div>
     </div>
