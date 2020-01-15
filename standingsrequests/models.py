@@ -47,6 +47,24 @@ class ContactLabel(models.Model):
 
 
 class AbstractStanding(models.Model):
+    CHARACTER_AMARR_TYPE_ID = 1373
+    CHARACTER_NI_KUNNI_TYPE_ID = 1374
+    CHARACTER_CIVRE_TYPE_ID = 1375
+    CHARACTER_DETEIS_TYPE_ID = 1376
+    CHARACTER_GALLENTE_TYPE_ID = 1377
+    CHARACTER_INTAKI_TYPE_ID = 1378
+    CHARACTER_SEBIESTOR_TYPE_ID = 1379
+    CHARACTER_BRUTOR_TYPE_ID = 1380
+    CHARACTER_STATIC_TYPE_ID = 1381
+    CHARACTER_MODIFIER_TYPE_ID = 1382
+    CHARACTER_ACHURA_TYPE_ID = 1383
+    CHARACTER_JIN_MEI_TYPE_ID = 1384
+    CHARACTER_KHANID_TYPE_ID = 1385
+    CHARACTER_VHEROKIOR_TYPE_ID = 1386
+    CHARACTER_DRIFTER_TYPE_ID = 34574
+    ALLIANCE_TYPE_ID = 16159
+    CORPORATION_TYPE_ID = 2
+    
     class Meta:
         abstract = True
     set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
@@ -59,11 +77,27 @@ class AbstractStanding(models.Model):
 
     @classmethod
     def get_contact_type(cls, contact_id):
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class PilotStanding(AbstractStanding):
-    contactTypes = [i for i in range(1373, 1386+1)]
+    contactTypes = [
+        AbstractStanding.CHARACTER_AMARR_TYPE_ID,
+        AbstractStanding.CHARACTER_NI_KUNNI_TYPE_ID,
+        AbstractStanding.CHARACTER_CIVRE_TYPE_ID,
+        AbstractStanding.CHARACTER_DETEIS_TYPE_ID,
+        AbstractStanding.CHARACTER_GALLENTE_TYPE_ID,
+        AbstractStanding.CHARACTER_INTAKI_TYPE_ID,
+        AbstractStanding.CHARACTER_SEBIESTOR_TYPE_ID,
+        AbstractStanding.CHARACTER_BRUTOR_TYPE_ID,
+        AbstractStanding.CHARACTER_STATIC_TYPE_ID,
+        AbstractStanding.CHARACTER_MODIFIER_TYPE_ID,
+        AbstractStanding.CHARACTER_ACHURA_TYPE_ID,
+        AbstractStanding.CHARACTER_JIN_MEI_TYPE_ID,
+        AbstractStanding.CHARACTER_KHANID_TYPE_ID,
+        AbstractStanding.CHARACTER_VHEROKIOR_TYPE_ID,
+        AbstractStanding.CHARACTER_DRIFTER_TYPE_ID,
+    ]
     inWatchlist = models.BooleanField(default=False)
 
     @classmethod
@@ -81,8 +115,8 @@ class PilotStanding(AbstractStanding):
         return type_id in cls.contactTypes
 
 
-class CorpStanding(AbstractStanding):
-    contactTypes = [2]
+class CorpStanding(AbstractStanding):    
+    contactTypes = [AbstractStanding.CORPORATION_TYPE_ID]
 
     @classmethod
     def get_contact_type(cls, contact_id):
@@ -97,9 +131,9 @@ class CorpStanding(AbstractStanding):
         return type_id in cls.contactTypes
 
 
-class AllianceStanding(AbstractStanding):
-    contactTypes = [16159]
-
+class AllianceStanding(AbstractStanding):        
+    contactTypes = [AbstractStanding.ALLIANCE_TYPE_ID]
+ 
     @classmethod
     def get_contact_type(cls, contact_id):
         """
@@ -107,6 +141,10 @@ class AllianceStanding(AbstractStanding):
         :return: contactType
         """
         return cls.contactTypes[0]
+
+    @classmethod
+    def is_alliance(cls, type_id):
+        return type_id in cls.contactTypes
 
 
 class AbstractStandingsRequest(models.Model):
@@ -138,15 +176,26 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for {0}".format(self.contactID))
             latest = ContactSet.objects.latest()
-            contact = latest.get_standing_for_id(self.contactID, self.contactType)
-            if self.expectStandingGTEQ <= contact.standing <= self.expectStandingLTEQ:
+            contact = latest.get_standing_for_id(
+                self.contactID, 
+                self.contactType
+            )
+            if (self.expectStandingGTEQ 
+                    <= contact.standing 
+                    <= self.expectStandingLTEQ
+            ):
                 # Standing is satisfied
-                logger.debug("Standing satisfied for {0}".format(self.contactID))
+                logger.debug(
+                    "Standing satisfied for {0}".format(self.contactID)
+                )
                 if not check_only:
                     self.mark_standing_effective()
                 return True
         except exceptions.ObjectDoesNotExist:
-            logger.debug("No standing set for {0}, checking if neutral is OK".format(self.contactID))
+            logger.debug(
+                "No standing set for {0}, checking if neutral is OK".format(
+                    self.contactID
+            ))
             if self.expectStandingLTEQ == 0:
                 # Standing satisfied but deleted (neutral)
                 logger.debug("Standing satisfied but deleted (neutral) for {0}".format(self.contactID))
@@ -194,14 +243,19 @@ class AbstractStandingsRequest(models.Model):
             logger.debug("Standing was never actioned, cannot timeout")
             return None
 
-        latest = ContactSet.objects.latest()
-        if latest is None:
+        try:
+            latest = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
             logger.debug("Cannot check standing timeout, no standings available")
             return None
 
         # More than 24 hours after, reset
-        if self.actionDate + datetime.timedelta(hours=self.standingTimeoutHours) < latest.date:
-            logger.debug("Standing actioned timed out, resetting actioned for contactID {0}".format(self.contactID))
+        if (self.actionDate \
+            + datetime.timedelta(hours=self.standingTimeoutHours) < latest.date
+        ):
+            logger.debug(
+                "Standing actioned timed out, resetting actioned for " \
+                    + "contactID {0}".format(self.contactID))
             actioner = self.actionBy
             self.actionBy = None
             self.actionDate = None
@@ -227,7 +281,10 @@ class AbstractStandingsRequest(models.Model):
         :param contact_id: int contactID to check the pending request for
         :return: bool True if a request is already pending, False otherwise
         """
-        pending = cls.objects.filter(contactID=contact_id).filter(actionBy=None).filter(effective=False)
+        pending = cls.objects\
+            .filter(contactID=contact_id)\
+            .filter(actionBy=None)\
+            .filter(effective=False)
         return pending.exists()
 
     @classmethod
@@ -237,7 +294,10 @@ class AbstractStandingsRequest(models.Model):
         :param contact_id: int contactID to check the pending request for
         :return: bool True if a request is pending API confirmation, False otherwise
         """
-        pending = cls.objects.filter(contactID=contact_id).exclude(actionBy=None).filter(effective=False)
+        pending = cls.objects\
+            .filter(contactID=contact_id)\
+            .exclude(actionBy=None)\
+            .filter(effective=False)
         return pending.exists()
 
 
@@ -283,15 +343,25 @@ class StandingsRequest(AbstractStandingsRequest):
         :param contact_type: contactType from a AbstractStanding concrete class
         :return: the created StandingsRequest instance
         """
-        logger.debug("Adding new standings request for user {0}, contact {1} type {2}".format(user,
-                                                                                              contact_id,
-                                                                                              contact_type))
+        logger.debug(
+            "Adding new standings request for user {0}, contact {1} type {2}"\
+                .format(user, contact_id, contact_type)
+        )
 
-        if cls.objects.filter(contactID=contact_id, contactType=contact_type).exists():
-            logger.debug("Standings request already exists, returning first existing request")
-            return cls.objects.filter(contactID=contact_id, contactType=contact_type)[0]
+        if (cls.objects\
+            .filter(contactID=contact_id, contactType=contact_type)\
+            .exists()
+        ):
+            logger.debug("Standings request already exists, "\
+                + "returning first existing request")
+            return cls.objects\
+                .filter(contactID=contact_id, contactType=contact_type)[0]
 
-        instance = cls(user=user, contactID=contact_id, contactType=contact_type)
+        instance = cls(
+            user=user, 
+            contactID=contact_id, 
+            contactType=contact_type
+        )
         instance.save()
         return instance
 
@@ -320,26 +390,48 @@ class StandingsRevocation(AbstractStandingsRequest):
         :param contact_type: contactType from AbstractStanding concrete implementation
         :return: the created StandingsRevocation instance
         """
-        logger.debug("Adding new standings revocation for contact {0} type {1}".format(contact_id, contact_type))
-        pending = cls.objects.filter(contactID=contact_id).filter(effective=False)
+        logger.debug(
+            "Adding new standings revocation for contact {0} type {1}".format(
+                contact_id, contact_type
+        ))
+        pending = cls.objects\
+            .filter(contactID=contact_id)\
+            .filter(effective=False)
         if pending.exists():
-            logger.debug("Cannot add revocation for contact {0}, pending revocation exists".format(contact_id,
-                                                                                                   contact_type))
+            logger.debug(
+                "Cannot add revocation for contact {0}, ".format(
+                    contact_id,
+                    contact_type
+                ) 
+                + "pending revocation exists"
+            )
             return None
+
         instance = cls(contactID=contact_id, contactType=contact_type)
         instance.save()
         return instance
 
     @classmethod
     def undo_revocation(cls, contact_id, owner):
+        """
+        Converts existing revocation into request if it exists
+        :param contact_id: contactID to request standings on
+        :param owner: user owning the revocation
+        :return: created StandingsRequest pendant 
+            or False if revocation does not exist
+        """
         logger.debug("Undoing revocation for contactID {0}".format(contact_id))
-        revocs = cls.objects.filter(contactID=contact_id)
+        revocations = cls.objects.filter(contactID=contact_id)
 
-        if not revocs.exists():
+        if not revocations.exists():
             return False
 
-        request = StandingsRequest.add_request(owner, contact_id, revocs[0].contactType)
-        revocs.delete()
+        request = StandingsRequest.add_request(
+            owner, 
+            contact_id, 
+            revocations[0].contactType
+        )
+        revocations.delete()
         return request
 
 
@@ -361,13 +453,9 @@ class CharacterAssociation(models.Model):
         """
         Character name property for character_id
         :return: str character name
-        """
-        if self._character_name is not None:
-            return self._character_name
-        else:
-            name = EveNameCache.get_name(self.character_id)
-            self._character_name = name
-            return name
+        """                
+        name = EveNameCache.get_name(self.character_id)
+        return name
 
     @property
     def main_character_name(self):
@@ -375,12 +463,11 @@ class CharacterAssociation(models.Model):
         Character name property for character_id
         :return: str character name
         """
-        if self._main_character_name is not None:
-            return self._main_character_name
-        else:
+        if self.main_character_id:
             name = EveNameCache.get_name(self.main_character_id)
-            self._main_character_name = name
-            return name
+        else:
+            name = None
+        return name
 
     @classmethod
     def get_api_expired_items(cls, items_in=None):
@@ -411,7 +498,7 @@ class EveNameCache(models.Model):
     def get_names(cls, entity_ids):
         """
         Get the names of the given entity ids from catch or other locations
-        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: dict with entity_id as key and name as value
         """
         # make sure there are no duplicates
@@ -430,7 +517,8 @@ class EveNameCache(models.Model):
             else:
                 entity_ids_not_found.append(entity_id)
 
-        entities_need_names = [e.entityID for e in entities_need_update] + entity_ids_not_found
+        entities_need_names = \
+            [e.entityID for e in entities_need_update] + entity_ids_not_found
 
         names_info_api = EveEntityManager.get_names(entities_need_names)
 
