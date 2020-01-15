@@ -8,6 +8,34 @@ def _dt_eveformat(dt: object) -> str:
     return dt2.isoformat()
 
 
+def _get_entity_name(entity_id):
+    """returns name if entity is found, else None"""    
+
+    entities = {
+        1001: 'Bruce Wayne',
+        1002: 'Peter Parker',
+        1003: 'Clark Kent',
+        1004: 'Kara Danvers',
+        1005: 'Kathy Kane',
+        1006: 'Steven Rogers',
+    }
+    if entity_id in entities:
+        return entities[entity_id]
+    else:
+        return None
+
+
+def _get_entity_names(eve_entity_ids):
+    """returns dict with {id: name} for found entities, else empty dict"""
+    names_info = {}
+    for id in eve_entity_ids:
+        name = _get_entity_name(id)
+        if name:
+            names_info[id] = name
+
+    return names_info
+
+
 def _set_logger(logger_name: str, name: str) -> object:
     """set logger for current test module
     

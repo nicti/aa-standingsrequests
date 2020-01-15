@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from . import _set_logger
+from . import _set_logger, _get_entity_name, _get_entity_names
 from ..models import EveNameCache, ContactSet, ContactLabel,\
     AbstractStanding, PilotStanding, CorpStanding, AllianceStanding, \
     StandingsRequest, StandingsRequest, StandingsRevocation, \
@@ -31,18 +31,6 @@ CHARACTER_VHEROKIOR_TYPE_ID = 1386
 CHARACTER_DRIFTER_TYPE_ID = 34574
 CORPORATION_TYPE_ID = 2
 ALLIANCE_TYPE_ID = 16159
-
-def get_entity_name(entity_id):
-    entities = {
-        1001: 'Bruce Wayne',
-        1002: 'Peter Parker',
-        1003: 'Clark Kent',
-        1004: 'Kara Danvers'
-    }
-    if entity_id in entities:
-        return entities[entity_id]
-    else:
-        return None
 
 
 class TestContactSet(TestCase):
@@ -725,7 +713,7 @@ class TestCharacterAssociation(TestCase):
     
     @patch('standingsrequests.models.EveNameCache')
     def test_get_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.get_name.side_effect = _get_entity_name
         my_assoc = CharacterAssociation(
             character_id=1002,
             main_character_id=1001
@@ -734,7 +722,7 @@ class TestCharacterAssociation(TestCase):
 
     @patch('standingsrequests.models.EveNameCache')
     def test_get_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name        
+        mock_EveNameCache.get_name.side_effect = _get_entity_name        
         my_assoc = CharacterAssociation(
             character_id=1999,
             main_character_id=1001
@@ -743,7 +731,7 @@ class TestCharacterAssociation(TestCase):
 
     @patch('standingsrequests.models.EveNameCache')
     def test_get_main_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.get_name.side_effect = _get_entity_name
         my_assoc = CharacterAssociation(
             character_id=1002,
             main_character_id=1001
@@ -752,7 +740,7 @@ class TestCharacterAssociation(TestCase):
 
     @patch('standingsrequests.models.EveNameCache')
     def test_get_main_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name        
+        mock_EveNameCache.get_name.side_effect = _get_entity_name        
         my_assoc = CharacterAssociation(
             character_id=1002,
             main_character_id=19999
@@ -761,7 +749,7 @@ class TestCharacterAssociation(TestCase):
 
     @patch('standingsrequests.models.EveNameCache')
     def test_get_main_character_name_not_defined(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name        
+        mock_EveNameCache.get_name.side_effect = _get_entity_name        
         my_assoc = CharacterAssociation(
             character_id=1002
         )
@@ -931,22 +919,11 @@ class TestEveNameCache(TestCase):
         )                        
         self.assertEqual(EveNameCache.get_name(3001), 'Dummy Alliance 1')
 
-
-    @staticmethod
-    def EveEntityManager_get_names(eve_entity_ids):        
-        names_info = {}
-        for id in eve_entity_ids:
-            name = get_entity_name(id)
-            if name:
-                names_info[id] = name
-
-        return names_info
-
         
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_when_table_is_empty(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
 
         entities = EveNameCache.get_names([1001, 1002])
         self.assertDictEqual(
@@ -965,7 +942,7 @@ class TestEveNameCache(TestCase):
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_from_cache(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
 
         EveNameCache.objects.create(
             entityID=1001,
@@ -992,7 +969,7 @@ class TestEveNameCache(TestCase):
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_from_cache_and_api(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
 
         EveNameCache.objects.create(
             entityID=1001,
@@ -1014,7 +991,7 @@ class TestEveNameCache(TestCase):
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_from_expired_cache_and_api(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
 
         my_entity = EveNameCache.objects.create(
             entityID=1001,
@@ -1039,7 +1016,7 @@ class TestEveNameCache(TestCase):
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_from_contacts(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
 
         contact_set = ContactSet.objects.create(
             name='Dummy Pilots Set'
@@ -1067,7 +1044,7 @@ class TestEveNameCache(TestCase):
     @patch('standingsrequests.models.EveEntityManager')
     def test_get_names_that_dont_exist(self, mock_EveEntityManager):        
         mock_EveEntityManager.get_names.side_effect = \
-            self.EveEntityManager_get_names
+            _get_entity_names
     
         self.assertEqual(len(EveNameCache.get_names([1999])), 0)
         
