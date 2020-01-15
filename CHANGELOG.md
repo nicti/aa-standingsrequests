@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.3.7] - 2020-01-15
+
+### Added
+
+- CI/CD setup with 1st batch of unit tests
+
+### Fixed
+
+- Fixing of minor bugs found by unit tests
+
 ## [0.3.6] - 2020-01-13
 
 ### Fixed
