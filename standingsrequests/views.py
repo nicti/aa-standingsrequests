@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-from django.http import Http404, JsonResponse, HttpResponse
+from django.http import Http404, JsonResponse, HttpResponse, HttpResponseServerError
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
@@ -47,10 +47,7 @@ def partial_request_entities(request):
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
-        return render(request, 'standingsrequests/error.html', {
-            'error_message':
-                _('You must fetch contacts using the standings_update task before using the standings tool')
-        })
+        return render(request, 'standingsrequests/error.html')
 
     characters = EveEntityManager.get_characters_by_user(request.user)
     char_ids = [c.character_id for c in characters]
@@ -232,7 +229,7 @@ def view_pilots_standings(request):
     logger.debug('view_pilot_standings called by %s' % request.user)
     try:
         last_update = ContactSet.objects.latest().date
-    except ObjectDoesNotExist:
+    except (ObjectDoesNotExist, ContactSet.DoesNotExist):
         last_update = None
     return render(request, 'standingsrequests/view_pilots.html', {'lastUpdate': last_update})
 
@@ -241,7 +238,10 @@ def view_pilots_standings(request):
 @permission_required('standingsrequests.view')
 def view_pilots_standings_json(request):
     logger.debug('view_pilot_standings_json called by %s' % request.user)
-    contacts = ContactSet.objects.latest()
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
 
     def get_pilots():
         pilots = []
@@ -312,8 +312,11 @@ def download_pilot_standings(request):
     response['Content-Disposition'] = 'attachment; filename="standings.csv"'
 
     writer = UnicodeWriter(response)
-
-    contacts = ContactSet.objects.latest()
+    
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
 
     writer.writerow([
             'character_id',
@@ -377,7 +380,7 @@ def view_groups_standings(request):
     logger.debug('view_group_standings called by %s' % request.user)
     try:
         last_update = ContactSet.objects.latest().date
-    except ObjectDoesNotExist:
+    except (ObjectDoesNotExist, ContactSet.DoesNotExist):
         last_update = None
     return render(request, 'standingsrequests/view_groups.html', {'lastUpdate': last_update})
 
@@ -385,8 +388,11 @@ def view_groups_standings(request):
 @login_required
 @permission_required('standingsrequests.view')
 def view_groups_standings_json(request):
-    logger.debug('view_pilot_standings_json called by %s' % request.user)
-    contacts = ContactSet.objects.latest()
+    logger.debug('view_pilot_standings_json called by %s' % request.user)    
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
 
     corps = []
     for p in contacts.corpstanding_set.all().order_by('-standing'):
