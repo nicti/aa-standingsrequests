@@ -102,8 +102,16 @@ class EveEntityManager:
 
         chunk_size = 1000
         length = len(eve_entity_ids)
-        chunks = [eve_entity_ids[x:x+chunk_size] for x in xrange(0, length, chunk_size)]
-        logger.debug('Got %s chunks containing max %s each to process with a total of %s', len(chunks), chunk_size, length)
+        chunks = [
+            eve_entity_ids[x:x+chunk_size] 
+            for x in xrange(0, length, chunk_size)
+        ]
+        logger.debug(
+            'Got %s chunks containing max %s each to process with a total of %s', 
+            len(chunks), 
+            chunk_size, 
+            length
+        )
 
         names_info = {}
         for chunk in chunks:
@@ -119,20 +127,27 @@ class EveEntityManager:
         :param eve_entity_ids: array of int entity ids whos names to fetch
         :return: array of objects with keys id and name or None if unsuccessful
         """
-        logger.debug("Attempting to get entity name from API for ids {0}".format(eve_entity_ids))
+        logger.debug(
+            "Attempting to get entity name from API for ids {0}".format(
+                eve_entity_ids
+        ))
         client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
         try:
-            infos = client.Universe.post_universe_names(ids=eve_entity_ids).result()
+            infos = client.Universe\
+                .post_universe_names(ids=eve_entity_ids).result()
             return infos
-
-            logger.error("Error occured while trying to query api for entity name id=%s", eve_entity_ids)
-
+        
         except HTTPNotFound:
-            raise ObjectNotFound(eve_entity_ids, 'universe_entitys')
+            logger.error(
+                "Error occurred while trying to query api for entity id=%s", eve_entity_ids
+            )
+            raise ObjectNotFound(eve_entity_ids, 'universe_entities')
+
         except (HTTPBadGateway, HTTPGatewayTimeout):
             if count >= 5:
                 logger.exception('Failed to get entity name %s times.', count)
                 return None
+
             else:
                 sleep(count**2)
                 return EveEntityManager.__get_names_from_api(eve_entity_ids,
@@ -142,7 +157,7 @@ class EveEntityManager:
     def get_name_from_api(eve_entity_id):
         """
         Get the name of the given entity id from the EVE API servers
-        :param eve_entity_id: int entity id whos name to fetch
+        :param eve_entity_id: int entity id who's name to fetch
         :return: str entity name or None if unsuccessful
         """
         eve_entity_id = int(eve_entity_id)
@@ -164,6 +179,7 @@ class EveEntityManager:
             try:
                 ownership = CharacterOwnership.objects.get(character=char)
                 return ownership.user
+                
             except CharacterOwnership.DoesNotExist:
                 return None
         else:
@@ -171,12 +187,17 @@ class EveEntityManager:
 
     @staticmethod
     def get_characters_by_user(user):
-        return [owner_ship.character for owner_ship in CharacterOwnership.objects.filter(user=user)]
+        return [
+            owner_ship.character 
+            for owner_ship in CharacterOwnership.objects.filter(user=user)
+        ]
 
     @staticmethod
     def is_character_owned_by_user(character_id, user):
         try:
-            CharacterOwnership.objects.get(user=user, character__character_id=character_id)
+            CharacterOwnership.objects\
+                .get(user=user, character__character_id=character_id)
+
             return True
         except CharacterOwnership.DoesNotExist:
             return False
@@ -184,7 +205,9 @@ class EveEntityManager:
     @staticmethod
     def get_state_of_character(char):
         try:
-            ownership = CharacterOwnership.objects.get(character__character_id=char.character_id)
+            ownership = CharacterOwnership.objects\
+                .get(character__character_id=char.character_id)
             return ownership.user.profile.state.name
+
         except CharacterOwnership.DoesNotExist:
             return None
