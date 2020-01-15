@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [0.3.8] - 2020-01-15
+
+### Fixed
+
+- AA title and side menu showed twice in browser during installation ([#10](https://gitlab.com/basraah/standingsrequests/issues/10))
+
 ## [0.3.7] - 2020-01-15
 
 ### Added
