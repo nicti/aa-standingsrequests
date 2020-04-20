@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from . import _set_logger
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,    
     CHARACTER_TYPE_ID, 
@@ -41,10 +40,11 @@ from ..models import (
     StandingsRequest, 
     StandingsRevocation, 
 )
+from ..utils import set_test_logger
 
 
 MODULE_PATH = 'standingsrequests.models'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
 class TestContactSet(TestCase):

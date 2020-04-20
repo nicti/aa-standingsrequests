@@ -6,8 +6,7 @@ setup(
     name='standingsrequests',
     version=__version__,
     description=(
-        'Alliance Auth compatible standings tool module for '
-        'requesting alt character standings.'
+        'App for managing character standing requests, made for Alliance Auth'
     ),
     url='https://github.com/basraah/standingsrequests',
     author='Basraah',

@@ -1,26 +1,29 @@
 from __future__ import unicode_literals
+from future.utils import python_2_unicode_compatible
+import logging
+
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-import logging
 
-from future.utils import python_2_unicode_compatible, iteritems
-
-from ..models import ContactSet, ContactLabel, PilotStanding, CorpStanding, AllianceStanding
-from ..models import AbstractStandingsRequest, StandingsRequest, StandingsRevocation
-from ..models import CharacterAssociation, EveNameCache
-from ..helpers.evecorporation import EveCorporation
-from ..managers import SWAGGER_SPEC_PATH,\
-    REQUIRED_TOKENS
-from ..managers.eveentity import EveEntityManager
-from esi.clients import esi_client_factory
-from esi.models import Token
-from allianceauth.eveonline.providers import Character, Alliance
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.authentication.models import CharacterOwnership
-from past.builtins import xrange
-from ..app_settings import STANDINGS_API_CHARID, STR_CORP_IDS, STR_ALLIANCE_IDS, SR_REQUIRED_SCOPES
+
+from esi.models import Token
+
+from ..app_settings import (
+    STANDINGS_API_CHARID, STR_CORP_IDS, STR_ALLIANCE_IDS, SR_REQUIRED_SCOPES
+)
+from ..helpers.esi_fetch import esi_fetch
+from ..helpers.evecorporation import EveCorporation
+from ..managers import REQUIRED_TOKENS
+from ..models import (
+    ContactSet, ContactLabel, PilotStanding, CorpStanding, AllianceStanding
+)
+from ..models import StandingsRequest, StandingsRevocation
+from ..models import CharacterAssociation, EveNameCache
+from ..utils import chunks
 
 logger = logging.getLogger(__name__)
 
@@ -30,21 +33,20 @@ class StandingsManager:
 
     def __init__(self):
         pass
-
+    
     @classmethod
-    def api_get_instance(cls):
-        token = Token.objects\
+    def token(cls):
+        """returns a valid token with required scopes"""
+        return Token.objects\
             .filter(character_id=cls.charID)\
             .require_scopes(REQUIRED_TOKENS)\
-            .require_valid()[0]
-        return esi_client_factory(token=token, spec_file=SWAGGER_SPEC_PATH)
-
+            .require_valid().first()
+        
     @classmethod
     @transaction.atomic
     def api_update_alliance_standings(cls):
         try:
-            api = cls.api_get_instance()
-            contacts = ContactsWrapper(api, cls.charID)
+            contacts = ContactsWrapper(cls.token(), cls.charID)
 
         except Exception:
             logger.exception(
@@ -94,7 +96,7 @@ class StandingsManager:
                 l for l in contact_set.contactlabel_set.all() 
                 if l.labelID in flat_labels
             ]
-            contact = StandingFactory.create_standing(
+            StandingFactory.create_standing(
                 contact_set=contact_set,
                 contact_type=c.type_id,
                 contact_id=c.id,
@@ -124,24 +126,25 @@ class StandingsManager:
     @classmethod
     def all_corp_apis_recorded(cls, corp_id, user):
         """
-        Checks if a user has all of the required corps APIs recorded for standings to be permitted
+        Checks if a user has all of the required corps APIs recorded for
+         standings to be permitted
         :param corp_id: corp to check for
         :param user: User to check for
         :return: True if they can request standings, False if they cannot
         """
         # TODO: Need to figure out how to check if esi keys exists.....
         keys_recorded = sum([
-            1 for a in EveCharacter.objects\
-                .filter(character_ownership__user=user)\
-                .filter(corporation_id=corp_id)
+            1 for a in EveCharacter.objects
+            .filter(character_ownership__user=user)
+            .filter(corporation_id=corp_id)
             if StandingsManager.has_required_scopes_for_request(a)
         ])
         corp = EveCorporation.get_corp_by_id(int(corp_id))
         logger.debug(
-            "Got {} keys recorded for {} total corp members".format(
-                keys_recorded, 
-                corp.member_count or None
-        ))
+            "Got %d keys recorded for %d total corp members",
+            keys_recorded, 
+            corp.member_count or None
+        )        
         return corp is not None and keys_recorded >= corp.member_count
 
     @classmethod
@@ -191,7 +194,10 @@ class StandingsManager:
                                                                           "in game".format(char.character_name))
                 """
             elif standing_satisfied:
-                pass  # Just catching all other contact types (corps/alliances) that are set effective
+                # Just catching all other contact types (corps/alliances) 
+                # that are set effective
+                pass  
+                
             
             elif not standing_satisfied and request.effective:
                 # Standing is not effective, but has previously been marked as effective.
@@ -213,10 +219,10 @@ class StandingsManager:
                         actioned_timeout, 
                         "Standings Request Action",
                         message="A standings request for contactID {} you " 
-                            "actioned has been reset as it did not appear in "
-                            "game before the timeout period expired.".format(
-                                request.contactID
-                            )
+                        "actioned has been reset as it did not appear in "
+                        "game before the timeout period expired.".format(
+                            request.contactID
+                        )
                     )
 
     @classmethod
@@ -256,69 +262,61 @@ class StandingsManager:
     @classmethod
     def update_character_associations_api(cls):
         """
-        Update all character corp associations we have standings for that aren't being updated locally
-        Cache timeout should be longer than update_character_associations_auth's update schedule to
+        Update all character corp associations we have standings for that 
+        aren't being updated locally
+        Cache timeout should be longer than update_character_associations_auth's 
+        update schedule to
         prevent unnecessarily updating characters we already have local data for.
         :return:
         """
-        chunk_size = 1000  # Size of characterID API chunks
-        try:
-            # Sort out a set of character_ids we want to fetch
-            standings = ContactSet.objects.latest()
-            pilot_standing_list = \
-                standings.pilotstanding_set.values_list('contactID', flat=True)
-            # Get the expired association pilots in this standings list
-            cache_expired = \
-                CharacterAssociation.get_api_expired_items(pilot_standing_list)\
-                .values_list('character_id', flat=True)
-            # Make sure we're only fetching expired
-            pilots = set(pilot_standing_list).intersection(cache_expired)
-            # And pilots we don't know about
+        # gather character associations of pilots which meed to be updated
+        try:            
+            all_pilots = ContactSet.objects.latest()\
+                .pilotstanding_set.values_list('contactID', flat=True)            
+            expired_character_associations = \
+                CharacterAssociation.get_api_expired_items(all_pilots)\
+                .values_list('character_id', flat=True)            
+            expired_pilots = set(all_pilots)\
+                .intersection(expired_character_associations)            
             known_pilots = CharacterAssociation.objects\
                 .values_list('character_id', flat=True)
             unknown_pilots = [
-                i for i in pilot_standing_list if i not in known_pilots
-            ]
-            # Merge sets
-            pilots |= set(unknown_pilots)
+                pilot for pilot in all_pilots if pilot not in known_pilots
+            ]            
+            pilots_to_fetch = list(expired_pilots | set(unknown_pilots))
 
         except ObjectDoesNotExist:
-            logger.warn("No standings set available to update character associations with. Aborting")
+            logger.warn(
+                "No standings set available to update "
+                "character associations with. Aborting"
+            )
             return
-        
-        # Switch back to a list, don't attempt to add anything after this
-        pilots = list(pilots)  
-        # Chunk the data into acceptable sizes for the API
-        length = len(pilots)
-        chunks = [
-            pilots[x: x + chunk_size] for x in xrange(0, length, chunk_size)
-        ]
-        logger.debug(
-            'Got %s chunks containing max %s each to process with a total of %s',
-            len(chunks),
-            chunk_size,
-            length
-        )
-        api = cls.api_get_instance()
-        for c in chunks:
-            try:
-                esi_response = api.Character\
-                    .post_characters_affiliation(characters=c).result()
+                
+        # Fetch the data in acceptable sizes from the API        
+        chunk_size = 1000        
+        for pilots_chunk in chunks(pilots_to_fetch, chunk_size):
+            try:                
+                esi_response = esi_fetch(
+                    'Character.post_characters_affiliation',
+                    args={'characters': pilots_chunk}
+                )       
                 for association in esi_response:
-                    corp_id = association['corporation_id']
-                    all_id = association['alliance_id'] \
+                    corporation_id = association['corporation_id']
+                    alliance_id = association['alliance_id'] \
                         if 'alliance_id' in association else None
                     character_id = association['character_id']
                     CharacterAssociation.objects.update_or_create(
                         character_id=character_id,
                         defaults={
-                            'corporation_id': corp_id,
-                            'alliance_id': all_id,
+                            'corporation_id': corporation_id,
+                            'alliance_id': alliance_id,
                             'updated': timezone.now(),
                         })
 
             except Exception:
-                logger.exception("Could not fetch associations chunk from ESI")
+                logger.exception(
+                    'Could not fetch associations pilots_chunk from ESI'
+                )
 
     @classmethod
     def validate_standings_requests(cls):
@@ -364,7 +362,7 @@ class StandingsManager:
             StandingsManager.get_required_scopes_for_state(state))
         has_required_scopes = Token.objects.filter(
             character_id=char.character_id
-            ).require_scopes(scopes_string).require_valid().exists()
+        ).require_scopes(scopes_string).require_valid().exists()
         return has_required_scopes
 
     @staticmethod
@@ -378,13 +376,14 @@ class StandingsManager:
             return []
     
 
-
 class StandingFactory:
     def __init__(self):
         pass
 
     @classmethod
-    def create_standing(cls, contact_set, contact_type, contact_id, name, standing, labels):
+    def create_standing(
+        cls, contact_set, contact_type, contact_id, name, standing, labels
+    ):
         standing_type = cls.get_class_for_contact_type(contact_type)
 
         standing = standing_type(
@@ -407,7 +406,7 @@ class StandingFactory:
             return CorpStanding
         elif contact_type in AllianceStanding.contactTypes:
             return AllianceStanding
-        raise NotImplemented()
+        raise NotImplementedError()
 
 
 class ContactsWrapper:
@@ -495,59 +494,34 @@ class ContactsWrapper:
         def __repr__(self):
             return str(self)
 
-    def __init__(self, api, character_id):
+    def __init__(self, token, character_id):
         self.alliance = []
         self.allianceLabels = []
 
         alliance_id = EveCharacter.objects\
             .get_character_by_id(character_id)\
             .alliance_id
-        allianceLabelInfo = \
-            api.Contacts.get_alliances_alliance_id_contacts_labels(
-                alliance_id=alliance_id
-            )
-        allianceContactsInfo = \
-            api.Contacts.get_alliances_alliance_id_contacts(
-                alliance_id=alliance_id, 
-                page=1
-            )
-        allianceContactsInfo.also_return_response = True
-
-        for label in allianceLabelInfo.result():
-            self.allianceLabels.append(self.Label(label))
-
-        entity_ids = []
-
-        contacts, response = allianceContactsInfo.result()
-        logger.debug("Got %d contacts with 1st page", len(contacts))
-        # get the x-pages header
-        pages = int(response.headers['X-Pages']) \
-            if 'X-Pages' in response.headers else 1
-        logger.debug("We need to get %d page(s) of contacts in total", pages)
-
-        for page in xrange(2, pages+1):
-            logger.debug("Getting page %d/%d of contacts", page, pages)
-            allianceContactsInfo = \
-                api.Contacts.get_alliances_alliance_id_contacts(
-                    alliance_id=alliance_id,
-                    page=page
-                )
-            new_contacts = allianceContactsInfo.result()
-            logger.debug(
-                "Got %d contact with %d page", len(new_contacts), page
-            )
-            contacts = contacts + new_contacts
-        
-        logger.debug(
-            "Got %d contact in total from %d pages", len(contacts), pages
+        labels = esi_fetch(
+            'Contacts.get_alliances_alliance_id_contacts_labels',
+            args={'alliance_id': alliance_id},
+            token=token
         )
+        for label in labels:
+            self.allianceLabels.append(self.Label(label))
+        
+        contacts = esi_fetch(
+            'Contacts.get_alliances_alliance_id_contacts',
+            args={'alliance_id': alliance_id},
+            token=token,
+            has_pages=True
+        )        
+        logger.debug('Got %d contacts in total', len(contacts))
+        entity_ids = []
         for contact in contacts:
             entity_ids.append(contact['contact_id'])
 
         name_info = EveNameCache.get_names(entity_ids)
-
         for contact in contacts:
             self.alliance.append(
                 self.Contact(contact, self.allianceLabels, name_info)
             )
-

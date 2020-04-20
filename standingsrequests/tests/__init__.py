@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta
-import logging
 import random
-import os
 import string
 
 
@@ -13,33 +11,6 @@ def _dt_eveformat(dt: object) -> str:
     return dt2.isoformat()
 
 
-def _set_logger(logger_name: str, name: str) -> object:
-    """set logger for current test module
-    
-    Args:
-    - logger: current logger object
-    - name: name of current module, e.g. __file__
-    
-    Returns:
-    - amended logger
-    """
-    
-    # reconfigure logger so we get logging from tested module
-    f_format = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(module)s:%(funcName)s - %(message)s'
-    )
-    f_handler = logging.FileHandler(
-        '{}.log'.format(os.path.splitext(name)[0]),
-        'w+'
-    )
-    f_handler.setFormatter(f_format)
-    logger = logging.getLogger(logger_name)
-    logger.level = logging.DEBUG
-    logger.addHandler(f_handler)
-    logger.propagate = False
-    return logger
-
-
 def _generate_token(
     character_id: int, 
     character_name: str,
@@ -47,7 +18,7 @@ def _generate_token(
     refresh_token: str = 'refresh_token',    
     scopes: list = None,
     timestamp_dt: object = None,
-    expires_in: int  = 1200,
+    expires_in: int = 1200,
 ) -> dict:
     
     if timestamp_dt is None:
@@ -105,6 +76,3 @@ def _get_random_string(char_count):
         random.choice(string.ascii_uppercase + string.digits) 
         for _ in range(char_count)
     )
-
-
-            

@@ -1,14 +1,11 @@
 from __future__ import unicode_literals
 
 import logging
-from time import sleep
 
 from django.core.cache import cache
+from bravado.exception import HTTPError
 
-from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
-from esi.clients import esi_client_factory
-
-from ..managers import SWAGGER_SPEC_PATH
+from ..helpers.esi_fetch import esi_fetch
 
 logger = logging.getLogger(__name__)
 
@@ -52,12 +49,13 @@ class EveCorporation:
         return cls.CACHE_PREFIX + str(corp_id)
 
     @classmethod
-    def get_corp_esi(cls, corp_id, count=1):
-        logger.debug("Attempting to get corp from esi with id %s", corp_id)
-        client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
+    def get_corp_esi(cls, corp_id):
+        logger.debug("Attempting to get corp from esi with id %s", corp_id)        
         try:
-            info = client.Corporation\
-                .get_corporations_corporation_id(corporation_id=corp_id).result()
+            info = esi_fetch(
+                'Corporation.get_corporations_corporation_id',
+                args={'corporation_id': corp_id}
+            )
             return cls(
                 corporation_id=corp_id,
                 corporation_name=info['name'],
@@ -66,14 +64,7 @@ class EveCorporation:
                 ceo_id=info['ceo_id'],
                 alliance_id=info['alliance_id'] if 'alliance_id' in info else None
             )
-
-        except HTTPNotFound:
-            raise None
-        except (HTTPBadGateway, HTTPGatewayTimeout):
-            if count >= 5:
-                logger.exception('Failed to get entity name %s times.', count)
-                return None
-            else:
-                sleep(count**2)
-                return cls.get_corp_esi(corp_id, count + 1)
-
+        
+        except HTTPError:
+            logger.exception('Failed to get corp from ESI with id %i', corp_id)
+            return None

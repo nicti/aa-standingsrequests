@@ -1,16 +1,14 @@
 from unittest.mock import patch
 
-from django.test import TestCase
-
-from . import _set_logger
 from ..helpers.evecorporation import EveCorporation
 from .my_test_data import esi_get_corporations_corporation_id
+from ..utils import set_test_logger, NoSocketsTestCase
 
 MODULE_PATH = 'standingsrequests.helpers.evecorporation'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
-class TestEveCorporation(TestCase):
+class TestEveCorporation(NoSocketsTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -35,10 +33,7 @@ class TestEveCorporation(TestCase):
     def test_str(self):
         expected = 'Wayne Technologies'
         self.assertEqual(str(self.corporation), expected)
-    
-    # case 1: corp not in cache -> get from ESI
-    # case 2: corp in cache -> get from cache
-    
+        
     @patch(MODULE_PATH + '.cache')
     @patch(MODULE_PATH + '.EveCorporation.get_corp_esi')
     def test_get_corp_by_id_not_in_cache(self, mock_get_corp_esi, mock_cache):
@@ -74,9 +69,9 @@ class TestEveCorporation(TestCase):
         self.assertEqual(obj, expected)
         self.assertFalse(mock_get_corp_esi.called)
 
-    @patch(MODULE_PATH + '.esi_client_factory')
-    def test_get_corp_esi(self, mock_esi_client_factory):
-        mock_esi_client_factory.return_value.Corporation\
+    @patch('standingsrequests.helpers.esi_fetch._esi_client')
+    def test_get_corp_esi(self, mock_esi_client):
+        mock_esi_client.return_value.Corporation\
             .get_corporations_corporation_id.side_effect = \
             esi_get_corporations_corporation_id
 

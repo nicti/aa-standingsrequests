@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Memory leak fix with regards to ESI client
+
 ## [0.3.8] - 2020-01-15
 
 ### Fixed

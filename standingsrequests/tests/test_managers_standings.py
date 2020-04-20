@@ -12,7 +12,7 @@ from allianceauth.eveonline.models import (
 )
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import _set_logger, _generate_token, _store_as_Token
+from . import _generate_token, _store_as_Token
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_AMARR_TYPE_ID, 
@@ -37,9 +37,11 @@ from ..models import (
     StandingsRequest,
     StandingsRevocation, 
 )
+from ..utils import set_test_logger, NoSocketsTestCase
+
 
 MODULE_PATH = 'standingsrequests.managers.standings'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
 def get_test_labels() -> list:
@@ -66,37 +68,32 @@ def get_test_contacts():
     return contacts
 
 
-class TestStandingsManager(TestCase):
+class TestStandingsManager(NoSocketsTestCase):
         
     def setUp(self):
         EveCharacter.objects.all().delete()
         EveCorporationInfo.objects.all().delete()
         EveAllianceInfo.objects.all().delete()
 
-    @patch(MODULE_PATH + '.StandingsManager.charID', 1001)
-    @patch(MODULE_PATH + '.esi_client_factory')
+    @patch(MODULE_PATH + '.StandingsManager.charID', 1001)    
     @patch(MODULE_PATH + '.Token')
-    def test_api_get_instance(
-        self, mock_Token, mock_esi_client_factory
-    ):
+    def test_token(self, mock_Token):
+        mock_my_token = Mock(spec=Token)
         mock_Token.objects.filter.return_value\
-            .require_scopes.return_value.require_valid.return_value = \
-            [Mock(spec=Token)]
-        mock_esi_client_factory.return_value = 'my ESI client'
-
-        response = StandingsManager.api_get_instance()
-        self.assertEqual(response, 'my ESI client')
+            .require_scopes.return_value.require_valid.return_value\
+            .first.return_value = mock_my_token
+        
+        token = StandingsManager.token()
+        self.assertEqual(token, mock_my_token)
         self.assertEqual(
             mock_Token.objects.filter.call_args[1]['character_id'], 1001
         )
     
     @patch(MODULE_PATH + '.ContactsWrapper')
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')
+    @patch(MODULE_PATH + '.StandingsManager.token')
     def test_api_update_alliance_standings_normal(
-        self, mock_api_get_instance, mock_ContactsWrapper
+        self, mock_token, mock_ContactsWrapper
     ):
-        mock_api_get_instance.return_value = Mock()
-
         mock_contacts = Mock(spec=ContactsWrapper)
         mock_contacts.alliance = get_test_contacts()
         mock_contacts.allianceLabels = get_test_labels()
@@ -109,11 +106,10 @@ class TestStandingsManager(TestCase):
         # todo: needs more validations !!
 
     @patch(MODULE_PATH + '.ContactsWrapper')
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')
+    @patch(MODULE_PATH + '.StandingsManager.token')
     def test_api_update_alliance_standings_error(
-        self, mock_api_get_instance, mock_ContactsWrapper
-    ):
-        mock_api_get_instance.return_value = Mock()
+        self, mock_token, mock_ContactsWrapper
+    ):        
         mock_ContactsWrapper.side_effect = RuntimeError
         self.assertIsNone(StandingsManager.api_update_alliance_standings())
 
@@ -443,7 +439,8 @@ class TestStandingsUpdateCharacterAssociations(TestCase):
     # todo: test more variations
 
 
-class TestStandingsUpdateCharacterAssociationsApi(TestCase):
+@patch('standingsrequests.helpers.esi_fetch._esi_client')
+class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
     
     @classmethod
     def setUpClass(cls):
@@ -456,27 +453,24 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
         CharacterOwnership.objects.all().delete()
         CharacterAssociation.objects.all().delete()
         ContactSet.objects.all().delete()
-
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_do_nothing_if_not_set_available(self, mock_api_get_instance):
+ 
+    def test_do_nothing_if_not_set_available(self, mock_esi_client):
         StandingsManager.update_character_associations_api()
         self.assertFalse(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
 
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_dont_update_when_not_needed(self, mock_api_get_instance):
+    def test_dont_update_when_not_needed(self, mock_esi_client):
         create_contacts_from_test_data()
         StandingsManager.update_character_associations_api()        
         self.assertFalse(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
 
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_updates_all_contacts_with_expired_cache(self, mock_api_get_instance):
-        mock_api_get_instance.return_value\
+    def test_updates_all_contacts_with_expired_cache(self, mock_esi_client):
+        mock_esi_client.return_value\
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
 
@@ -487,10 +481,10 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
             x.save()
         StandingsManager.update_character_associations_api()        
         self.assertTrue(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
-        args, kwargs = mock_api_get_instance.return_value\
+        args, kwargs = mock_esi_client.return_value\
             .Character.post_characters_affiliation.call_args        
         self.assertSetEqual(set(kwargs['characters']), set(expected))        
         self.assertTrue(
@@ -500,10 +494,9 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
                 updated__gt=now() - timedelta(hours=1)
             ).exists()
         )
-
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_updates_all_unknown_contacts(self, mock_api_get_instance):
-        mock_api_get_instance.return_value\
+    
+    def test_updates_all_unknown_contacts(self, mock_esi_client):
+        mock_esi_client.return_value\
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
         
@@ -512,10 +505,10 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
         CharacterAssociation.objects.filter(character_id__in=expected).delete()
         StandingsManager.update_character_associations_api()        
         self.assertTrue(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
-        args, kwargs = mock_api_get_instance.return_value\
+        args, kwargs = mock_esi_client.return_value\
             .Character.post_characters_affiliation.call_args        
         self.assertSetEqual(set(kwargs['characters']), set(expected))
         self.assertTrue(
@@ -601,18 +594,18 @@ class TestContactsWrapperContact(TestCase):
 
 class TestContactsWrapper(TestCase):
         
+    @patch('standingsrequests.helpers.esi_fetch._esi_client')
     @patch(MODULE_PATH + '.EveNameCache')
-    def test_init(self, mock_EveNameCache):
+    def test_init(self, mock_EveNameCache, mock_esi_client):
         mock_EveNameCache.get_names.side_effect = get_entity_names
-    
-        mock_client = Mock()
-        mock_client.Contacts\
+            
+        mock_esi_client.return_value.Contacts\
             .get_alliances_alliance_id_contacts_labels.return_value\
             .result.return_value = get_my_test_data()['alliance_labels']
 
         mock_response = Mock()
         mock_response.headers = dict()
-        mock_client.Contacts\
+        mock_esi_client.return_value.Contacts\
             .get_alliances_alliance_id_contacts.return_value\
             .result.return_value = (
                 get_my_test_data()['alliance_contacts'], 
@@ -621,7 +614,7 @@ class TestContactsWrapper(TestCase):
         
         create_entity(EveCharacter, 1001)
 
-        x = ContactsWrapper(mock_client, 1001)
-        self.assertEqual(len(x.alliance), len(
+        contacts = ContactsWrapper(Mock(spec=Token), 1001)
+        self.assertEqual(len(contacts.alliance), len(
             get_my_test_data()['alliance_contacts'])
         )
