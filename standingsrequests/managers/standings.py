@@ -33,8 +33,10 @@ class StandingsManager:
 
     @classmethod
     def api_get_instance(cls):
-        token = Token.objects.filter(character_id=cls.charID)\
-                .require_scopes(REQUIRED_TOKENS).require_valid()[0]
+        token = Token.objects\
+            .filter(character_id=cls.charID)\
+            .require_scopes(REQUIRED_TOKENS)\
+            .require_valid()[0]
         return esi_client_factory(token=token, spec_file=SWAGGER_SPEC_PATH)
 
     @classmethod
@@ -43,8 +45,11 @@ class StandingsManager:
         try:
             api = cls.api_get_instance()
             contacts = ContactsWrapper(api, cls.charID)
+
         except Exception:
-            logger.exception("APIError occured while trying to query api server.")
+            logger.exception(
+                "APIError occurred while trying to query api server."
+            )
             return
 
         contacts_set = ContactSet()
@@ -64,12 +69,12 @@ class StandingsManager:
         :return:
         """
         for l in labels:
-            contact = ContactLabel(
+            contact_label = ContactLabel(
                 labelID=l.id,
                 name=l.name,
                 set=contact_set
             )
-            contact.save()
+            contact_label.save()
 
     @classmethod
     def api_add_contacts(cls, contact_set, contacts):
@@ -85,7 +90,10 @@ class StandingsManager:
             flat_labels = [l.id for l in c.labels]
             # Create a list of applicable django ContactLabel objects
             # Can be replaced in django 1.9 as .set() is available
-            labels = [l for l in contact_set.contactlabel_set.all() if l.labelID in flat_labels]
+            labels = [
+                l for l in contact_set.contactlabel_set.all() 
+                if l.labelID in flat_labels
+            ]
             contact = StandingFactory.create_standing(
                 contact_set=contact_set,
                 contact_type=c.type_id,
@@ -105,8 +113,12 @@ class StandingsManager:
         pilot = EveCharacter.objects.get_character_by_id(character_id)
         if pilot is None:
             return False
-        if str(pilot.corporation_id) in STR_CORP_IDS or str(pilot.alliance_id) in STR_ALLIANCE_IDS:
+        
+        if (str(pilot.corporation_id) in STR_CORP_IDS 
+            or str(pilot.alliance_id) in STR_ALLIANCE_IDS
+        ):
             return True
+        
         return False
 
     @classmethod
@@ -118,27 +130,36 @@ class StandingsManager:
         :return: True if they can request standings, False if they cannot
         """
         # TODO: Need to figure out how to check if esi keys exists.....
-        keys_recorded = sum([1 for a in EveCharacter.objects.filter(user=user).filter(corporation_id=corp_id)
-                             if StandingsManager.has_required_scopes_for_request(a)])
+        keys_recorded = sum([
+            1 for a in EveCharacter.objects\
+                .filter(character_ownership__user=user)\
+                .filter(corporation_id=corp_id)
+            if StandingsManager.has_required_scopes_for_request(a)
+        ])
         corp = EveCorporation.get_corp_by_id(int(corp_id))
-        logger.debug("Got {} keys recorded for {} total corp members".format(keys_recorded, corp.member_count or None))
+        logger.debug(
+            "Got {} keys recorded for {} total corp members".format(
+                keys_recorded, 
+                corp.member_count or None
+        ))
         return corp is not None and keys_recorded >= corp.member_count
 
     @classmethod
-    def process_pending_standings(cls, standings_type=None):
+    def process_pending_standings(cls, standings_class=None):
         """
-        Process StandingsRequests and StandingsRevocations and mark them as effective if standings have been set
-        :type standings_type: AbstractStandingsRequest concrete class to process exclusively
+        Process StandingsRequests and StandingsRevocations 
+        and mark them as effective if standings have been set
+        :type standings_class: AbstractStandingsRequest class to process exclusively
         :return: None
         """
         # Skip if a type is specified and this isn't the specified type
-        if (standings_type is not None and type(StandingsRequest) is standings_type) or standings_type is None:
+        if standings_class is None or standings_class == StandingsRequest:
             logger.debug("Processing StandingsRequests")
             cls.process_requests(StandingsRequest.objects.all())
         else:
             logger.debug("Skipping StandingsRequests")
 
-        if (standings_type is not None and type(StandingsRevocation) is standings_type) or standings_type is None:
+        if standings_class is None or standings_class == StandingsRevocation:
             logger.debug("Processing StandingsRevocations")
             cls.process_requests(StandingsRevocation.objects.all())
         else:
@@ -151,41 +172,52 @@ class StandingsManager:
         :param reqs: AbstractStandingsRequest list
         :return: None
         """
-        for r in reqs:
-
-            sat = r.check_standing_satisfied()
-
-            if sat and r.contactType in PilotStanding.contactTypes:
+        for request in reqs:
+            standing_satisfied = request.check_standing_satisfied()
+            if (standing_satisfied 
+                and request.contactType in PilotStanding.contactTypes
+            ):
                 pass
                 """
-                char = EveManager.get_character_by_id(r.contactID)
-                if type(r) is StandingsRequest:
+                char = EveManager.get_character_by_id(request.contactID)
+                if type(request) is StandingsRequest:
                     # Request, send a notification
                     notify(char.user, "Standings Request", message="Your standings request for {0} is now effective"
                                                                 " in game".format(char.character_name))
-                elif type(r) is StandingsRevocation:
+                elif type(request) is StandingsRevocation:
                     # Revocation. Try and send a request (user or character may be deleted)
                     if char is not None:
                         notify(char.user, "Standings Revocation", message="Your standings for {0} have been revoked "
                                                                           "in game".format(char.character_name))
                 """
-            elif sat:
+            elif standing_satisfied:
                 pass  # Just catching all other contact types (corps/alliances) that are set effective
-            elif not sat and r.effective:
+            
+            elif not standing_satisfied and request.effective:
                 # Standing is not effective, but has previously been marked as effective.
                 # Unset effective
-                logger.info("Standing for {0} is marked as effective but is not satisfied in game. "
-                            "Resetting to initial state".format(r.contactID))
-                r.reset_to_initial()
+                logger.info(
+                    "Standing for {} is marked as effective but is not "
+                    "satisfied in game. "
+                    "Resetting to initial state".format(request.contactID)
+                )
+                request.reset_to_initial()
+            
             else:
-                # Check the standing hasn't been set actioned and not updated in game
-                act = r.check_standing_actioned_timeout()
-                if act is not None and act:
+                # Check the standing hasn't been set actioned 
+                # and not updated in game
+                actioned_timeout = request.check_standing_actioned_timeout()
+                if actioned_timeout is not None and actioned_timeout:
                     # Notify the actor user
-                    notify(act, "Standings Request Action", message="A standings request for contactID {0} you "
-                                                                    "actioned has been reset as it did not appear in "
-                                                                    "game before the timeout period expired."
-                                                                    "".format(r.contactID))
+                    notify(
+                        actioned_timeout, 
+                        "Standings Request Action",
+                        message="A standings request for contactID {} you " 
+                            "actioned has been reset as it did not appear in "
+                            "game before the timeout period expired.".format(
+                                request.contactID
+                            )
+                    )
 
     @classmethod
     def update_character_associations_auth(cls):
@@ -195,21 +227,29 @@ class StandingsManager:
         """
         chars = EveCharacter.objects.all()
         for c in chars:
-            logger.debug("Updating Association from Auth for %s", c.character_name)
+            logger.debug(
+                "Updating Association from Auth for %s", c.character_name
+            )
             try:
                 try:
                     ownership = CharacterOwnership.objects.get(character=c)
-                    main = ownership.user.profile.main_character.character_id if ownership.user.profile.main_character else None
+                    main = ownership.user.profile.main_character.character_id \
+                        if ownership.user.profile.main_character else None
+                
                 except CharacterOwnership.DoesNotExist:
                     main = None
 
-                assoc, created = CharacterAssociation.objects.update_or_create(character_id=c.character_id,
-                                                                               defaults={'corporation_id': c.corporation_id,
-                                                                                         'main_character_id': main,
-                                                                                         'alliance_id': c.alliance_id,
-                                                                                         'updated': timezone.now(),
-                                                                                         })
+                assoc, created = CharacterAssociation.objects\
+                    .update_or_create(
+                        character_id=c.character_id,
+                        defaults={
+                            'corporation_id': c.corporation_id,
+                            'main_character_id': main,
+                            'alliance_id': c.alliance_id,
+                            'updated': timezone.now(),
+                        })
                 EveNameCache.update_name(assoc.character_id, c.character_name)
+
             except CharacterAssociation.DoesNotExist:
                 pass
 
@@ -225,32 +265,49 @@ class StandingsManager:
         try:
             # Sort out a set of character_ids we want to fetch
             standings = ContactSet.objects.latest()
-            pilot_standing_list = standings.pilotstanding_set.values_list('contactID', flat=True)
+            pilot_standing_list = \
+                standings.pilotstanding_set.values_list('contactID', flat=True)
             # Get the expired association pilots in this standings list
-            cache_expired = CharacterAssociation.get_api_expired_items(pilot_standing_list)\
+            cache_expired = \
+                CharacterAssociation.get_api_expired_items(pilot_standing_list)\
                 .values_list('character_id', flat=True)
-            pilots = set(pilot_standing_list).intersection(cache_expired)  # Make sure we're only fetching expired
+            # Make sure we're only fetching expired
+            pilots = set(pilot_standing_list).intersection(cache_expired)
             # And pilots we don't know about
-            known_pilots = CharacterAssociation.objects.all().values_list('character_id', flat=True)
-            unknown_pilots = [i for i in pilot_standing_list if i not in known_pilots]
-            pilots |= set(unknown_pilots)  # Merge sets
+            known_pilots = CharacterAssociation.objects\
+                .values_list('character_id', flat=True)
+            unknown_pilots = [
+                i for i in pilot_standing_list if i not in known_pilots
+            ]
+            # Merge sets
+            pilots |= set(unknown_pilots)
+
         except ObjectDoesNotExist:
-            logging.warn("No standings set available to update character associations with. Aborting")
+            logger.warn("No standings set available to update character associations with. Aborting")
             return
-        pilots = list(pilots)  # Switch back to a list, don't attempt to add anything after this
+        
+        # Switch back to a list, don't attempt to add anything after this
+        pilots = list(pilots)  
         # Chunk the data into acceptable sizes for the API
         length = len(pilots)
-        chunks = [pilots[x:x+chunk_size] for x in xrange(0, length, chunk_size)]
-
-        logger.debug('Got %s chunks containing max %s each to process with a total of %s', len(chunks), chunk_size, length)
-
+        chunks = [
+            pilots[x: x + chunk_size] for x in xrange(0, length, chunk_size)
+        ]
+        logger.debug(
+            'Got %s chunks containing max %s each to process with a total of %s',
+            len(chunks),
+            chunk_size,
+            length
+        )
         api = cls.api_get_instance()
         for c in chunks:
             try:
-                esi_response = api.Character.post_characters_affiliation(characters=c).result()
+                esi_response = api.Character\
+                    .post_characters_affiliation(characters=c).result()
                 for association in esi_response:
                     corp_id = association['corporation_id']
-                    all_id = association['alliance_id'] if 'alliance_id' in association else None
+                    all_id = association['alliance_id'] \
+                        if 'alliance_id' in association else None
                     character_id = association['character_id']
                     CharacterAssociation.objects.update_or_create(
                         character_id=character_id,
@@ -261,7 +318,7 @@ class StandingsManager:
                         })
 
             except Exception:
-                logging.exception("Could not fetch associations chunk")
+                logger.exception("Could not fetch associations chunk from ESI")
 
     @classmethod
     def validate_standings_requests(cls):
@@ -390,7 +447,7 @@ class ContactsWrapper:
         @staticmethod
         def get_type_id_from_name(type_name):
             """
-            Mapps new ESI name to old type id.
+            Maps new ESI name to old type id.
             Character type is allways mapped to 1373
             And faction type to 500000
             Determines the contact type:
@@ -413,13 +470,23 @@ class ContactsWrapper:
         def __init__(self, json, labels, names_info):
             self.id = json['contact_id']
             # TODO: remove this and translate id to name when displayed
-            self.name = names_info[self.id] if self.id in names_info else 'Could not get name from API'
+            
+            self.name = names_info[self.id] \
+                if self.id in names_info else 'Could not get name from API'
+            
             self.standing = json['standing']
-            self.in_watchlist = json['in_watchlist'] if 'in_watchlist' in json else None
-            self.label_ids = json['label_ids'] if 'label_ids' in json and json['label_ids'] is not None else []
+            
+            self.in_watchlist = json['in_watchlist'] \
+                if 'in_watchlist' in json else None
+            
+            self.label_ids = json['label_ids'] \
+                if 'label_ids' in json and json['label_ids'] is not None \
+                else []
+            
             self.type_id = self.__class__.get_type_id_from_name(
-                json['contact_type'])
-            # list of lanbels
+                json['contact_type']
+            )
+            # list of labels
             self.labels = [l for l in labels if l.id in self.label_ids]
 
         def __str__(self):
@@ -432,9 +499,18 @@ class ContactsWrapper:
         self.alliance = []
         self.allianceLabels = []
 
-        alliance_id = EveCharacter.objects.get_character_by_id(character_id).alliance_id
-        allianceLabelInfo = api.Contacts.get_alliances_alliance_id_contacts_labels(alliance_id=alliance_id)
-        allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(alliance_id=alliance_id, page=1)
+        alliance_id = EveCharacter.objects\
+            .get_character_by_id(character_id)\
+            .alliance_id
+        allianceLabelInfo = \
+            api.Contacts.get_alliances_alliance_id_contacts_labels(
+                alliance_id=alliance_id
+            )
+        allianceContactsInfo = \
+            api.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=alliance_id, 
+                page=1
+            )
         allianceContactsInfo.also_return_response = True
 
         for label in allianceLabelInfo.result():
@@ -443,26 +519,35 @@ class ContactsWrapper:
         entity_ids = []
 
         contacts, response = allianceContactsInfo.result()
-        logger.debug("Got %d contacs with 1st page", len(contacts))
+        logger.debug("Got %d contacts with 1st page", len(contacts))
         # get the x-pages header
-        pages = int(response.headers['X-Pages']) if 'X-Pages' in response.headers else 1
+        pages = int(response.headers['X-Pages']) \
+            if 'X-Pages' in response.headers else 1
         logger.debug("We need to get %d page(s) of contacts in total", pages)
 
         for page in xrange(2, pages+1):
             logger.debug("Getting page %d/%d of contacts", page, pages)
-            allianceContactsInfo = api.Contacts.get_alliances_alliance_id_contacts(
-                alliance_id=alliance_id,
-                page=page
+            allianceContactsInfo = \
+                api.Contacts.get_alliances_alliance_id_contacts(
+                    alliance_id=alliance_id,
+                    page=page
                 )
             new_contacts = allianceContactsInfo.result()
-            logger.debug("Got %d contacs with %d page", len(new_contacts), page)
+            logger.debug(
+                "Got %d contact with %d page", len(new_contacts), page
+            )
             contacts = contacts + new_contacts
-        logger.debug("Got %d contact in total from %d pages", len(contacts), pages)
+        
+        logger.debug(
+            "Got %d contact in total from %d pages", len(contacts), pages
+        )
         for contact in contacts:
             entity_ids.append(contact['contact_id'])
 
         name_info = EveNameCache.get_names(entity_ids)
 
         for contact in contacts:
-            self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
+            self.alliance.append(
+                self.Contact(contact, self.allianceLabels, name_info)
+            )
 

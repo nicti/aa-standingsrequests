@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Automatic testing now includes Python 3.6, 3.7 and 3.8
+
 ### Changed
+
+- Dropped support for Python 3.5
 
 ### Fixed
 
