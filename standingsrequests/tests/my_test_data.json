@@ -1,0 +1,271 @@
+{
+    "alliance_labels": [
+        {
+            "label_id": 1,
+            "label_name": "blue"
+        },
+        {
+            "label_id": 2,
+            "label_name": "green"
+        },
+        {
+            "label_id": 3,
+            "label_name": "yellow"
+        },
+        {
+            "label_id": 4,
+            "label_name": "red"
+        }
+    ],
+    "alliance_contacts": [
+        {
+            "contact_id": 1001,
+            "contact_type": "character",
+            "label_ids": [1],
+            "standing": 10
+        },
+        {
+            "contact_id": 1002,
+            "contact_type": "character",
+            "label_ids": [1, 2],
+            "standing": 10
+        },
+        {
+            "contact_id": 1003,
+            "contact_type": "character",
+            "label_ids": [3],
+            "standing": 5
+        },
+        {
+            "contact_id": 1004,
+            "contact_type": "character",
+            "label_ids": [3],
+            "standing": 0.01
+        },
+        {
+            "contact_id": 1005,
+            "contact_type": "character",
+            "label_ids": [3],
+            "standing": 0
+        },
+        {
+            "contact_id": 1006,
+            "contact_type": "character",
+            "label_ids": [3],
+            "standing": 0
+        },        
+        {
+            "contact_id": 1008,
+            "contact_type": "character",
+            "label_ids": [4],
+            "standing": -5
+        },
+        {
+            "contact_id": 1009,
+            "contact_type": "character",
+            "label_ids": [4],
+            "standing": -10
+        },
+        {
+            "contact_id": 2004,
+            "contact_type": "corporation",
+            "label_ids": [],
+            "standing": 5
+        },
+        {
+            "contact_id": 2102,
+            "contact_type": "corporation",
+            "label_ids": [],
+            "standing": -10
+        }
+    ],
+    "CharacterAssociation": 
+    [
+        {
+            "character_id": 1001,
+            "alliance_id": 3001,
+            "corporation_id": 2001,
+            "main_character_id": 1001
+        },
+        {
+            "character_id": 1002,
+            "alliance_id": 3001,
+            "corporation_id": 2001,
+            "main_character_id": 1001
+        },
+        {
+            "character_id": 1003,
+            "alliance_id": 3001,
+            "corporation_id": 2001,
+            "main_character_id": 1001
+        },
+        {
+            "character_id": 1004,
+            "alliance_id": null,
+            "corporation_id": 2003,
+            "main_character_id": 1001
+        },
+        {
+            "character_id": 1005,
+            "alliance_id": null,
+            "corporation_id": 2003,
+            "main_character_id": 1005
+        },
+        {
+            "character_id": 1006,
+            "alliance_id": null,
+            "corporation_id": 2003,
+            "main_character_id": 1006
+        },
+        {
+            "character_id": 1007,
+            "alliance_id": null,
+            "corporation_id": 2004,
+            "main_character_id": 1007
+        },
+        {
+            "character_id": 1008,
+            "alliance_id": null,
+            "corporation_id": 2004,
+            "main_character_id": 1008
+        },
+        {
+            "character_id": 1009,
+            "alliance_id": null,
+            "corporation_id": 2102,
+            "main_character_id": 1009
+        }
+    ],
+    "EveAllianceInfo":
+    {
+        "3001":
+            {
+                "alliance_id": 3001,
+                "alliance_name": "Wayne Enterprises",
+                "alliance_ticker": "WYE",            
+                "executor_corp_id": 2001
+            }
+    },
+    "EveCorporationInfo":
+    {
+        "2001": {
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYT",
+            "member_count": 3,
+            "alliance_id": 3001
+        },
+        "2002": {
+            "corporation_id": 2002,
+            "corporation_name": "Wayne Foods",
+            "corporation_ticker": "WYF",
+            "member_count": 8875,
+            "alliance_id": 3001
+        },
+        "2003": {
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_ticker": "CC",
+            "member_count": 55,
+            "alliance_id": null
+        },
+        "2004": {
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
+            "member_count": 1100,
+            "alliance_id": null
+        },
+        "2102": {
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX",
+            "member_count": 2500,
+            "alliance_id": null
+        }
+    },    
+    "EveCharacter":
+    {
+        "1001": {
+            "character_id": 1001,
+            "character_name": "Bruce Wayne",
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYE",
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises"
+        },
+        "1002": {
+            "character_id": 1002,
+            "character_name": "Peter Parker",
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYE",
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises"
+        },
+        "1003": {
+            "character_id": 1003,
+            "character_name": "Clark Kent",
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYE",
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises"
+        },
+        "1004": {
+            "character_id": 1004,
+            "character_name": "Kara Danvers",
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_ticker": "CC",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1005": {
+            "character_id": 1005,
+            "character_name": "Kathy Kane",
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_ticker": "CC",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1006": {
+            "character_id": 1006,
+            "character_name": "Steven Roger",
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_ticker": "CC",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1007": {
+            "character_id": 1007,
+            "character_name": "James Gordon",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1008": {
+            "character_id": 1008,
+            "character_name": "Harvey Dent",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1009": {
+            "character_id": 1009,
+            "character_name": "Lex Luthor",
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX",
+            "alliance_id": null,
+            "alliance_name": null
+        }
+    }
+}

@@ -191,6 +191,7 @@ class AbstractStandingsRequest(models.Model):
                 if not check_only:
                     self.mark_standing_effective()
                 return True
+
         except exceptions.ObjectDoesNotExist:
             logger.debug(
                 "No standing set for {0}, checking if neutral is OK".format(
@@ -198,17 +199,22 @@ class AbstractStandingsRequest(models.Model):
             ))
             if self.expectStandingLTEQ == 0:
                 # Standing satisfied but deleted (neutral)
-                logger.debug("Standing satisfied but deleted (neutral) for {0}".format(self.contactID))
+                logger.debug(
+                    "Standing satisfied but deleted (neutral) for {0}".format(
+                        self.contactID
+                ))
                 if not check_only:
                     self.mark_standing_effective()
                 return True
+
         # Standing not satisfied
         logger.debug("Standing NOT satisfied for {0}".format(self.contactID))
         return False
 
     def mark_standing_effective(self, date=None):
         """
-        Marks a standing as effective (standing exists in game) from the current or supplied TZ aware datetime
+        Marks a standing as effective (standing exists in game) 
+        from the current or supplied TZ aware datetime
         :param date: TZ aware datetime object of when the standing became effective
         :return:
         """

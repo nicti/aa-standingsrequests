@@ -1,11 +1,13 @@
 from __future__ import unicode_literals
 
+import logging
+from time import sleep
+
 from django.core.cache import cache
 
-import logging
-from esi.clients import esi_client_factory
 from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
-from time import sleep
+from esi.clients import esi_client_factory
+
 from ..managers import SWAGGER_SPEC_PATH
 
 logger = logging.getLogger(__name__)
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class EveCorporation:
     CACHE_PREFIX = 'STANDINGS_REQUESTS_EVECORPORATION_'
-    CACHE_TIME = 60*30  # 30 minutes
+    CACHE_TIME = 60 * 30  # 30 minutes
 
     def __init__(self, *args, **kwargs):
         self.corporation_id = int(kwargs.get('corporation_id'))
@@ -54,14 +56,16 @@ class EveCorporation:
         logger.debug("Attempting to get corp from esi with id %s", corp_id)
         client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
         try:
-            info = client.Corporation.get_corporations_corporation_id(corporation_id=corp_id).result()
-            return cls(corporation_id=corp_id,
-                       corporation_name=info['name'],
-                       ticker=info['ticker'],
-                       member_count=info['member_count'],
-                       ceo_id=info['ceo_id'],
-                       alliance_id=info['alliance_id'] if 'alliance_id' in info else None
-                       )
+            info = client.Corporation\
+                .get_corporations_corporation_id(corporation_id=corp_id).result()
+            return cls(
+                corporation_id=corp_id,
+                corporation_name=info['name'],
+                ticker=info['ticker'],
+                member_count=info['member_count'],
+                ceo_id=info['ceo_id'],
+                alliance_id=info['alliance_id'] if 'alliance_id' in info else None
+            )
 
         except HTTPNotFound:
             raise None
@@ -71,4 +75,5 @@ class EveCorporation:
                 return None
             else:
                 sleep(count**2)
-                return cls.get_corp_esi(corp_id, count+1)
+                return cls.get_corp_esi(corp_id, count + 1)
+
