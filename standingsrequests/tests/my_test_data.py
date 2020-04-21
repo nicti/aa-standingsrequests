@@ -140,7 +140,7 @@ def esi_get_corporations_corporation_id(corporation_id):
 ##########################
 # app specific functions
 
-def create_contacts_from_test_data(my_set: object = None) -> object:    
+def create_contacts_set(my_set: object = None) -> object:    
     
     if not my_set:
         my_set = ContactSet.objects.create(name='Dummy Set')

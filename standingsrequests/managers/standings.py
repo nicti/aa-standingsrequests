@@ -45,6 +45,9 @@ class StandingsManager:
     @classmethod
     @transaction.atomic
     def api_update_alliance_standings(cls):
+        """fetches alliance constacts with standings from ESI 
+        and stores them as new ContactSet
+        """
         try:
             contacts = ContactsWrapper(cls.token(), cls.charID)
 

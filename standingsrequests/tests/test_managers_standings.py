@@ -22,7 +22,7 @@ from .entity_type_ids import (
 )
 from .my_test_data import (
     get_entity_names, 
-    create_contacts_from_test_data, 
+    create_contacts_set, 
     create_entity,
     esi_post_characters_affiliation,
     get_my_test_data
@@ -315,7 +315,7 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.user_requestor = AuthUtils.create_user('Roger Requestor')
         ContactSet.objects.all().delete()         
         my_set = ContactSet.objects.create(name='Dummy Set')
-        create_contacts_from_test_data(my_set)
+        create_contacts_set(my_set)
 
     def test_process_requests_1(self):                
         """do nothing for pilot requests with standing satisfied in game"""
@@ -462,7 +462,7 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
         )
 
     def test_dont_update_when_not_needed(self, mock_esi_client):
-        create_contacts_from_test_data()
+        create_contacts_set()
         StandingsManager.update_character_associations_api()        
         self.assertFalse(
             mock_esi_client.return_value
@@ -474,7 +474,7 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
 
-        create_contacts_from_test_data()
+        create_contacts_set()
         expected = [1001, 1002, 1003]
         for x in CharacterAssociation.objects.filter(character_id__in=expected):
             x.updated = now() - timedelta(days=3, hours=1)
@@ -500,7 +500,7 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
         
-        create_contacts_from_test_data()
+        create_contacts_set()
         expected = [1001, 1002, 1003]
         CharacterAssociation.objects.filter(character_id__in=expected).delete()
         StandingsManager.update_character_associations_api()        

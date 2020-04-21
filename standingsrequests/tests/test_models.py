@@ -26,7 +26,7 @@ from .entity_type_ids import (
     CHARACTER_DRIFTER_TYPE_ID
 )
 from .my_test_data import (
-    create_contacts_from_test_data, get_entity_name, get_entity_names
+    create_contacts_set, get_entity_name, get_entity_names
 )
 from ..models import (
     AbstractStanding, 
@@ -198,7 +198,7 @@ class TestStandingsRequest(TestCase):
         my_set = ContactSet.objects.create(
             name='Dummy Set'
         )
-        create_contacts_from_test_data(my_set)
+        create_contacts_set(my_set)
         self.user_manager = User.objects.create_user(
             'Mike Manager',
             'mm@example.com',
