@@ -1,11 +1,12 @@
-from __future__ import unicode_literals
-
-from .urls import urlpatterns
-from .models import StandingsRequest
-
 import logging
+
+from django.utils.translation import gettext_lazy as _
 from allianceauth import hooks
 from allianceauth.services.hooks import ServicesHook, MenuItemHook
+
+from . import __title__
+from .models import StandingsRequest
+from .urls import urlpatterns
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +38,12 @@ def register_service():
 
 class StandingsRequestMenuItem(MenuItemHook):
     def __init__(self):
-        MenuItemHook.__init__(self,
-                              'Standings Requests',
-                              'fa fa-plus-square fa-fw grayiconecolor',
-                              'standingsrequests:index')
+        MenuItemHook.__init__(
+            self,
+            _(__title__),
+            'fa fa-plus-square fa-fw grayiconecolor',
+            'standingsrequests:index'
+        )
 
     def render(self, request):
         if request.user.has_perm('standingsrequests.request_standings'):

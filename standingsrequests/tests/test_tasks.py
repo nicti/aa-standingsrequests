@@ -1,6 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+from celery import Celery
+
 from django.utils.timezone import now
 
 from standingsrequests.models import ContactSet, StandingsRevocation
@@ -20,6 +22,7 @@ from .my_test_data import create_contacts_set
 
 MODULE_PATH = 'standingsrequests.tasks'
 logger = set_test_logger(MODULE_PATH, __file__)
+app = Celery('myauth')
 
 
 @patch(MODULE_PATH + '.StandingsManager')
@@ -85,16 +88,19 @@ class TestPurgeTasks(NoSocketsTestCase):
     def test_purge_stale_data(
         self, mock_purge_stale_standings_data, mock_purge_stale_revocations
     ):
+        app.conf.task_always_eager = True
         purge_stale_data()
-        self.assertTrue(mock_purge_stale_standings_data.called)
-        self.assertTrue(mock_purge_stale_revocations.called)
+        app.conf.task_always_eager = False
+                
+        self.assertTrue(mock_purge_stale_standings_data.si.called)
+        self.assertTrue(mock_purge_stale_revocations.si.called)
 
     
+@patch(MODULE_PATH + '.SR_STANDINGS_STALE_HOURS', 48)
 class TestPurgeStaleStandingData(NoSocketsTestCase):
 
     def setUp(self):
         ContactSet.objects.all().delete()
-        self.threshold = 48
 
     def test_do_nothing_if_not_contacts_sets(self):
         purge_stale_standings_data()
@@ -108,7 +114,7 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
 
     def test_one_older_set_no_purge(self):
         set_1 = create_contacts_set()
-        set_1.date = now() - timedelta(hours=self.threshold, seconds=1)
+        set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
         purge_stale_standings_data()
         current_pks = set(ContactSet.objects.values_list('pk', flat=True))
@@ -125,7 +131,7 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
 
     def test_two_sets_young_and_old_purge_older_only(self):
         set_1 = create_contacts_set()
-        set_1.date = now() - timedelta(hours=self.threshold, seconds=1)
+        set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
         set_2 = create_contacts_set()        
         purge_stale_standings_data()
@@ -135,10 +141,10 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
 
     def test_two_older_set_purge_older_one_only(self):
         set_1 = create_contacts_set()
-        set_1.date = now() - timedelta(hours=self.threshold, seconds=2)
+        set_1.date = now() - timedelta(hours=48, seconds=2)
         set_1.save()
         set_2 = create_contacts_set()
-        set_1.date = now() - timedelta(hours=self.threshold, seconds=1)
+        set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
         purge_stale_standings_data()
         current_pks = set(ContactSet.objects.values_list('pk', flat=True))
@@ -146,19 +152,13 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
         self.assertSetEqual(current_pks, expected)
 
 
+@patch(MODULE_PATH + '.SR_REVOCATIONS_STALE_DAYS', 7)
 class TestPurgeStaleRevocations(NoSocketsTestCase):
 
-    # case 1: Revocation does not exist -> do nothing
-    # case 2: One younger revocation -> do nothing
-    # case 3: One older revocation -> purge
-    # case 4: One younger, one older revocation -> purge older only         
-    # case 5: Two older revocation -> purge both
-    
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        create_contacts_set
-        cls.threshold = 7
+        create_contacts_set        
 
     def setUp(self):
         StandingsRevocation.objects.all().delete()
@@ -183,7 +183,7 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
             1001, CHARACTER_TYPE_ID
         )        
         revocation_1.effectiveDate = \
-            now() - timedelta(days=self.threshold, seconds=1)
+            now() - timedelta(days=7, seconds=1)
         revocation_1.effective = True
         revocation_1.save()
         purge_stale_revocations()
@@ -198,7 +198,7 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.effectiveDate = \
-            now() - timedelta(days=self.threshold, seconds=1)
+            now() - timedelta(days=7, seconds=1)
         revocation_1.effective = True
         revocation_1.save()
         revocation_2 = StandingsRevocation.add_revocation(
@@ -217,14 +217,14 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.effectiveDate = \
-            now() - timedelta(days=self.threshold, seconds=1)
+            now() - timedelta(days=7, seconds=1)
         revocation_1.effective = True
         revocation_1.save()
         revocation_2 = StandingsRevocation.add_revocation(
             1002, CHARACTER_TYPE_ID
         )
         revocation_2.effectiveDate = \
-            now() - timedelta(days=self.threshold, seconds=1)
+            now() - timedelta(days=7, seconds=1)
         revocation_2.effective = True
         revocation_2.save()
         purge_stale_revocations()

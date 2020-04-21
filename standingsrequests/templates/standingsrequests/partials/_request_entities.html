@@ -1,6 +1,7 @@
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
+{% load evelinks %}
 
 <div class="col-lg-12">
         <h1 class="page-header">{% trans "Your Characters" %}</h1>
@@ -24,9 +25,8 @@
                         </tr>
                         {% for std in characters %}
                             <tr>
-                                <td>
-                                    <img src="https://imageserver.eveonline.com/Character/{{ std.character.character_id }}_32.jpg"
-                                            class="img-circle">
+                                <td>                                    
+                                    <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">
                                 </td>
                                 <td>
                                     <p>{{ std.character.character_name }}</p>
@@ -123,9 +123,8 @@
                             </tr>
                             {% for st in corps %}
                                 <tr>
-                                    <td>
-                                        <img src="https://imageserver.eveonline.com/Corporation/{{ st.corp.corporation_id }}_32.png"
-                                                class="img-circle">
+                                    <td>                                        
+                                        <img src="{{ st.corp.corporation_id|corporation_logo_url:32 }}" class="img-circle">
                                     </td>
                                     <td>
                                         <p>{{ st.corp.corporation_name }}</p>

@@ -1,17 +1,13 @@
-{% extends "allianceauth/base.html" %}
+{% extends "standingsrequests/base.html" %}
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
 
-{% block title %}Alliance Auth - Standings Tool {% endblock %}
-
-{% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-{% include "standingsrequests/bundles/angular.html" %}
+    {% include "standingsrequests/bundles/angular.html" %}
 {% endblock extra_css %}
 
-{% block content %}
-    {% include 'standingsrequests/partials/_menu.html' %}
+{% block page_content %}    
     <div ng-app="standingsApp" ng-controller="GroupsListController">
         <standings-filter-controls></standings-filter-controls>
         <div class="col-lg-12 container">
@@ -24,7 +20,7 @@
 
                 <div id="div_spinner" class="row">                    
                     <div class="col-md-12">
-                        <img src="{% static "standingsrequests/Spinner-1s-64px.gif" %}" alt="Spinner"/>
+                        <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
                 </div>
                 
@@ -96,7 +92,7 @@
             </div>
         </div>
     </div>
-{% endblock content %}
+{% endblock page_content %}
 
 {% block extra_javascript %}
     <script type="text/javascript">

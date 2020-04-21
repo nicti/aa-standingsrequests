@@ -116,6 +116,8 @@ Name | Description | Default
 `STR_CORP_IDS` | id of standing corporations (Mandatory, can be []) | N/A
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | N/A
 `SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations |True
+`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is |48
+`SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | 7
 
 ## Permissions
 

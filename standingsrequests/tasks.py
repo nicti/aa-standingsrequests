@@ -1,16 +1,18 @@
-from __future__ import unicode_literals
+import logging
+import datetime
+
+from celery import shared_task, chain
 
 from django.utils import timezone
 
+from . import __title__
+from .app_settings import SR_STANDINGS_STALE_HOURS, SR_REVOCATIONS_STALE_DAYS
 from .managers.standings import StandingsManager
 from .models import ContactSet, StandingsRevocation
-from celery import shared_task
-import logging
-import datetime
-from builtins import Exception
 from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
+from .utils import LoggerAddTag
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 
 
 @shared_task(name="standings_requests.standings_update")
@@ -63,16 +65,21 @@ def purge_stale_data():
     Delete all the data which is beyond its useful life. 
     There is no harm in disabling this if you wish to keep everything.
     """
-    purge_stale_standings_data()
-    purge_stale_revocations()
+    my_chain = chain([
+        purge_stale_standings_data.si(),
+        purge_stale_revocations.si(),
+    ])
+    my_chain.delay()
 
 
+@shared_task
 def purge_stale_standings_data():
-    """Deletes all stale (=older than 48 hours) contact sets 
+    """Deletes all stale (=older than threshold hours) contact sets 
     except the last remaining contact set
     """
     logger.info("Purging stale standings data")
-    cutoff_date = timezone.now() - datetime.timedelta(hours=48)
+    cutoff_date = \
+        timezone.now() - datetime.timedelta(hours=SR_STANDINGS_STALE_HOURS)
     try:
         latest_standings = ContactSet.objects.latest()    
         standings_qs = ContactSet.objects\
@@ -97,10 +104,12 @@ def purge_stale_standings_data():
         logger.warn("No ContactSets available, nothing to delete")
 
 
+@shared_task
 def purge_stale_revocations():
     """removes revocations older than threshold"""
     logger.info("Purging stale revocations data")
-    cutoff_date = timezone.now() - datetime.timedelta(days=7)
+    cutoff_date = \
+        timezone.now() - datetime.timedelta(days=SR_REVOCATIONS_STALE_DAYS)
     revocations_qs = StandingsRevocation.objects\
         .exclude(effective=False)\
         .filter(effectiveDate__lt=cutoff_date)

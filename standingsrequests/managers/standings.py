@@ -200,8 +200,7 @@ class StandingsManager:
                 # Just catching all other contact types (corps/alliances) 
                 # that are set effective
                 pass  
-                
-            
+                            
             elif not standing_satisfied and request.effective:
                 # Standing is not effective, but has previously been marked as effective.
                 # Unset effective
@@ -415,10 +414,10 @@ class StandingFactory:
 class ContactsWrapper:
     """
     XML API Wrapper for /char/ContactList
-    Basically replicates evelinks behaviour while including contactTypeID
+    Basically replicates evelinks behavior while including contactTypeID
     """
 
-    # These need to match the XML name on the leftm self attributes on the right
+    # These need to match the XML name on the left self attributes on the right
     CONTACTS_MAP = {
         'contactList': 'personal',
         'corporateContactList': 'corp',

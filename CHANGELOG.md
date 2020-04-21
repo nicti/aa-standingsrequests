@@ -7,13 +7,27 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.4.0] - tbd.
+
+### Import note
+
+The Python package of the app has been renamed to "aa-standingsrequests". To avoid any naming conflicts please remove the previous version of the app from your venv before upgrading with the below command:
+
+```bash
+pip uninstall standingsrequests
+```
+
 ### Added
 
 - Automatic testing now includes Python 3.6, 3.7 and 3.8
+- Thresholds for stale standings and revocations can now be configured via setting
+- Added missing translations and prepared for future localization
 
 ### Changed
 
+- The Python package has been renamed to "aa-standingsrequests"
 - Dropped support for Python 3.5
+- "Standings Requests" now used as title everywhere in the app
 
 ### Fixed
 

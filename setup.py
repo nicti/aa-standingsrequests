@@ -3,7 +3,7 @@ from standingsrequests import __version__
 
 
 setup(
-    name='standingsrequests',
+    name='aa-standingsrequests',
     version=__version__,
     description=(
         'App for managing character standing requests, made for Alliance Auth'
