@@ -1,14 +1,20 @@
 from __future__ import unicode_literals
-from django.http import Http404, JsonResponse, HttpResponse, HttpResponseServerError
+import logging
+
+from django.http import Http404, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
-from django.utils.translation import ugettext as _
+# from django.utils.translation import ugettext as _
 from django.db.models import Q
 from django.contrib import messages
+
+from esi.decorators import token_required
+from allianceauth.eveonline.models import EveCharacter
+from allianceauth.authentication.models import CharacterOwnership
 
 from .models import ContactSet, StandingsRequest, StandingsRevocation
 from .models import PilotStanding, CorpStanding, EveNameCache
@@ -19,10 +25,6 @@ from .helpers.evecharacter import EveCharacterHelper
 from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
 
-import logging
-from esi.decorators import token_required
-from allianceauth.eveonline.models import EveCharacter
-from allianceauth.authentication.models import CharacterOwnership
 from .decorators import token_required_by_state
 from .app_settings import STANDINGS_API_CHARID, SR_CORPORATIONS_ENABLED
 
@@ -53,65 +55,84 @@ def partial_request_entities(request):
     char_ids = [c.character_id for c in characters]
     standings = contact_set.pilotstanding_set.filter(contactID__in=char_ids)
 
-    st_data = []
-    for c in characters:
+    char_standings_data = []
+    for character in characters:
         try:
-            standing = standings.get(contactID=c.character_id).standing
+            standing = standings.get(contactID=character.character_id).standing
         except ObjectDoesNotExist:
             standing = None
         try:
-            standing_req = StandingsRequest.objects.get(contactID=c.character_id)
+            standing_req = StandingsRequest.objects\
+                .get(contactID=character.character_id)
         except ObjectDoesNotExist:
             standing_req = None
 
-        st_data.append({
-            'character': c,
+        char_standings_data.append({
+            'character': character,
             'standing': standing,
-            'pendingRequest': StandingsRequest.pending_request(c.character_id),
-            'pendingRevocation': StandingsRevocation.pending_request(c.character_id),
-            'requestActioned': StandingsRequest.actioned_request(c.character_id),
-            'inOrganisation': StandingsManager.pilot_in_organisation(c.character_id),
-            'hasRequiredScopes': StandingsManager.has_required_scopes_for_request(c),
+            'pendingRequest': StandingsRequest.pending_request(
+                character.character_id
+            ),
+            'pendingRevocation': StandingsRevocation.pending_request(
+                character.character_id
+            ),
+            'requestActioned': StandingsRequest.actioned_request(
+                character.character_id
+            ),
+            'inOrganisation': StandingsManager.pilot_in_organisation(
+                character.character_id
+            ),
+            'hasRequiredScopes': StandingsManager.has_required_scopes_for_request(
+                character
+            ),
             'standingReqExists': standing_req,
         })
 
-    corp_st_data = []
+    corp_standings_data = []
     if SR_CORPORATIONS_ENABLED:
-        corp_ids = set([int(c.corporation_id) for c in characters
-                        if not StandingsManager.pilot_in_organisation(c.character_id)])
-
-        standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
-        
-        for c in corp_ids:
-            try:
-                standing = standings.get(contactID=c).standing
-            except ObjectDoesNotExist:
-                standing = None
-            try:
-                standing_req = StandingsRequest.objects.get(contactID=c)
-            except ObjectDoesNotExist:
-                standing_req = None
-
-            corp_st_data.append({
-                'have_scopes': sum([1 for a in CharacterOwnership.objects.filter(user=request.user).filter(character__corporation_id=c)
-                                    if StandingsManager.has_required_scopes_for_request(a.character)]),
-                'corp': EveCorporation.get_corp_by_id(c),
-                'standing': standing,
-                'pendingRequest': StandingsRequest.pending_request(c),
-                'pendingRevocation': StandingsRevocation.pending_request(c),
-                'requestActioned': StandingsRequest.actioned_request(c),
-                'standingReqExists': standing_req,
-
-            })
+        corp_ids = set([
+            int(character.corporation_id) for character in characters
+            if not StandingsManager.pilot_in_organisation(character.character_id)
+        ])
+        standings = contact_set.corpstanding_set.filter(
+            contactID__in=list(corp_ids)
+        )        
+        for corp_id in corp_ids:
+            corporation = EveCorporation.get_corp_by_id(corp_id)
+            if corporation and not corporation.is_npc:
+                try:
+                    standing = standings.get(contactID=corp_id).standing
+                except ObjectDoesNotExist:
+                    standing = None
+                try:
+                    standing_req = StandingsRequest.objects.get(contactID=corp_id)
+                except ObjectDoesNotExist:
+                    standing_req = None
+                
+                have_scopes = sum([
+                    1 for a in CharacterOwnership.objects
+                    .filter(user=request.user)
+                    .filter(character__corporation_id=corp_id)
+                    if StandingsManager.has_required_scopes_for_request(a.character)
+                ])            
+                corp_standings_data.append({
+                    'have_scopes': have_scopes,
+                    'corp': corporation,
+                    'standing': standing,
+                    'pendingRequest': StandingsRequest.pending_request(corp_id),
+                    'pendingRevocation': StandingsRevocation.pending_request(corp_id),
+                    'requestActioned': StandingsRequest.actioned_request(corp_id),
+                    'standingReqExists': standing_req,
+                })
     
-    render_items = {'characters': st_data,
-                    'corps': corp_st_data,
-                    'corporations_enabled': SR_CORPORATIONS_ENABLED,                  
-                    'authinfo': {
-                        'main_char_id': request.user.profile.main_character.character_id
-                        }
-                    }
-
+    render_items = {
+        'characters': char_standings_data,
+        'corps': corp_standings_data,
+        'corporations_enabled': SR_CORPORATIONS_ENABLED,                  
+        'authinfo': {
+            'main_char_id': request.user.profile.main_character.character_id
+        }
+    }
     return render(
         request, 
         'standingsrequests/partials/_request_entities.html', 
@@ -730,6 +751,7 @@ def view_requester_add_scopes(request, token):
         request,
         'Successfully added token with required scopes for {}'.format(            
             EveNameCache.get_name(token.character_id)
-    ))
+        )
+    )
     
     return redirect('standingsrequests:index')

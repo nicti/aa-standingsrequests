@@ -81,3 +81,22 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(obj.ticker, 'LEX')
         self.assertEqual(obj.member_count, 2500)
         self.assertIsNone(obj.alliance_id)
+
+    def test_normal_corp_is_not_npc(self):
+        normal_corp = EveCorporation(
+            corporation_id=98397665,
+            corporation_name='Rancid Rabid Rabis',
+            ticker='RANCI',
+            member_count=3,
+            alliance_id=99005502
+        )
+        self.assertFalse(normal_corp.is_npc)
+
+    def test_npc_corp_is_npc(self):
+        normal_corp = EveCorporation(
+            corporation_id=1000134,
+            corporation_name='Blood Raiders',
+            ticker='TBR',
+            member_count=22
+        )
+        self.assertTrue(normal_corp.is_npc)

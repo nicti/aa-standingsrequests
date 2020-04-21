@@ -25,13 +25,18 @@ class EveCorporation:
     def __str__(self):
         return self.corporation_name
 
+    @property
+    def is_npc(self):
+        """returns true if this corporation is an NPC, else false"""
+        return 1000000 <= self.corporation_id <= 2000000
+
     @classmethod
     def get_corp_by_id(cls, corp_id):
         """
         Get a corp from the cache or ESI if not cached
         Corps are cached for 3 hours
         :param corp_id: int corp ID to get
-        :return:
+        :return: corporation object or None
         """
         logger.debug("Getting corp by id {}".format(corp_id))
         corp = cache.get(cls.__get_cache_key(corp_id))

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Memory leak fix with regards to ESI client
+- NPC corps no longer appear in list for requesting corp standing ([#8](https://gitlab.com/basraah/standingsrequests/issues/10))
 
 ## [0.3.8] - 2020-01-15
 
