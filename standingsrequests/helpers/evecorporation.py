@@ -14,7 +14,7 @@ class EveCorporation:
     CACHE_PREFIX = 'STANDINGS_REQUESTS_EVECORPORATION_'
     CACHE_TIME = 60 * 30  # 30 minutes
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.corporation_id = int(kwargs.get('corporation_id'))
         self.corporation_name = kwargs.get('corporation_name')
         self.ticker = kwargs.get('ticker')
@@ -38,7 +38,7 @@ class EveCorporation:
         :param corp_id: int corp ID to get
         :return: corporation object or None
         """
-        logger.debug("Getting corp by id {}".format(corp_id))
+        logger.debug("Getting corp by id %d", corp_id)
         corp = cache.get(cls.__get_cache_key(corp_id))
         if corp is None:
             logger.debug("Corp not in cache, fetching")

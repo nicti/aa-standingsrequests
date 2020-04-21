@@ -168,11 +168,11 @@ def request_pilot_standings(request, character_id):
             )
         else:
             # Pending request, not allowed
-            logger.warn(
+            logger.warning(
                 "Contact ID %d already has a pending request", character_id
             )
     else:
-        logger.warn(
+        logger.warning(
             "User %s does not own Pilot ID %d, forbidden", 
             request.user, 
             character_id
@@ -186,7 +186,7 @@ def remove_pilot_standings(request, character_id):
     """
     Handles both removing requests and removing existing standings
     """
-    logger.debug('remove_pilot_standings called by %s' % request.user)
+    logger.debug('remove_pilot_standings called by %s', request.user)
     if EveEntityManager.is_character_owned_by_user(character_id, request.user):
         if (
             not StandingsManager.pilot_in_organisation(character_id) 
@@ -222,7 +222,7 @@ def remove_pilot_standings(request, character_id):
                 )
             logger.debug('Cannot remove standings for pilot %d', character_id)
     else:
-        logger.warn(
+        logger.warning(
             'User %s tried to remove standings for characterID %d '
             'but was not permitted',
             request.user, 
@@ -255,9 +255,9 @@ def request_corp_standings(request, corp_id):
             )
         else:
             # Pending request, not allowed
-            logger.warn("Contact ID %d already has a pending request", corp_id)
+            logger.warning("Contact ID %d already has a pending request", corp_id)
     else:
-        logger.warn(
+        logger.warning(
             "User %s does not have enough keys for corpID %d, forbidden", 
             request.user, 
             corp_id
@@ -271,7 +271,7 @@ def remove_corp_standings(request, corp_id):
     """
     Handles both removing corp requests and removing existing standings
     """
-    logger.debug('remove_corp_standings called by %s' % request.user)
+    logger.debug('remove_corp_standings called by %s', request.user)
     # Need all corp APIs recorded to "own" the corp
     st_req = get_object_or_404(StandingsRequest, contactID=corp_id)
     if st_req.user == request.user:
@@ -306,7 +306,7 @@ def remove_corp_standings(request, corp_id):
                 logger.debug('No standings exist for corpID %d', corp_id)
             logger.debug('Cannot remove standings for pilot %d', corp_id)
     else:
-        logger.warn(
+        logger.warning(
             'User %s tried to remove standings for corpID %d but was not permitted',
             request.user, 
             corp_id
@@ -321,7 +321,7 @@ def remove_corp_standings(request, corp_id):
 @login_required
 @permission_required('standingsrequests.view')
 def view_pilots_standings(request):
-    logger.debug('view_pilot_standings called by %s' % request.user)
+    logger.debug('view_pilot_standings called by %s', request.user)
     try:
         last_update = ContactSet.objects.latest().date
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
@@ -339,7 +339,7 @@ def view_pilots_standings(request):
 @login_required
 @permission_required('standingsrequests.view')
 def view_pilots_standings_json(request):
-    logger.debug('view_pilot_standings_json called by %s' % request.user)
+    logger.debug('view_pilot_standings_json called by %s', request.user)
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -416,7 +416,7 @@ def view_pilots_standings_json(request):
 @login_required
 @permission_required('standingsrequests.download')
 def download_pilot_standings(request):
-    logger.info('download_pilot_standings called by %s' % request.user)
+    logger.info('download_pilot_standings called by %s', request.user)
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="standings.csv"'
 
@@ -486,7 +486,7 @@ def download_pilot_standings(request):
 @login_required
 @permission_required('standingsrequests.view')
 def view_groups_standings(request):
-    logger.debug('view_group_standings called by %s' % request.user)
+    logger.debug('view_group_standings called by %s', request.user)
     try:
         last_update = ContactSet.objects.latest().date
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
@@ -501,7 +501,7 @@ def view_groups_standings(request):
 @login_required
 @permission_required('standingsrequests.view')
 def view_groups_standings_json(request):
-    logger.debug('view_pilot_standings_json called by %s' % request.user)    
+    logger.debug('view_pilot_standings_json called by %s', request.user)    
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -535,7 +535,7 @@ def view_groups_standings_json(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_standings(request):
-    logger.debug('manage_standings called by %s' % request.user)
+    logger.debug('manage_standings called by %s', request.user)
     return render(
         request, 'standingsrequests/manage.html', {'app_title': __title__}
     )
@@ -544,7 +544,7 @@ def manage_standings(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_get_requests_json(request):
-    logger.debug('manage_get_requests_json called by %s' % request.user)
+    logger.debug('manage_get_requests_json called by %s', request.user)
     requests_qs = StandingsRequest.objects\
         .filter(Q(actionBy=None) & Q(effective=False))\
         .order_by('requestDate')
@@ -626,7 +626,7 @@ def manage_get_requests_json(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_requests_write(request, contact_id):
-    logger.debug('manage_requests_write called by %s' % request.user)
+    logger.debug('manage_requests_write called by %s', request.user)
     if request.method == "PUT":        
         actioned = 0
         for r in StandingsRequest.objects.filter(contactID=contact_id):
@@ -648,7 +648,7 @@ def manage_requests_write(request, contact_id):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_get_revocations_json(request):
-    logger.debug('manage_get_revocations_json called by %s' % request.user)
+    logger.debug('manage_get_revocations_json called by %s', request.user)
     revocations_qs = StandingsRevocation.objects\
         .filter(Q(actionBy=None) & Q(effective=False))\
         .order_by('requestDate')
@@ -756,7 +756,7 @@ def manage_get_revocations_json(request):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_revocations_write(request, contact_id):
-    logger.debug('manage_revocations_write called by %s' % request.user)
+    logger.debug('manage_revocations_write called by %s', request.user)
     if request.method == "PUT":        
         actioned = 0
         for r in StandingsRevocation.objects.filter(contactID=contact_id):
@@ -777,7 +777,7 @@ def manage_revocations_write(request, contact_id):
 @login_required
 @permission_required('standingsrequests.affect_standings')
 def manage_revocations_undo(request, contact_id):
-    logger.debug('manage_revocations_undo called by %s' % request.user)
+    logger.debug('manage_revocations_undo called by %s', request.user)
     if StandingsRevocation.objects.filter(contactID=contact_id).exists():
         owner = EveEntityManager.get_owner_from_character_id(contact_id)
         if owner is None:

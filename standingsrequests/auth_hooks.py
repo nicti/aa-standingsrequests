@@ -19,11 +19,11 @@ class StandingsRequestService(ServicesHook):
         self.access_perm = 'standingsrequests.request_standings'
 
     def delete_user(self, user, notify_user=False):
-        logger.debug('Deleting user {} standings'.format(user))
+        logger.debug('Deleting user %s standings', user)
         StandingsRequest.objects.delete_for_user(user)
 
     def validate_user(self, user):
-        logger.debug('Validating user {} standings'.format(user))
+        logger.debug('Validating user %s standings', user)
         if not self.service_active_for_user(user):
             self.delete_user(user)
 

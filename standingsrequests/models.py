@@ -180,20 +180,19 @@ class AbstractStandingsRequest(models.Model):
         :return: True if satisfied else False
         """
         try:
-            logger.debug("Checking standing for {0}".format(self.contactID))
+            logger.debug("Checking standing for %d", self.contactID)
             latest = ContactSet.objects.latest()
             contact = latest.get_standing_for_id(
                 self.contactID, 
                 self.contactType
             )
-            if (self.expectStandingGTEQ 
-                    <= contact.standing 
-                    <= self.expectStandingLTEQ
+            if (
+                self.expectStandingGTEQ 
+                <= contact.standing 
+                <= self.expectStandingLTEQ
             ):
                 # Standing is satisfied
-                logger.debug(
-                    "Standing satisfied for {0}".format(self.contactID)
-                )
+                logger.debug("Standing satisfied for %d", self.contactID)
                 if not check_only:
                     self.mark_standing_effective()
                 return True
@@ -224,7 +223,7 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the standing became effective
         :return:
         """
-        logger.debug("Marking standing for {0} as effective".format(self.contactID))
+        logger.debug("Marking standing for %d as effective", self.contactID)
         self.effective = True
         self.effectiveDate = date if date else timezone.now()
         self.save()
@@ -237,7 +236,7 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
-        logger.debug("Marking standing for {0} as actioned".format(self.contactID))
+        logger.debug("Marking standing for %d as actioned", self.contactID)
         self.actionBy = user
         self.actionDate = date if date else timezone.now()
         self.save()
@@ -358,6 +357,7 @@ class StandingsRequest(AbstractStandingsRequest):
             )
 
         super(AbstractStandingsRequest, self).delete(using, keep_parents)
+        
 
     @classmethod
     def add_request(cls, user, contact_id, contact_type):
@@ -451,7 +451,7 @@ class StandingsRevocation(AbstractStandingsRequest):
         :return: created StandingsRequest pendant 
             or False if revocation does not exist
         """
-        logger.debug("Undoing revocation for contactID {0}".format(contact_id))
+        logger.debug("Undoing revocation for contactID %d", contact_id)
         revocations = cls.objects.filter(contactID=contact_id)
 
         if not revocations.exists():

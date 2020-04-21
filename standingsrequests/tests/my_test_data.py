@@ -120,7 +120,7 @@ def esi_get_corporations_corporation_id(corporation_id):
     result = []
     corporation_id = str(corporation_id)
     if corporation_id not in _my_test_data['EveCorporationInfo']:
-        raise HTTPNotFound()
+        raise HTTPNotFound(Mock(), message='Test Exception')
         
     row = _my_test_data['EveCorporationInfo'][corporation_id]
     result = {
@@ -188,27 +188,3 @@ def create_contacts_set(my_set: object = None) -> object:
         CharacterAssociation.objects.create(**assoc)
 
     return my_set
-
-    """
-    def create_contract_set_from_characters() -> object:
-        my_set = ContactSet.objects.create(name='dummy')
-
-        for character_id, character_data in _my_test_data['EveCharacter'].items():
-            EveNameCache.objects.get_or_create(
-                entityID=character_id,
-                defaults={'name': character_data['character_name']}
-            )
-            EveNameCache.objects.get_or_create(
-                entityID=character_data['corporation_id'],
-                defaults={'name': character_data['corporation_name']}
-            )
-            if character_data['alliance_id']:
-                EveNameCache.objects.get_or_create(
-                entityID=character_data['alliance_id'],
-                defaults={'name': character_data['alliance_name']}
-            )
-            args = {
-                'contactID': character_id,
-                ''
-            }
-    """

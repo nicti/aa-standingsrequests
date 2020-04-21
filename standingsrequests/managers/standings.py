@@ -202,12 +202,14 @@ class StandingsManager:
                 pass  
                             
             elif not standing_satisfied and request.effective:
-                # Standing is not effective, but has previously been marked as effective.
+                # Standing is not effective, but has previously 
+                # been marked as effective.
                 # Unset effective
                 logger.info(
-                    "Standing for {} is marked as effective but is not "
+                    "Standing for %d is marked as effective but is not "
                     "satisfied in game. "
-                    "Resetting to initial state".format(request.contactID)
+                    "Resetting to initial state", 
+                    request.contactID
                 )
                 request.reset_to_initial()
             
@@ -247,7 +249,7 @@ class StandingsManager:
                 except CharacterOwnership.DoesNotExist:
                     main = None
 
-                assoc, created = CharacterAssociation.objects\
+                assoc, _ = CharacterAssociation.objects\
                     .update_or_create(
                         character_id=c.character_id,
                         defaults={
@@ -288,7 +290,7 @@ class StandingsManager:
             pilots_to_fetch = list(expired_pilots | set(unknown_pilots))
 
         except ObjectDoesNotExist:
-            logger.warn(
+            logger.warning(
                 "No standings set available to update "
                 "character associations with. Aborting"
             )
@@ -333,10 +335,15 @@ class StandingsManager:
         count = 0
 
         for req in requests:
-            logger.debug("Checking request for contactID {0}".format(req.contactID))
+            logger.debug("Checking request for contactID %d", req.contactID)
             if req.user.has_perm('standingsrequests.request_standings'):
-                if CorpStanding.is_corp(req.contactType) and not cls.all_corp_apis_recorded(req.contactID, req.user):
-                    logger.debug("Request is invalid, not all corp API keys recorded.")
+                if (
+                    CorpStanding.is_corp(req.contactType) 
+                    and not cls.all_corp_apis_recorded(req.contactID, req.user)
+                ):
+                    logger.debug(
+                        "Request is invalid, not all corp API keys recorded."
+                    )
                 else:
                     # Permission is valid, no action
                     logger.debug("Request valid")
@@ -344,7 +351,7 @@ class StandingsManager:
             else:
                 logger.debug("Request is invalid, user does not have permission")
             # Request is invalid, deleting
-            logger.info("Deleting request for contactID {0}".format(req.contactID))
+            logger.info("Deleting request for contactID %d", req.contactID)
             count += 1
             req.delete()
         return count
