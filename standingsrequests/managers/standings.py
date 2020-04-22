@@ -231,7 +231,7 @@ class StandingsManager:
                         actioned_timeout, 
                         _("Standings Request Action"),
                         message=_(
-                            "A standings standing_request for contactID %d you " 
+                            "A standings request for contact ID %d you " 
                             "actioned has been reset as it did not appear in "
                             "game before the timeout period expired."
                         ) % standing_request.contactID

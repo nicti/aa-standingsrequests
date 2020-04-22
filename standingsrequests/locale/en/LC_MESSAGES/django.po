@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-23 00:13+0200\n"
+"POT-Creation-Date: 2020-04-23 01:39+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,8 +25,8 @@ msgstr ""
 #: managers/standings.py:234
 #, python-format
 msgid ""
-"A standings standing_request for contactID %d you actioned has been reset as "
-"it did not appear in game before the timeout period expired."
+"A standings request for contact ID %d you actioned has been reset as it did "
+"not appear in game before the timeout period expired."
 msgstr ""
 
 #: templates/standingsrequests/error.html:8
