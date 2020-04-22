@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.4.0] - tbd.
+## [0.4.0] - 2020-04-23
 
 ### Import note
 
-The Python package of the app has been renamed to "aa-standingsrequests". To avoid any naming conflicts please remove the previous version of the app from your venv before upgrading with the below command:
+The Python package of the app has been renamed to "aa-standingsrequests". To avoid any naming conflicts please remove the previous version of the app from your venv before upgrading. You can remove the previous version with the following command:
 
 ```bash
 pip uninstall standingsrequests
@@ -19,9 +19,10 @@ pip uninstall standingsrequests
 
 ### Added
 
-- Automatic testing now includes Python 3.6, 3.7 and 3.8
+- App now appears on admin panel with it's current version and shows requests and eve name cache
 - Thresholds for stale standings and revocations can now be configured via setting
-- Added missing translations and prepared for future localization
+- Automatic testing now includes Python 3.6, 3.7 and 3.8
+- Flake8 added to automatic test suite
 
 ### Changed
 

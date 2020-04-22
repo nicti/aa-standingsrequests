@@ -12,7 +12,12 @@ from allianceauth.eveonline.models import (
 )
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import _generate_token, _store_as_Token
+from . import (
+    _generate_token, 
+    _store_as_Token, 
+    add_new_token, 
+    add_character_to_user
+)
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_AMARR_TYPE_ID, 
@@ -153,8 +158,14 @@ class TestStandingsManager(NoSocketsTestCase):
 
     @patch(MODULE_PATH + '.STR_CORP_IDS', [])
     @patch(MODULE_PATH + '.STR_ALLIANCE_IDS', [])
-    def test_pilot_in_organisation_matches_none(self):        
+    def test_pilot_in_organisation_doest_not_exist(self):        
         self.assertFalse(StandingsManager.pilot_in_organisation(1999))
+
+    @patch(MODULE_PATH + '.STR_CORP_IDS', [])
+    @patch(MODULE_PATH + '.STR_ALLIANCE_IDS', [])
+    def test_pilot_in_organisation_matches_none(self):        
+        create_entity(EveCharacter, 1001)
+        self.assertFalse(StandingsManager.pilot_in_organisation(1001))
 
     @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'Guest': ['publicData']})
     @patch(MODULE_PATH + '.EveCorporation.get_corp_by_id')
@@ -296,17 +307,92 @@ class TestStandingsManager(NoSocketsTestCase):
         self.assertEqual(mock_StandingsRevocation_objects_all.call_count, 1)
 
 
+@patch(MODULE_PATH + '.StandingsManager.get_required_scopes_for_state')
+class TestStandingsManagerHasRequiredScopesForRequest(TestCase):
+   
+    def test_true_when_user_has_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['abc']
+        user = AuthUtils.create_member('Bruce Wayne')
+        character = AuthUtils.add_main_character_2(
+            user=user, 
+            name='Batman', 
+            character_id=2099, 
+            corp_id=2001, 
+            corp_name='Wayne Tech'
+        )
+        add_new_token(user, character, ['abc'])
+        self.assertTrue(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+    def test_false_when_user_does_not_have_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['xyz']
+        user = AuthUtils.create_member('Bruce Wayne')
+        character = AuthUtils.add_main_character_2(
+            user=user, 
+            name='Batman', 
+            character_id=2099, 
+            corp_id=2001, 
+            corp_name='Wayne Tech'
+        )
+        add_new_token(user, character, ['abc'])
+        self.assertFalse(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+    def test_false_when_user_state_can_not_be_determinded(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['abc']                
+        character = create_entity(EveCharacter, 1002)        
+        self.assertFalse(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+
+class TestStandingsManagerGetRequiredScopesForState(TestCase):
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_scopes_if_defined_for_state(self):        
+        expected = ['abc']
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state('member'),
+            expected
+        )
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_empty_list_if_not_defined_for_state(self):
+        expected = []
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state('guest'),
+            expected
+        )
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_empty_list_if_state_is_note(self):
+        expected = []
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state(None),
+            expected
+        )
+
+
+@patch(MODULE_PATH + '.notify')
 class TestStandingsManagerProcessRequests(TestCase):
     
     def setUp(self):        
         self.user_manager = AuthUtils.create_user('Mike Manager')
         self.user_requestor = AuthUtils.create_user('Roger Requestor')
-        ContactSet.objects.all().delete()         
-        my_set = ContactSet.objects.create(name='Dummy Set')
-        create_contacts_set(my_set)
+        ContactSet.objects.all().delete()                 
+        create_contacts_set()
 
-    def test_process_requests_1(self):                
-        """do nothing for pilot requests with standing satisfied in game"""
+    def test_no_action_for_pilot_request_when_standing_satisfied_in_game(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1002,
@@ -323,8 +409,9 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
 
-    def test_process_requests_1a(self):                
-        """do nothing for corp requests with standing satisfied in game"""
+    def test_no_action_for_corp_request_when_standing_satisfied_in_game(
+        self, mock_notify
+    ):          
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=2004,
@@ -341,8 +428,9 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
 
-    def test_process_requests_2(self):                
-        """reset request w/ effective standing that is not satisfied in game"""
+    def test_reset_request_with_eff_standing_not_statisfied_in_game(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -358,10 +446,10 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertIsNone(my_request.effectiveDate)
         self.assertIsNone(my_request.actionBy)
         self.assertIsNone(my_request.actionDate)
-
-    @patch(MODULE_PATH + '.notify')
-    def test_process_requests_3(self, mock_notify): 
-        """notify about requests that have been reset and timed out"""
+    
+    def test_notify_about_requests_that_are_reset_and_timed_out(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -372,10 +460,10 @@ class TestStandingsManagerProcessRequests(TestCase):
         )
         StandingsManager.process_requests([my_request])
         self.assertEqual(mock_notify.call_count, 1)
-
-    @patch(MODULE_PATH + '.notify')
-    def test_process_requests_4(self, mock_notify): 
-        """dont notify about requests that have been reset and not timed out"""
+    
+    def test_dont_notify_about_requests_that_are_reset_and_not_timed_out(
+        self, mock_notify
+    ):         
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -388,13 +476,13 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(mock_notify.call_count, 0)
 
 
-class TestStandingsUpdateCharacterAssociations(TestCase):
+@patch(MODULE_PATH + '.EveNameCache')
+class TestStandingsUpdateCharacterAssociationsAuth(TestCase):
     
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user_requestor = AuthUtils.create_user('Roger Requestor')
-        cls.user_manager = AuthUtils.create_user('Mike Manager')
+        cls.user = AuthUtils.create_user('Bruce Wayne')
         
     def setUp(self):        
         EveCharacter.objects.all().delete()
@@ -402,19 +490,9 @@ class TestStandingsUpdateCharacterAssociations(TestCase):
         CharacterAssociation.objects.all().delete()
         ContactSet.objects.all().delete()
 
-    @patch(MODULE_PATH + '.EveNameCache')    
-    def test_update_character_associations_auth(self, mock_EveNameCache):
-        my_character = create_entity(EveCharacter, 1001)
-        _store_as_Token(
-            _generate_token(
-                character_id=my_character.character_id,
-                character_name=my_character.character_name,
-                scopes=['publicData']
-            ), 
-            self.user_requestor
-        )
-        self.user_requestor.profile.main_character = my_character
-        self.user_requestor.profile.save()
+    def test_can_update_from_one_character(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1001)        
+        add_character_to_user(self.user, my_character, is_main=True)
 
         StandingsManager.update_character_associations_auth()
         self.assertEqual(CharacterAssociation.objects.count(), 1)
@@ -423,10 +501,32 @@ class TestStandingsUpdateCharacterAssociations(TestCase):
         self.assertEqual(assoc.corporation_id, 2001)
         self.assertEqual(assoc.main_character_id, 1001)        
         self.assertEqual(assoc.alliance_id, 3001)
+    
+    def test_can_handle_no_main(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1001)        
+        add_character_to_user(self.user, my_character)
 
-    # todo: test more variations
+        StandingsManager.update_character_associations_auth()
+        self.assertEqual(CharacterAssociation.objects.count(), 1)
+        assoc = CharacterAssociation.objects.first()
+        self.assertEqual(assoc.character_id, 1001)
+        self.assertEqual(assoc.corporation_id, 2001)
+        self.assertIsNone(assoc.main_character_id)
+        self.assertEqual(assoc.alliance_id, 3001)
 
+    def test_can_handle_no_character_without_alliance(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1004)        
+        add_character_to_user(self.user, my_character)
 
+        StandingsManager.update_character_associations_auth()
+        self.assertEqual(CharacterAssociation.objects.count(), 1)
+        assoc = CharacterAssociation.objects.first()
+        self.assertEqual(assoc.character_id, 1004)
+        self.assertEqual(assoc.corporation_id, 2003)
+        self.assertIsNone(assoc.main_character_id)
+        self.assertIsNone(assoc.alliance_id)
+
+  
 @patch('standingsrequests.helpers.esi_fetch._esi_client')
 class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
     
@@ -504,6 +604,20 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
             .filter(character_id__in=expected).exists()
         )
 
+    def test_handle_exception_from_api(self, mock_esi_client):
+        mock_esi_client.return_value\
+            .Character.post_characters_affiliation.side_effect = \
+            RuntimeError
+        
+        create_contacts_set()
+        expected = [1001, 1002, 1003]
+        CharacterAssociation.objects.filter(character_id__in=expected).delete()
+        StandingsManager.update_character_associations_api()
+        self.assertFalse(
+            CharacterAssociation.objects
+            .filter(character_id__in=expected).exists()
+        )
+        
 
 class TestStandingFactory(TestCase):
     
@@ -654,7 +768,73 @@ class TestContactsWrapper(TestCase):
         )
 
 
+@patch(MODULE_PATH + '.StandingsManager.all_corp_apis_recorded')
 class TestValidateStandingRequest(NoSocketsTestCase):
 
-    def test_validate_standings_requests(self):
-        pass
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user = AuthUtils.create_member('Bruce Wayne')
+    
+    def setUp(self):
+        StandingsRequest.objects.all().delete()
+
+    def test_do_nothing_character_request_is_valid(
+        self, mock_all_corp_apis_recorded
+    ):
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 1002, CHARACTER_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertTrue(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+
+    def test_remove_character_standing_request_if_user_has_no_permission(
+        self, mock_all_corp_apis_recorded
+    ):
+        request = StandingsRequest.add_request(
+            self.user, 1002, CHARACTER_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertFalse(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+    
+    def test_remove_corp_standing_request_if_not_all_apis_recorded(
+        self, mock_all_corp_apis_recorded
+    ):
+        mock_all_corp_apis_recorded.return_value = False
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 2001, CORPORATION_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertFalse(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+    
+    def test_keep_corp_standing_request_if_all_apis_recorded(
+        self, mock_all_corp_apis_recorded
+    ):
+        mock_all_corp_apis_recorded.return_value = True
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 2001, CORPORATION_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertTrue(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )

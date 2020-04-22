@@ -96,8 +96,7 @@ def get_entity_data(EntityClass: type, entity_id: int) -> object:
 
 
 def create_entity(EntityClass: type, entity_id: int) -> object:
-    """creates an Eve entity from test data"""
-    
+    """creates an Eve entity from test data"""    
     data = get_entity_data(EntityClass, entity_id)
     return EntityClass.objects.create(**data)
 

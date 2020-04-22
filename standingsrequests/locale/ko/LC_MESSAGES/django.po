@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-22 00:38+0200\n"
+"POT-Creation-Date: 2020-04-23 00:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,17 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+
+#: managers/standings.py:232
+msgid "Standings Request Action"
+msgstr ""
+
+#: managers/standings.py:234
+#, python-format
+msgid ""
+"A standings standing_request for contactID %d you actioned has been reset as "
+"it did not appear in game before the timeout period expired."
+msgstr ""
 
 #: templates/standingsrequests/error.html:8
 msgid "Not yet initialized"
@@ -110,7 +121,7 @@ msgstr ""
 #: templates/standingsrequests/manage.html:104
 #: templates/standingsrequests/partials/_request_entities.html:21
 #: templates/standingsrequests/requests.html:31
-#: templates/standingsrequests/view_groups.html:61
+#: templates/standingsrequests/view_groups.html:64
 #: templates/standingsrequests/view_pilots.html:55
 msgid "Alliance"
 msgstr ""
@@ -223,7 +234,7 @@ msgstr ""
 #: templates/standingsrequests/partials/_request_entities.html:23
 #: templates/standingsrequests/partials/_request_entities.html:121
 #: templates/standingsrequests/view_groups.html:34
-#: templates/standingsrequests/view_groups.html:62
+#: templates/standingsrequests/view_groups.html:65
 #: templates/standingsrequests/view_pilots.html:57
 msgid "Standing"
 msgstr ""
@@ -266,7 +277,7 @@ msgid "Groups"
 msgstr ""
 
 #: templates/standingsrequests/view_groups.html:35
-#: templates/standingsrequests/view_groups.html:63
+#: templates/standingsrequests/view_groups.html:66
 #: templates/standingsrequests/view_pilots.html:60
 msgid "Labels"
 msgstr ""
@@ -317,12 +328,12 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: views.py:898
+#: views.py:900
 #, python-format
 msgid "Successfully setup alliance token for configured character %s"
 msgstr ""
 
-#: views.py:905
+#: views.py:907
 #, python-format
 msgid ""
 "Failed to setup alliance token for configured character %(char_name)s (id:"
@@ -330,7 +341,7 @@ msgid ""
 "%(token_char_name)s (id:%(token_char_id)s)"
 msgstr ""
 
-#: views.py:926
+#: views.py:928
 #, python-format
 msgid "Successfully added token with required scopes for %(char_name)s"
 msgstr ""

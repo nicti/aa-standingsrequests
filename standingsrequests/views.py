@@ -722,12 +722,13 @@ def manage_get_revocations_json(request):
         corporation_ticker = pilot.corporation_ticker if pilot \
             else corp.ticker if corp \
             else None
-        has_scopes = StandingsManager.has_required_scopes_for_request(pilot) if pilot \
-            else StandingsManager.all_corp_apis_recorded(
+        has_scopes = (
+            StandingsManager.has_required_scopes_for_request(pilot) 
+            if pilot else StandingsManager.all_corp_apis_recorded(
                 corp.corporation_id, corp_user
-            ) if corp and corp_user \
+            ) if corp and corp_user 
             else False
-        
+        )        
         revoke = {
             'contact_id': r.contactID,
             'contact_name': contact_name,
@@ -858,12 +859,13 @@ def view_active_requests_json(request):
         corporation_ticker = pilot.corporation_ticker if pilot \
             else corp.ticker if corp \
             else None
-        has_scopes = StandingsManager.has_required_scopes_for_request(pilot) if pilot \
+        has_scopes = (
+            StandingsManager.has_required_scopes_for_request(pilot) if pilot 
             else StandingsManager.all_corp_apis_recorded(
                 corp.corporation_id, r.user
-            ) if corp \
+            ) if corp 
             else False
-
+        )
         response.append({
             'contact_id': r.contactID,
             'contact_name': contact_name,

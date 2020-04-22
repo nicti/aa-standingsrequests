@@ -2,6 +2,10 @@ from datetime import datetime, timedelta
 import random
 import string
 
+from django.contrib.auth.models import User
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveCharacter
+
 
 def _dt_eveformat(dt: object) -> str:
     """converts a datetime to a string in eve format
@@ -69,6 +73,33 @@ def _store_as_Token(token: dict, user: object) -> object:
         obj.scopes.add(scope)
 
     return obj
+
+
+def add_new_token(user: object, character: object, scopes: list) -> object:
+    """generates a new Token for the given character and adds it to the user"""
+    return _store_as_Token(
+        _generate_token(
+            character_id=character.character_id,
+            character_name=character.character_name,
+            scopes=scopes
+        ), 
+        user
+    )
+
+
+def add_character_to_user(
+    user: User, character: EveCharacter, is_main: bool = False
+) -> CharacterOwnership:
+    ownership = CharacterOwnership.objects.create(
+        character=character,
+        owner_hash='abc',
+        user=user
+    )
+    if is_main:
+        user.profile.main_character = character
+        user.profile.save()
+    
+    return ownership
 
 
 def _get_random_string(char_count):    

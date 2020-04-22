@@ -2,7 +2,7 @@
 
 App for managing character standing requests, made for [Alliance Auth](https://gitlab.com/allianceauth/allianceauth).
 
-![release](https://img.shields.io/pypi/v/standingsrequest?label=release) ![python](https://img.shields.io/pypi/pyversions/standingsrequest) ![django](https://img.shields.io/pypi/djversions/standingsrequest?label=django) ![pipeline](https://gitlab.com/basraah/standingsrequests/badges/master/pipeline.svg) ![coverage](https://gitlab.com/basraah/standingsrequests/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-GPLv3-green)
+![release](https://img.shields.io/pypi/v/aa-standingsrequests?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-standingsrequests) ![django](https://img.shields.io/pypi/djversions/aa-standingsrequests?label=django) ![pipeline](https://gitlab.com/basraah/standingsrequests/badges/master/pipeline.svg) ![coverage](https://gitlab.com/basraah/standingsrequests/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-GPLv3-green)
 
 ## Contents
 
@@ -107,10 +107,10 @@ if 'standingsrequests' in INSTALLED_APPS:
 
 ## Settings
 
-Here is a brief explanation of all available settings. You also find examples of all mandatory settings in `settings.example.py` on this repo.
+Here is a brief explanation of all available settings:
 
 Name | Description | Default
-- | - | -
+-- | -- | --
 `STANDINGS_API_CHARID` | id of character to use for updating alliance contacts (Mandatory) | N/A
 `STR_ALLIANCE_IDS` | id of standing alliances (Mandatory) | N/A
 `STR_CORP_IDS` | id of standing corporations (Mandatory, can be []) | N/A
@@ -121,29 +121,23 @@ Name | Description | Default
 
 ## Permissions
 
-- `standingsrequests.request_standings | User can request standings`: This is the permission required to request and maintain blue standings without them being revoked. When the user no longer has this permission all of their standings will be revoked.
+These are all relevant permissions:
 
-- `standingsrequests.view | User can view standings`: This includes seeing if the user has API keys for that character (but not the API keys themselves) and who the character belongs to. Typically you'll probably only want standings managers to have this.
-
-- `standingsrequests.affect_standings | User can process standings requests`: User can see standings requests and process/approve/reject them.
-
-- `standingsrequests.download | User can export standings to a CSV file` User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
+Codename | Description
+-- | --
+`standingsrequests.request_standings` | This is the permission required to request and maintain blue standings without them being revoked. When the user no longer has this permission all of their standings will be revoked.
+`standingsrequests.view` | This includes seeing if the user has API keys for that character (but not the API keys themselves) and who the character belongs to. Typically you'll probably only want standings managers to have this.
+`standingsrequests.affect_standings` | User can see standings requests and process/approve/reject them.
+`standingsrequests.download` | User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
 
 ## Standings Requirements
 
 These are the requirements to be able to request and maintain blue standings. If a character or account falls out of these requirement scopes then their standing(s) will be revoked.
 
-### Pilot
-
-Valid Member-level API key on record.
-Users main character is a member of one of the tenant corps.
-User has the `request_standings` permissions.
-
-### Corp
-
-ALL Corporation member API keys recorded in auth.
-Users main character is a member of one of the tenant corps.
-User has the `request_standings` permission.
+Request Type | Requirements
+-- | --
+Character | • Valid Member-level API key on record. <br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permissions.
+Corporation | • ALL Corporation member API keys recorded in auth.<br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permission.
 
 ## Manual for Standing Managers
 
