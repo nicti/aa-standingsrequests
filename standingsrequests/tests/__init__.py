@@ -52,7 +52,7 @@ def _store_as_Token(token: dict, user: object) -> object:
     returns Token object
     """    
     from esi.models import Scope, Token
-    
+        
     obj = Token.objects.create(
         access_token=token['access_token'],
         refresh_token=token['refresh_token'],
@@ -60,7 +60,7 @@ def _store_as_Token(token: dict, user: object) -> object:
         character_id=token['CharacterID'],
         character_name=token['CharacterName'],
         token_type=token['TokenType'],
-        character_owner_hash=token['CharacterOwnerHash'],        
+        character_owner_hash=token['CharacterOwnerHash'],
     )    
     for scope_name in token['Scopes'].split(' '):
         scope, _ = Scope.objects.get_or_create(
@@ -76,3 +76,7 @@ def _get_random_string(char_count):
         random.choice(string.ascii_uppercase + string.digits) 
         for _ in range(char_count)
     )
+
+
+def get_invalid_object_pk(MyModel) -> int:
+    return max(MyModel.objects.values_list('pk', flat=True)) + 1

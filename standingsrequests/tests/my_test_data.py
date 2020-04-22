@@ -188,3 +188,35 @@ def create_contacts_set(my_set: object = None) -> object:
         CharacterAssociation.objects.create(**assoc)
 
     return my_set
+
+
+def create_eve_objects():
+    """creates all Eve objects from test data"""
+    EveCharacter.objects.all().delete()
+    EveCorporationInfo.objects.all().delete()
+    EveAllianceInfo.objects.all().delete()
+    for character_data in _my_test_data[EveCharacter.__name__].values():
+        character = EveCharacter.objects.create(**character_data)
+        if character.alliance_id:
+            defaults = {                
+                'alliance_name': character.alliance_name,
+                'alliance_ticker': character.alliance_ticker,
+                'executor_corp_id': 2001
+            }                        
+            alliance, _ = EveAllianceInfo.objects.get_or_create(
+                alliance_id=character.alliance_id,
+                defaults=defaults
+            )
+        else:
+            alliance = None
+
+        defaults = {            
+            'corporation_name': character.corporation_name,
+            'corporation_ticker': character.corporation_ticker,
+            'member_count': 99,
+            'alliance': alliance
+        }
+        EveCorporationInfo.objects.get_or_create(
+            corporation_id=character.corporation_id,
+            defaults=defaults
+        )

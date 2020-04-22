@@ -156,7 +156,7 @@
             "alliance_id": 3001
         },
         "2002": {
-            "corporation_id": 2002,
+            "": 2002,
             "corporation_name": "Wayne Foods",
             "corporation_ticker": "WYF",
             "member_count": 8875,
@@ -193,7 +193,8 @@
             "corporation_name": "Wayne Technologies",
             "corporation_ticker": "WYE",
             "alliance_id": 3001,
-            "alliance_name": "Wayne Enterprises"
+            "alliance_name": "Wayne Enterprises",
+            "alliance_ticker": "WYE"
         },
         "1002": {
             "character_id": 1002,
@@ -202,7 +203,8 @@
             "corporation_name": "Wayne Technologies",
             "corporation_ticker": "WYE",
             "alliance_id": 3001,
-            "alliance_name": "Wayne Enterprises"
+            "alliance_name": "Wayne Enterprises",
+            "alliance_ticker": "WYE"
         },
         "1003": {
             "character_id": 1003,
@@ -211,7 +213,8 @@
             "corporation_name": "Wayne Technologies",
             "corporation_ticker": "WYE",
             "alliance_id": 3001,
-            "alliance_name": "Wayne Enterprises"
+            "alliance_name": "Wayne Enterprises",
+            "alliance_ticker": "WYE"
         },
         "1004": {
             "character_id": 1004,

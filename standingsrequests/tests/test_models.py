@@ -860,8 +860,7 @@ class TestEveNameCache(TestCase):
         
     @patch(MODULE_PATH + '.EveEntityManager')
     def test_get_names_when_table_is_empty(self, mock_EveEntityManager):        
-        mock_EveEntityManager.get_names.side_effect = \
-            get_entity_names
+        mock_EveEntityManager.get_names.side_effect = get_entity_names
 
         entities = EveNameCache.get_names([1001, 1002])
         self.assertDictEqual(
@@ -878,8 +877,7 @@ class TestEveNameCache(TestCase):
 
     @patch(MODULE_PATH + '.EveEntityManager')
     def test_get_names_from_cache(self, mock_EveEntityManager):        
-        mock_EveEntityManager.get_names.side_effect = \
-            get_entity_names
+        mock_EveEntityManager.get_names.side_effect = get_entity_names
 
         EveNameCache.objects.create(
             entityID=1001,

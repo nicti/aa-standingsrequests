@@ -4,6 +4,7 @@ from functools import wraps
 from django.utils.decorators import available_attrs
 from esi.decorators import _check_callback
 from esi.models import Token
+from esi.views import select_token, sso_redirect
 
 from .managers.standings import StandingsManager
 
@@ -13,8 +14,10 @@ logger = logging.getLogger(__name__)
 
 def token_required_by_state(new=False):
     """
-    Decorator for views which supplies a single, user-selected token for the view to process.
-    No scopes can be provided instead scopes are selected from the scopes that are set as
+    Decorator for views which supplies a single, 
+    user-selected token for the view to process.
+    No scopes can be provided instead scopes are selected 
+    from the scopes that are set as
     required for a specific state in the settings.
     param: new if a new token should be aquired
     """
@@ -27,7 +30,7 @@ def token_required_by_state(new=False):
                 scopes = ' '.join(
                     StandingsManager.get_required_scopes_for_state(
                         request.user.profile.state.name)
-                    )
+                )
 
             # if we're coming back from SSO for a new token, return it
             token = _check_callback(request)
@@ -46,8 +49,7 @@ def token_required_by_state(new=False):
                         "%s has selected to add new token. Redirecting to SSO.", 
                         request.user
                     )
-                    # user has selected to add a new token
-                    from esi.views import sso_redirect
+                    # user has selected to add a new token                    
                     return sso_redirect(request, scopes=scopes)
 
                 token_pk = request.POST.get('_token', None)
@@ -58,25 +60,36 @@ def token_required_by_state(new=False):
                     try:
                         token = Token.objects.get(pk=token_pk)
                         # ensure token belongs to this user and has required scopes
-                        if ((token.user and token.user == request.user) or not token.user) and Token.objects.filter(
-                                pk=token_pk).require_scopes(scopes).require_valid().exists():
+                        if (
+                            (
+                                (token.user and token.user == request.user)
+                                or not token.user
+                            ) 
+                            and Token.objects
+                            .filter(pk=token_pk)
+                            .require_scopes(scopes)
+                            .require_valid()
+                            .exists()
+                        ):
                             logger.debug(
-                                "Selected token fulfills requirements of view. "
-                                "Returning."
+                                "Selected token fulfills requirements of view."
+                                " Returning."
                             )
                             return view_func(request, token, *args, **kwargs)
                     except Token.DoesNotExist:
-                        logger.debug("Token %d not found.", token_pk)                       
+                        logger.debug("Token %d not found.", token_pk)
 
             if not new:
                 # present the user with token choices
-                tokens = Token.objects.filter(user__pk=request.user.pk).require_scopes(scopes).require_valid()
+                tokens = Token.objects\
+                    .filter(user__pk=request.user.pk)\
+                    .require_scopes(scopes)\
+                    .require_valid()
                 if tokens.exists():
                     logger.debug(
                         "Returning list of available tokens for %s.", 
                         request.user
-                    )
-                    from esi.views import select_token
+                    )                    
                     return select_token(request, scopes=scopes, new=new)
                 else:
                     logger.debug(
@@ -91,8 +104,7 @@ def token_required_by_state(new=False):
                 "Redirecting %s session %s to SSO.", 
                 request.user, 
                 request.session.session_key[:5]
-            )
-            from esi.views import sso_redirect
+            )            
             return sso_redirect(request, scopes=scopes)
 
         return _wrapped_view
