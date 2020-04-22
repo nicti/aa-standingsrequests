@@ -32,8 +32,7 @@ from ..models import (
     AbstractStanding, 
     AllianceStanding,     
     CharacterAssociation,
-    ContactSet, 
-    ContactLabel, 
+    ContactSet,     
     CorpStanding, 
     EveNameCache,     
     PilotStanding,    
@@ -193,18 +192,17 @@ class TestAllianceStanding(TestCase):
 
 class TestStandingsRequest(TestCase):
 
-    def setUp(self):
-        ContactSet.objects.all().delete() 
-        my_set = ContactSet.objects.create(
-            name='Dummy Set'
-        )
-        create_contacts_set(my_set)
-        self.user_manager = User.objects.create_user(
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        ContactSet.objects.all().delete()         
+        create_contacts_set()
+        cls.user_manager = User.objects.create_user(
             'Mike Manager',
             'mm@example.com',
             'password'
         )
-        self.user_requestor = User.objects.create_user(
+        cls.user_requestor = User.objects.create_user(
             'Roger Requestor',
             'rr@example.com',
             'password'

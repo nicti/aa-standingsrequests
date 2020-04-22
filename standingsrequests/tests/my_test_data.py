@@ -9,13 +9,15 @@ from allianceauth.eveonline.models import (
     EveCharacter, EveCorporationInfo, EveAllianceInfo
 )
 
+from ..managers.standings import ContactsWrapper, StandingsManager
+
 from ..models import (
     AllianceStanding,
     CharacterAssociation, 
     ContactSet, 
     CorpStanding,    
     EveNameCache,
-    PilotStanding, 
+    PilotStanding,     
 )
 
 
@@ -140,6 +142,30 @@ def esi_get_corporations_corporation_id(corporation_id):
 ##########################
 # app specific functions
 
+def get_test_labels() -> list:
+    """returns labels from test data as list of ContactsWrapper.Label"""
+    labels = list()
+    for label_data in get_my_test_data()['alliance_labels']:
+        labels.append(ContactsWrapper.Label(label_data))
+    
+    return labels
+
+
+def get_test_contacts():
+    """returns contacts from test data as list of ContactsWrapper.Contact"""
+    labels = get_test_labels()
+    
+    contact_ids = [
+        x['contact_id'] for x in get_my_test_data()['alliance_contacts']
+    ]
+    names_info = get_entity_names(contact_ids)
+    contacts = list()
+    for contact_data in get_my_test_data()['alliance_contacts']:
+        contacts.append(ContactsWrapper.Contact(contact_data, labels, names_info))
+
+    return contacts
+
+
 def create_contacts_set(my_set: object = None) -> object:    
     
     if not my_set:
@@ -186,6 +212,9 @@ def create_contacts_set(my_set: object = None) -> object:
     CharacterAssociation.objects.all().delete()
     for assoc in _my_test_data['CharacterAssociation']:
         CharacterAssociation.objects.create(**assoc)
+
+    # add labels
+    StandingsManager.api_add_labels(my_set, get_test_labels())
 
     return my_set
 

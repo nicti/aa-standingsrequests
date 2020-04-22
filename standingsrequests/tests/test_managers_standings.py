@@ -25,15 +25,21 @@ from .my_test_data import (
     create_contacts_set, 
     create_entity,
     esi_post_characters_affiliation,
-    get_my_test_data
+    get_my_test_data,
+    get_test_labels,
+    get_test_contacts
 )
 
-from ..managers.standings import StandingsManager, ContactsWrapper
+from ..managers.standings import (
+    StandingsManager, ContactsWrapper, StandingFactory
+)
 from ..models import (
     CharacterAssociation, 
     ContactSet, 
-    ContactLabel,     
-    PilotStanding, 
+    ContactLabel,    
+    PilotStanding,
+    CorpStanding,
+    AllianceStanding, 
     StandingsRequest,
     StandingsRevocation, 
 )
@@ -42,30 +48,6 @@ from ..utils import set_test_logger, NoSocketsTestCase
 
 MODULE_PATH = 'standingsrequests.managers.standings'
 logger = set_test_logger(MODULE_PATH, __file__)
-
-
-def get_test_labels() -> list:
-    """returns labels from test data as list of ContactsWrapper.Label"""
-    labels = list()
-    for label_data in get_my_test_data()['alliance_labels']:
-        labels.append(ContactsWrapper.Label(label_data))
-    
-    return labels
-
-
-def get_test_contacts():
-    """returns contacts from test data as list of ContactsWrapper.Contact"""
-    labels = get_test_labels()
-    
-    contact_ids = [
-        x['contact_id'] for x in get_my_test_data()['alliance_contacts']
-    ]
-    names_info = get_entity_names(contact_ids)
-    contacts = list()
-    for contact_data in get_my_test_data()['alliance_contacts']:
-        labels.append(ContactsWrapper.Contact(contact_data, labels, names_info))
-
-    return contacts
 
 
 class TestStandingsManager(NoSocketsTestCase):
@@ -131,24 +113,30 @@ class TestStandingsManager(NoSocketsTestCase):
 
     def test_api_add_contacts(self):
         my_set = ContactSet.objects.create(name='My Set')
-        contacts = get_test_contacts()
+        StandingsManager.api_add_labels(my_set, get_test_labels())
+        contacts = get_test_contacts()        
         
         StandingsManager.api_add_contacts(my_set, contacts)
 
         self.assertEqual(
             len(contacts), 
             PilotStanding.objects.filter(set=my_set).count()
-        )
-        
+            + CorpStanding.objects.filter(set=my_set).count()
+            + AllianceStanding.objects.filter(set=my_set).count()
+        )        
         for contact in contacts:
-            contact_in_set = PilotStanding.objects\
-                .get(set=my_set, contactID=contact.id)
-            self.assertEqual(contact.name, contact_in_set.name)
-            self.assertEqual(contact.type_id, contact_in_set.contact_type)
+            if contact.type_id in PilotStanding.contactTypes:
+                contact_in_set = \
+                    PilotStanding.objects.get(set=my_set, contactID=contact.id)
+            elif contact.type_id in CorpStanding.contactTypes:
+                contact_in_set = \
+                    CorpStanding.objects.get(set=my_set, contactID=contact.id)
+
+            self.assertEqual(contact.name, contact_in_set.name)            
             self.assertEqual(contact.standing, contact_in_set.standing)
             self.assertSetEqual(
                 set(contact.label_ids), 
-                set(contact_in_set.labels)
+                set(contact_in_set.labels.values_list('labelID', flat=True))
             )
             
     @patch(MODULE_PATH + '.STR_CORP_IDS', ['2001'])
@@ -517,8 +505,54 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
         )
 
 
-class TestStandingsFactory(TestCase):
-    pass
+class TestStandingFactory(TestCase):
+    
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.contact_set = create_contacts_set()
+        
+    def test_can_create_pilot_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=CHARACTER_TYPE_ID,
+            name='Lex Luthor',
+            contact_id=1009,
+            standing=-10,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, PilotStanding)
+        self.assertEqual(obj.name, 'Lex Luthor')
+        self.assertEqual(obj.contactID, 1009)
+        self.assertEqual(obj.standing, -10)        
+    
+    def test_can_create_corp_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=CORPORATION_TYPE_ID,
+            name='Lexcorp',
+            contact_id=2102,
+            standing=-10,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, CorpStanding)
+        self.assertEqual(obj.name, 'Lexcorp')
+        self.assertEqual(obj.contactID, 2102)
+        self.assertEqual(obj.standing, -10)   
+
+    def test_can_create_alliance_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=ALLIANCE_TYPE_ID,
+            name='Wayne Enterprises',
+            contact_id=3001,
+            standing=5,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, AllianceStanding)
+        self.assertEqual(obj.name, 'Wayne Enterprises')
+        self.assertEqual(obj.contactID, 3001)
+        self.assertEqual(obj.standing, 5)   
 
 
 class TestContactsWrapperLabel(TestCase):
@@ -618,3 +652,9 @@ class TestContactsWrapper(TestCase):
         self.assertEqual(len(contacts.alliance), len(
             get_my_test_data()['alliance_contacts'])
         )
+
+
+class TestValidateStandingRequest(NoSocketsTestCase):
+
+    def test_validate_standings_requests(self):
+        pass

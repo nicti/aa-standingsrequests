@@ -358,7 +358,6 @@ class StandingsRequest(AbstractStandingsRequest):
 
         super(AbstractStandingsRequest, self).delete(using, keep_parents)
         
-
     @classmethod
     def add_request(cls, user, contact_id, contact_type):
         """

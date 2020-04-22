@@ -30,9 +30,6 @@ logger = logging.getLogger(__name__)
 
 class StandingsManager:
     charID = STANDINGS_API_CHARID
-
-    def __init__(self):
-        pass
     
     @classmethod
     def token(cls):
@@ -386,16 +383,13 @@ class StandingsManager:
     
 
 class StandingFactory:
-    def __init__(self):
-        pass
-
+      
     @classmethod
     def create_standing(
         cls, contact_set, contact_type, contact_id, name, standing, labels
     ):
-        standing_type = cls.get_class_for_contact_type(contact_type)
-
-        standing = standing_type(
+        StandingType = cls.get_class_for_contact_type(contact_type)
+        standing = StandingType(
             set=contact_set,
             contactID=contact_id,
             name=name,
