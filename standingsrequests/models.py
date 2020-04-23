@@ -1,12 +1,13 @@
-from __future__ import unicode_literals
-from django.db import models
-from django.core import exceptions
-from django.utils import timezone
-from django.contrib.auth.models import User
-from .helpers import StandingsRequestManager
-from .managers.eveentity import EveEntityManager
 import logging
 import datetime
+
+from django.core import exceptions
+from django.contrib.auth.models import User
+from django.db import models
+from django.utils import timezone
+
+from .helpers import StandingsRequestManager
+from .managers.eveentity import EveEntityManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ class ContactSet(models.Model):
         """
         Attempts to fetch the standing for the given ID and type
         :param contact_id: Integer contact ID
-        :param contact_type: Integer contact type from the contactTypes attribute in concrete models
+        :param contact_type: Integer contact type from the contactTypes attribute 
+        in concrete models
         :return: concrete contact Object or ObjectDoesNotExist exception
         """
         if contact_type in PilotStanding.contactTypes:
@@ -162,10 +164,14 @@ class AbstractStandingsRequest(models.Model):
     effective = models.BooleanField(default=False)
     effectiveDate = models.DateTimeField(null=True)
 
-    expectStandingLTEQ = 10.0  # Standing less than or equal
-    expectStandingGTEQ = -10.0  # Standing greater than or equal
+    # Standing less than or equal
+    expectStandingLTEQ = 10.0 
+    
+    # Standing greater than or equal 
+    expectStandingGTEQ = -10.0  
 
-    standingTimeoutHours = 24  # Hours to wait for a standing to be effective after being marked actioned
+    # Hours to wait for a standing to be effective after being marked actioned
+    standingTimeoutHours = 24  
 
     def check_standing_satisfied(self, check_only=False):
         """
@@ -174,41 +180,40 @@ class AbstractStandingsRequest(models.Model):
         :return: True if satisfied else False
         """
         try:
-            logger.debug("Checking standing for {0}".format(self.contactID))
+            logger.debug("Checking standing for %d", self.contactID)
             latest = ContactSet.objects.latest()
             contact = latest.get_standing_for_id(
                 self.contactID, 
                 self.contactType
             )
-            if (self.expectStandingGTEQ 
-                    <= contact.standing 
-                    <= self.expectStandingLTEQ
+            if (
+                self.expectStandingGTEQ 
+                <= contact.standing 
+                <= self.expectStandingLTEQ
             ):
                 # Standing is satisfied
-                logger.debug(
-                    "Standing satisfied for {0}".format(self.contactID)
-                )
+                logger.debug("Standing satisfied for %d", self.contactID)
                 if not check_only:
                     self.mark_standing_effective()
                 return True
 
         except exceptions.ObjectDoesNotExist:
             logger.debug(
-                "No standing set for {0}, checking if neutral is OK".format(
-                    self.contactID
-            ))
+                "No standing set for %d, checking if neutral is OK", 
+                self.contactID
+            )
             if self.expectStandingLTEQ == 0:
                 # Standing satisfied but deleted (neutral)
                 logger.debug(
-                    "Standing satisfied but deleted (neutral) for {0}".format(
-                        self.contactID
-                ))
+                    "Standing satisfied but deleted (neutral) for %d",
+                    self.contactID
+                )
                 if not check_only:
                     self.mark_standing_effective()
                 return True
 
         # Standing not satisfied
-        logger.debug("Standing NOT satisfied for {0}".format(self.contactID))
+        logger.debug("Standing NOT satisfied for %d", self.contactID)
         return False
 
     def mark_standing_effective(self, date=None):
@@ -218,27 +223,30 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the standing became effective
         :return:
         """
-        logger.debug("Marking standing for {0} as effective".format(self.contactID))
+        logger.debug("Marking standing for %d as effective", self.contactID)
         self.effective = True
         self.effectiveDate = date if date else timezone.now()
         self.save()
 
     def mark_standing_actioned(self, user, date=None):
         """
-        Marks a standing as actioned (user has made the change in game) with the current or supplied TZ aware datetime
+        Marks a standing as actioned (user has made the change in game) 
+        with the current or supplied TZ aware datetime
         :param user: Actioned By django User
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
-        logger.debug("Marking standing for {0} as actioned".format(self.contactID))
+        logger.debug("Marking standing for %d as actioned", self.contactID)
         self.actionBy = user
         self.actionDate = date if date else timezone.now()
         self.save()
 
     def check_standing_actioned_timeout(self):
         """
-        Check that a standing hasn't been marked as actioned and is still not effective ~24hr later
-        :return: User if the actioned has timed out, False if it has not, None if the check was unsuccessful
+        Check that a standing hasn't been marked as actioned 
+        and is still not effective ~24hr later
+        :return: User if the actioned has timed out, False if it has not, 
+        None if the check was unsuccessful
         """
         logger.debug("Checking standings request timeout")
         if self.effective:
@@ -256,12 +264,14 @@ class AbstractStandingsRequest(models.Model):
             return None
 
         # More than 24 hours after, reset
-        if (self.actionDate \
+        if (
+            self.actionDate 
             + datetime.timedelta(hours=self.standingTimeoutHours) < latest.date
         ):
             logger.debug(
-                "Standing actioned timed out, resetting actioned for " \
-                    + "contactID {0}".format(self.contactID))
+                "Standing actioned timed out, resetting actioned for contactID %d",
+                self.contactID
+            )
             actioner = self.actionBy
             self.actionBy = None
             self.actionDate = None
@@ -271,7 +281,8 @@ class AbstractStandingsRequest(models.Model):
 
     def reset_to_initial(self):
         """
-        Reset a standing back to its initial creation state (Not actioned and not effective)
+        Reset a standing back to its initial creation state 
+        (Not actioned and not effective)
         :return:
         """
         self.effective = False
@@ -296,7 +307,8 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def actioned_request(cls, contact_id):
         """
-        Checks if an actioned request is pending API confirmation for the given contact_id
+        Checks if an actioned request is pending API confirmation for 
+        the given contact_id
         :param contact_id: int contactID to check the pending request for
         :return: bool True if a request is pending API confirmation, False otherwise
         """
@@ -315,31 +327,37 @@ class StandingsRequest(AbstractStandingsRequest):
 
     def delete(self, using=None, keep_parents=False):
         """
-        Add a revocation before deleting if the standing has been actioned (pending) or is effective and
-        doesnt already have a pending revocation request.
+        Add a revocation before deleting if the standing has been 
+        actioned (pending) or is effective and
+        doesn't already have a pending revocation request.
         """
         if self.actionBy is not None or self.effective:
             # Check if theres not already a revocation pending
             if not StandingsRevocation.pending_request(self.contactID):
-                logger.debug("Adding revocation for deleted request with contactID {0} type {1}".format(
+                logger.debug(
+                    "Adding revocation for deleted request "
+                    "with contactID %d type %s",
                     self.contactID,
                     self.contactType,
-                ))
+                )
                 StandingsRevocation.add_revocation(self.contactID, self.contactType)
             else:
-                logger.debug("Revocation already pending for deleted request with contactID {0} type {1}".format(
+                logger.debug(
+                    "Revocation already pending for deleted request "
+                    "with contactID %d type %s",
                     self.contactID,
                     self.contactType,
-                ))
+                )
         else:
-            logger.debug("Standing never effective, no revocation required "
-                         "for deleted request with contactID {0} type {1}".format(
-                            self.contactID,
-                            self.contactType,
-                            ))
+            logger.debug(
+                "Standing never effective, no revocation required "
+                "for deleted request with contactID %d type %s",
+                self.contactID,
+                self.contactType,
+            )
 
         super(AbstractStandingsRequest, self).delete(using, keep_parents)
-
+        
     @classmethod
     def add_request(cls, user, contact_id, contact_type):
         """
@@ -350,16 +368,21 @@ class StandingsRequest(AbstractStandingsRequest):
         :return: the created StandingsRequest instance
         """
         logger.debug(
-            "Adding new standings request for user {0}, contact {1} type {2}"\
-                .format(user, contact_id, contact_type)
+            "Adding new standings request for user %s, contact %d type %s",
+            user, 
+            contact_id, 
+            contact_type
         )
 
-        if (cls.objects\
-            .filter(contactID=contact_id, contactType=contact_type)\
+        if (
+            cls.objects
+            .filter(contactID=contact_id, contactType=contact_type)
             .exists()
         ):
-            logger.debug("Standings request already exists, "\
-                + "returning first existing request")
+            logger.debug(
+                "Standings request already exists, "
+                "returning first existing request"
+            )
             return cls.objects\
                 .filter(contactID=contact_id, contactType=contact_type)[0]
 
@@ -374,14 +397,15 @@ class StandingsRequest(AbstractStandingsRequest):
     @classmethod
     def remove_requests(cls, contact_id):
         """
-        Remove the requests for the given contact_id. If any of these requests have been actioned or are effective
+        Remove the requests for the given contact_id. If any of these requests 
+        have been actioned or are effective
         a Revocation request will automatically be generated
         :param contact_id: str contactID to remove.
         :return:
         """
-        logger.debug("Removing requests for contactID {0}".format(contact_id))
+        logger.debug("Removing requests for contactID %d", contact_id)
         requests = cls.objects.filter(contactID=contact_id)
-        logger.debug("{0} requests to be removed".format(len(requests)))
+        logger.debug("%d requests to be removed", len(requests))
         requests.delete()
 
 
@@ -397,19 +421,19 @@ class StandingsRevocation(AbstractStandingsRequest):
         :return: the created StandingsRevocation instance
         """
         logger.debug(
-            "Adding new standings revocation for contact {0} type {1}".format(
-                contact_id, contact_type
-        ))
+            "Adding new standings revocation for contact %d type %s",
+            contact_id, 
+            contact_type
+        )
         pending = cls.objects\
             .filter(contactID=contact_id)\
             .filter(effective=False)
         if pending.exists():
             logger.debug(
-                "Cannot add revocation for contact {0}, ".format(
-                    contact_id,
-                    contact_type
-                ) 
-                + "pending revocation exists"
+                "Cannot add revocation for contact %d %s, "
+                "pending revocation exists",
+                contact_id,
+                contact_type
             )
             return None
 
@@ -426,7 +450,7 @@ class StandingsRevocation(AbstractStandingsRequest):
         :return: created StandingsRequest pendant 
             or False if revocation does not exist
         """
-        logger.debug("Undoing revocation for contactID {0}".format(contact_id))
+        logger.debug("Undoing revocation for contactID %d", contact_id)
         revocations = cls.objects.filter(contactID=contact_id)
 
         if not revocations.exists():
@@ -479,12 +503,16 @@ class CharacterAssociation(models.Model):
     def get_api_expired_items(cls, items_in=None):
         """
         Get all API timer expired items
-        :param items_in: list optional parameter to limit the results to character_ids in the list
-        :return: QuerySet of CharacterAssociation items that have expired their API timer
+        :param items_in: list optional parameter to limit the results 
+        to character_ids in the list
+        :return: QuerySet of CharacterAssociation items 
+        that have expired their API timer
         """
-        expired = cls.objects.filter(updated__lt=timezone.now()-cls.API_CACHE_TIMER)
+        expired = cls.objects\
+            .filter(updated__lt=timezone.now() - cls.API_CACHE_TIMER)
         if items_in is not None:
             expired = expired.filter(character_id__in=items_in)
+        
         return expired
 
 
@@ -565,7 +593,8 @@ class EveNameCache(models.Model):
             entity = cls()
             entity.entityID = entity_id
             entity._update_entity()
-            # If the name is updated it will be saved, otherwise this object will be discarded
+            # If the name is updated it will be saved, 
+            # otherwise this object will be discarded
             # when it goes out of scope
         return entity.name or None
 
@@ -592,19 +621,22 @@ class EveNameCache(models.Model):
         contact = None
         try:
             contacts = ContactSet.objects.latest()
-            if (contacts.pilotstanding_set\
+            if (
+                contacts.pilotstanding_set
                 .filter(contactID=self.entityID).exists()
             ):
                 contact = \
                     contacts.pilotstanding_set.get(contactID=self.entityID)
             
-            elif (contacts.corpstanding_set\
+            elif (
+                contacts.corpstanding_set
                 .filter(contactID=self.entityID).exists()
             ):
                 contact = \
                     contacts.corpstanding_set.get(contactID=self.entityID)
             
-            elif (contacts.alliancestanding_set\
+            elif (
+                contacts.alliancestanding_set
                 .filter(contactID=self.entityID).exists()
             ):
                 contact = \
@@ -633,7 +665,8 @@ class EveNameCache(models.Model):
 
     def _update_from_api(self):
         """
-        Attempt to update the entity from the EVE API. Should be a last resort (because slow)
+        Attempt to update the entity from the EVE API. 
+        Should be a last resort (because slow)
         :return: bool True if successful, False otherwise
         """
         api_name = EveEntityManager.get_name_from_api(self.entityID)

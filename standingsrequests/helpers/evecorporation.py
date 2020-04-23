@@ -1,14 +1,11 @@
 from __future__ import unicode_literals
 
 import logging
-from time import sleep
 
 from django.core.cache import cache
+from bravado.exception import HTTPError
 
-from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
-from esi.clients import esi_client_factory
-
-from ..managers import SWAGGER_SPEC_PATH
+from ..helpers.esi_fetch import esi_fetch
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +14,7 @@ class EveCorporation:
     CACHE_PREFIX = 'STANDINGS_REQUESTS_EVECORPORATION_'
     CACHE_TIME = 60 * 30  # 30 minutes
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self.corporation_id = int(kwargs.get('corporation_id'))
         self.corporation_name = kwargs.get('corporation_name')
         self.ticker = kwargs.get('ticker')
@@ -28,15 +25,20 @@ class EveCorporation:
     def __str__(self):
         return self.corporation_name
 
+    @property
+    def is_npc(self):
+        """returns true if this corporation is an NPC, else false"""
+        return 1000000 <= self.corporation_id <= 2000000
+
     @classmethod
     def get_corp_by_id(cls, corp_id):
         """
         Get a corp from the cache or ESI if not cached
         Corps are cached for 3 hours
         :param corp_id: int corp ID to get
-        :return:
+        :return: corporation object or None
         """
-        logger.debug("Getting corp by id {}".format(corp_id))
+        logger.debug("Getting corp by id %d", corp_id)
         corp = cache.get(cls.__get_cache_key(corp_id))
         if corp is None:
             logger.debug("Corp not in cache, fetching")
@@ -52,12 +54,13 @@ class EveCorporation:
         return cls.CACHE_PREFIX + str(corp_id)
 
     @classmethod
-    def get_corp_esi(cls, corp_id, count=1):
-        logger.debug("Attempting to get corp from esi with id %s", corp_id)
-        client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
+    def get_corp_esi(cls, corp_id):
+        logger.debug("Attempting to get corp from esi with id %s", corp_id)        
         try:
-            info = client.Corporation\
-                .get_corporations_corporation_id(corporation_id=corp_id).result()
+            info = esi_fetch(
+                'Corporation.get_corporations_corporation_id',
+                args={'corporation_id': corp_id}
+            )
             return cls(
                 corporation_id=corp_id,
                 corporation_name=info['name'],
@@ -66,14 +69,7 @@ class EveCorporation:
                 ceo_id=info['ceo_id'],
                 alliance_id=info['alliance_id'] if 'alliance_id' in info else None
             )
-
-        except HTTPNotFound:
-            raise None
-        except (HTTPBadGateway, HTTPGatewayTimeout):
-            if count >= 5:
-                logger.exception('Failed to get entity name %s times.', count)
-                return None
-            else:
-                sleep(count**2)
-                return cls.get_corp_esi(corp_id, count + 1)
-
+        
+        except HTTPError:
+            logger.exception('Failed to get corp from ESI with id %i', corp_id)
+            return None

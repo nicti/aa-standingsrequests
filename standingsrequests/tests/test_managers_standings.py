@@ -12,7 +12,12 @@ from allianceauth.eveonline.models import (
 )
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import _set_logger, _generate_token, _store_as_Token
+from . import (
+    _generate_token, 
+    _store_as_Token, 
+    add_new_token, 
+    add_character_to_user
+)
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_AMARR_TYPE_ID, 
@@ -22,81 +27,60 @@ from .entity_type_ids import (
 )
 from .my_test_data import (
     get_entity_names, 
-    create_contacts_from_test_data, 
+    create_contacts_set, 
     create_entity,
     esi_post_characters_affiliation,
-    get_my_test_data
+    get_my_test_data,
+    get_test_labels,
+    get_test_contacts
 )
 
-from ..managers.standings import StandingsManager, ContactsWrapper
+from ..managers.standings import (
+    StandingsManager, ContactsWrapper, StandingFactory
+)
 from ..models import (
     CharacterAssociation, 
     ContactSet, 
-    ContactLabel,     
-    PilotStanding, 
+    ContactLabel,    
+    PilotStanding,
+    CorpStanding,
+    AllianceStanding, 
     StandingsRequest,
     StandingsRevocation, 
 )
+from ..utils import set_test_logger, NoSocketsTestCase
+
 
 MODULE_PATH = 'standingsrequests.managers.standings'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
-def get_test_labels() -> list:
-    """returns labels from test data as list of ContactsWrapper.Label"""
-    labels = list()
-    for label_data in get_my_test_data()['alliance_labels']:
-        labels.append(ContactsWrapper.Label(label_data))
-    
-    return labels
-
-
-def get_test_contacts():
-    """returns contacts from test data as list of ContactsWrapper.Contact"""
-    labels = get_test_labels()
-    
-    contact_ids = [
-        x['contact_id'] for x in get_my_test_data()['alliance_contacts']
-    ]
-    names_info = get_entity_names(contact_ids)
-    contacts = list()
-    for contact_data in get_my_test_data()['alliance_contacts']:
-        labels.append(ContactsWrapper.Contact(contact_data, labels, names_info))
-
-    return contacts
-
-
-class TestStandingsManager(TestCase):
+class TestStandingsManager(NoSocketsTestCase):
         
     def setUp(self):
         EveCharacter.objects.all().delete()
         EveCorporationInfo.objects.all().delete()
         EveAllianceInfo.objects.all().delete()
 
-    @patch(MODULE_PATH + '.StandingsManager.charID', 1001)
-    @patch(MODULE_PATH + '.esi_client_factory')
+    @patch(MODULE_PATH + '.StandingsManager.charID', 1001)    
     @patch(MODULE_PATH + '.Token')
-    def test_api_get_instance(
-        self, mock_Token, mock_esi_client_factory
-    ):
+    def test_token(self, mock_Token):
+        mock_my_token = Mock(spec=Token)
         mock_Token.objects.filter.return_value\
-            .require_scopes.return_value.require_valid.return_value = \
-            [Mock(spec=Token)]
-        mock_esi_client_factory.return_value = 'my ESI client'
-
-        response = StandingsManager.api_get_instance()
-        self.assertEqual(response, 'my ESI client')
+            .require_scopes.return_value.require_valid.return_value\
+            .first.return_value = mock_my_token
+        
+        token = StandingsManager.token()
+        self.assertEqual(token, mock_my_token)
         self.assertEqual(
             mock_Token.objects.filter.call_args[1]['character_id'], 1001
         )
     
     @patch(MODULE_PATH + '.ContactsWrapper')
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')
+    @patch(MODULE_PATH + '.StandingsManager.token')
     def test_api_update_alliance_standings_normal(
-        self, mock_api_get_instance, mock_ContactsWrapper
+        self, mock_token, mock_ContactsWrapper
     ):
-        mock_api_get_instance.return_value = Mock()
-
         mock_contacts = Mock(spec=ContactsWrapper)
         mock_contacts.alliance = get_test_contacts()
         mock_contacts.allianceLabels = get_test_labels()
@@ -109,11 +93,10 @@ class TestStandingsManager(TestCase):
         # todo: needs more validations !!
 
     @patch(MODULE_PATH + '.ContactsWrapper')
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')
+    @patch(MODULE_PATH + '.StandingsManager.token')
     def test_api_update_alliance_standings_error(
-        self, mock_api_get_instance, mock_ContactsWrapper
-    ):
-        mock_api_get_instance.return_value = Mock()
+        self, mock_token, mock_ContactsWrapper
+    ):        
         mock_ContactsWrapper.side_effect = RuntimeError
         self.assertIsNone(StandingsManager.api_update_alliance_standings())
 
@@ -135,24 +118,30 @@ class TestStandingsManager(TestCase):
 
     def test_api_add_contacts(self):
         my_set = ContactSet.objects.create(name='My Set')
-        contacts = get_test_contacts()
+        StandingsManager.api_add_labels(my_set, get_test_labels())
+        contacts = get_test_contacts()        
         
         StandingsManager.api_add_contacts(my_set, contacts)
 
         self.assertEqual(
             len(contacts), 
             PilotStanding.objects.filter(set=my_set).count()
-        )
-        
+            + CorpStanding.objects.filter(set=my_set).count()
+            + AllianceStanding.objects.filter(set=my_set).count()
+        )        
         for contact in contacts:
-            contact_in_set = PilotStanding.objects\
-                .get(set=my_set, contactID=contact.id)
-            self.assertEqual(contact.name, contact_in_set.name)
-            self.assertEqual(contact.type_id, contact_in_set.contact_type)
+            if contact.type_id in PilotStanding.contactTypes:
+                contact_in_set = \
+                    PilotStanding.objects.get(set=my_set, contactID=contact.id)
+            elif contact.type_id in CorpStanding.contactTypes:
+                contact_in_set = \
+                    CorpStanding.objects.get(set=my_set, contactID=contact.id)
+
+            self.assertEqual(contact.name, contact_in_set.name)            
             self.assertEqual(contact.standing, contact_in_set.standing)
             self.assertSetEqual(
                 set(contact.label_ids), 
-                set(contact_in_set.labels)
+                set(contact_in_set.labels.values_list('labelID', flat=True))
             )
             
     @patch(MODULE_PATH + '.STR_CORP_IDS', ['2001'])
@@ -169,8 +158,14 @@ class TestStandingsManager(TestCase):
 
     @patch(MODULE_PATH + '.STR_CORP_IDS', [])
     @patch(MODULE_PATH + '.STR_ALLIANCE_IDS', [])
-    def test_pilot_in_organisation_matches_none(self):        
+    def test_pilot_in_organisation_doest_not_exist(self):        
         self.assertFalse(StandingsManager.pilot_in_organisation(1999))
+
+    @patch(MODULE_PATH + '.STR_CORP_IDS', [])
+    @patch(MODULE_PATH + '.STR_ALLIANCE_IDS', [])
+    def test_pilot_in_organisation_matches_none(self):        
+        create_entity(EveCharacter, 1001)
+        self.assertFalse(StandingsManager.pilot_in_organisation(1001))
 
     @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'Guest': ['publicData']})
     @patch(MODULE_PATH + '.EveCorporation.get_corp_by_id')
@@ -312,17 +307,92 @@ class TestStandingsManager(TestCase):
         self.assertEqual(mock_StandingsRevocation_objects_all.call_count, 1)
 
 
+@patch(MODULE_PATH + '.StandingsManager.get_required_scopes_for_state')
+class TestStandingsManagerHasRequiredScopesForRequest(TestCase):
+   
+    def test_true_when_user_has_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['abc']
+        user = AuthUtils.create_member('Bruce Wayne')
+        character = AuthUtils.add_main_character_2(
+            user=user, 
+            name='Batman', 
+            character_id=2099, 
+            corp_id=2001, 
+            corp_name='Wayne Tech'
+        )
+        add_new_token(user, character, ['abc'])
+        self.assertTrue(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+    def test_false_when_user_does_not_have_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['xyz']
+        user = AuthUtils.create_member('Bruce Wayne')
+        character = AuthUtils.add_main_character_2(
+            user=user, 
+            name='Batman', 
+            character_id=2099, 
+            corp_id=2001, 
+            corp_name='Wayne Tech'
+        )
+        add_new_token(user, character, ['abc'])
+        self.assertFalse(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+    def test_false_when_user_state_can_not_be_determinded(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ['abc']                
+        character = create_entity(EveCharacter, 1002)        
+        self.assertFalse(
+            StandingsManager.has_required_scopes_for_request(character)
+        )
+
+
+class TestStandingsManagerGetRequiredScopesForState(TestCase):
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_scopes_if_defined_for_state(self):        
+        expected = ['abc']
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state('member'),
+            expected
+        )
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_empty_list_if_not_defined_for_state(self):
+        expected = []
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state('guest'),
+            expected
+        )
+
+    @patch(MODULE_PATH + '.SR_REQUIRED_SCOPES', {'member': ['abc']})
+    def test_return_empty_list_if_state_is_note(self):
+        expected = []
+        self.assertListEqual(
+            StandingsManager.get_required_scopes_for_state(None),
+            expected
+        )
+
+
+@patch(MODULE_PATH + '.notify')
 class TestStandingsManagerProcessRequests(TestCase):
     
     def setUp(self):        
         self.user_manager = AuthUtils.create_user('Mike Manager')
         self.user_requestor = AuthUtils.create_user('Roger Requestor')
-        ContactSet.objects.all().delete()         
-        my_set = ContactSet.objects.create(name='Dummy Set')
-        create_contacts_from_test_data(my_set)
+        ContactSet.objects.all().delete()                 
+        create_contacts_set()
 
-    def test_process_requests_1(self):                
-        """do nothing for pilot requests with standing satisfied in game"""
+    def test_no_action_for_pilot_request_when_standing_satisfied_in_game(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1002,
@@ -339,8 +409,9 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
 
-    def test_process_requests_1a(self):                
-        """do nothing for corp requests with standing satisfied in game"""
+    def test_no_action_for_corp_request_when_standing_satisfied_in_game(
+        self, mock_notify
+    ):          
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=2004,
@@ -357,8 +428,9 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
 
-    def test_process_requests_2(self):                
-        """reset request w/ effective standing that is not satisfied in game"""
+    def test_reset_request_with_eff_standing_not_statisfied_in_game(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -374,10 +446,10 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertIsNone(my_request.effectiveDate)
         self.assertIsNone(my_request.actionBy)
         self.assertIsNone(my_request.actionDate)
-
-    @patch(MODULE_PATH + '.notify')
-    def test_process_requests_3(self, mock_notify): 
-        """notify about requests that have been reset and timed out"""
+    
+    def test_notify_about_requests_that_are_reset_and_timed_out(
+        self, mock_notify
+    ):     
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -388,10 +460,10 @@ class TestStandingsManagerProcessRequests(TestCase):
         )
         StandingsManager.process_requests([my_request])
         self.assertEqual(mock_notify.call_count, 1)
-
-    @patch(MODULE_PATH + '.notify')
-    def test_process_requests_4(self, mock_notify): 
-        """dont notify about requests that have been reset and not timed out"""
+    
+    def test_dont_notify_about_requests_that_are_reset_and_not_timed_out(
+        self, mock_notify
+    ):         
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -404,13 +476,13 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(mock_notify.call_count, 0)
 
 
-class TestStandingsUpdateCharacterAssociations(TestCase):
+@patch(MODULE_PATH + '.EveNameCache')
+class TestStandingsUpdateCharacterAssociationsAuth(TestCase):
     
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user_requestor = AuthUtils.create_user('Roger Requestor')
-        cls.user_manager = AuthUtils.create_user('Mike Manager')
+        cls.user = AuthUtils.create_user('Bruce Wayne')
         
     def setUp(self):        
         EveCharacter.objects.all().delete()
@@ -418,19 +490,9 @@ class TestStandingsUpdateCharacterAssociations(TestCase):
         CharacterAssociation.objects.all().delete()
         ContactSet.objects.all().delete()
 
-    @patch(MODULE_PATH + '.EveNameCache')    
-    def test_update_character_associations_auth(self, mock_EveNameCache):
-        my_character = create_entity(EveCharacter, 1001)
-        _store_as_Token(
-            _generate_token(
-                character_id=my_character.character_id,
-                character_name=my_character.character_name,
-                scopes=['publicData']
-            ), 
-            self.user_requestor
-        )
-        self.user_requestor.profile.main_character = my_character
-        self.user_requestor.profile.save()
+    def test_can_update_from_one_character(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1001)        
+        add_character_to_user(self.user, my_character, is_main=True)
 
         StandingsManager.update_character_associations_auth()
         self.assertEqual(CharacterAssociation.objects.count(), 1)
@@ -439,11 +501,34 @@ class TestStandingsUpdateCharacterAssociations(TestCase):
         self.assertEqual(assoc.corporation_id, 2001)
         self.assertEqual(assoc.main_character_id, 1001)        
         self.assertEqual(assoc.alliance_id, 3001)
+    
+    def test_can_handle_no_main(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1001)        
+        add_character_to_user(self.user, my_character)
 
-    # todo: test more variations
+        StandingsManager.update_character_associations_auth()
+        self.assertEqual(CharacterAssociation.objects.count(), 1)
+        assoc = CharacterAssociation.objects.first()
+        self.assertEqual(assoc.character_id, 1001)
+        self.assertEqual(assoc.corporation_id, 2001)
+        self.assertIsNone(assoc.main_character_id)
+        self.assertEqual(assoc.alliance_id, 3001)
 
+    def test_can_handle_no_character_without_alliance(self, mock_EveNameCache):
+        my_character = create_entity(EveCharacter, 1004)        
+        add_character_to_user(self.user, my_character)
 
-class TestStandingsUpdateCharacterAssociationsApi(TestCase):
+        StandingsManager.update_character_associations_auth()
+        self.assertEqual(CharacterAssociation.objects.count(), 1)
+        assoc = CharacterAssociation.objects.first()
+        self.assertEqual(assoc.character_id, 1004)
+        self.assertEqual(assoc.corporation_id, 2003)
+        self.assertIsNone(assoc.main_character_id)
+        self.assertIsNone(assoc.alliance_id)
+
+  
+@patch('standingsrequests.helpers.esi_fetch._esi_client')
+class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
     
     @classmethod
     def setUpClass(cls):
@@ -456,41 +541,38 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
         CharacterOwnership.objects.all().delete()
         CharacterAssociation.objects.all().delete()
         ContactSet.objects.all().delete()
-
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_do_nothing_if_not_set_available(self, mock_api_get_instance):
+ 
+    def test_do_nothing_if_not_set_available(self, mock_esi_client):
         StandingsManager.update_character_associations_api()
         self.assertFalse(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
 
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_dont_update_when_not_needed(self, mock_api_get_instance):
-        create_contacts_from_test_data()
+    def test_dont_update_when_not_needed(self, mock_esi_client):
+        create_contacts_set()
         StandingsManager.update_character_associations_api()        
         self.assertFalse(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
 
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_updates_all_contacts_with_expired_cache(self, mock_api_get_instance):
-        mock_api_get_instance.return_value\
+    def test_updates_all_contacts_with_expired_cache(self, mock_esi_client):
+        mock_esi_client.return_value\
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
 
-        create_contacts_from_test_data()
+        create_contacts_set()
         expected = [1001, 1002, 1003]
         for x in CharacterAssociation.objects.filter(character_id__in=expected):
             x.updated = now() - timedelta(days=3, hours=1)
             x.save()
         StandingsManager.update_character_associations_api()        
         self.assertTrue(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
-        args, kwargs = mock_api_get_instance.return_value\
+        args, kwargs = mock_esi_client.return_value\
             .Character.post_characters_affiliation.call_args        
         self.assertSetEqual(set(kwargs['characters']), set(expected))        
         self.assertTrue(
@@ -500,22 +582,21 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
                 updated__gt=now() - timedelta(hours=1)
             ).exists()
         )
-
-    @patch(MODULE_PATH + '.StandingsManager.api_get_instance')  
-    def test_updates_all_unknown_contacts(self, mock_api_get_instance):
-        mock_api_get_instance.return_value\
+    
+    def test_updates_all_unknown_contacts(self, mock_esi_client):
+        mock_esi_client.return_value\
             .Character.post_characters_affiliation.side_effect = \
             esi_post_characters_affiliation
         
-        create_contacts_from_test_data()
+        create_contacts_set()
         expected = [1001, 1002, 1003]
         CharacterAssociation.objects.filter(character_id__in=expected).delete()
         StandingsManager.update_character_associations_api()        
         self.assertTrue(
-            mock_api_get_instance.return_value
+            mock_esi_client.return_value
             .Character.post_characters_affiliation.called
         )
-        args, kwargs = mock_api_get_instance.return_value\
+        args, kwargs = mock_esi_client.return_value\
             .Character.post_characters_affiliation.call_args        
         self.assertSetEqual(set(kwargs['characters']), set(expected))
         self.assertTrue(
@@ -523,9 +604,69 @@ class TestStandingsUpdateCharacterAssociationsApi(TestCase):
             .filter(character_id__in=expected).exists()
         )
 
+    def test_handle_exception_from_api(self, mock_esi_client):
+        mock_esi_client.return_value\
+            .Character.post_characters_affiliation.side_effect = \
+            RuntimeError
+        
+        create_contacts_set()
+        expected = [1001, 1002, 1003]
+        CharacterAssociation.objects.filter(character_id__in=expected).delete()
+        StandingsManager.update_character_associations_api()
+        self.assertFalse(
+            CharacterAssociation.objects
+            .filter(character_id__in=expected).exists()
+        )
+        
 
-class TestStandingsFactory(TestCase):
-    pass
+class TestStandingFactory(TestCase):
+    
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.contact_set = create_contacts_set()
+        
+    def test_can_create_pilot_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=CHARACTER_TYPE_ID,
+            name='Lex Luthor',
+            contact_id=1009,
+            standing=-10,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, PilotStanding)
+        self.assertEqual(obj.name, 'Lex Luthor')
+        self.assertEqual(obj.contactID, 1009)
+        self.assertEqual(obj.standing, -10)        
+    
+    def test_can_create_corp_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=CORPORATION_TYPE_ID,
+            name='Lexcorp',
+            contact_id=2102,
+            standing=-10,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, CorpStanding)
+        self.assertEqual(obj.name, 'Lexcorp')
+        self.assertEqual(obj.contactID, 2102)
+        self.assertEqual(obj.standing, -10)   
+
+    def test_can_create_alliance_standing(self):
+        obj = StandingFactory.create_standing(
+            contact_set=self.contact_set,
+            contact_type=ALLIANCE_TYPE_ID,
+            name='Wayne Enterprises',
+            contact_id=3001,
+            standing=5,
+            labels=ContactLabel.objects.all()
+        )
+        self.assertIsInstance(obj, AllianceStanding)
+        self.assertEqual(obj.name, 'Wayne Enterprises')
+        self.assertEqual(obj.contactID, 3001)
+        self.assertEqual(obj.standing, 5)   
 
 
 class TestContactsWrapperLabel(TestCase):
@@ -601,18 +742,18 @@ class TestContactsWrapperContact(TestCase):
 
 class TestContactsWrapper(TestCase):
         
+    @patch('standingsrequests.helpers.esi_fetch._esi_client')
     @patch(MODULE_PATH + '.EveNameCache')
-    def test_init(self, mock_EveNameCache):
+    def test_init(self, mock_EveNameCache, mock_esi_client):
         mock_EveNameCache.get_names.side_effect = get_entity_names
-    
-        mock_client = Mock()
-        mock_client.Contacts\
+            
+        mock_esi_client.return_value.Contacts\
             .get_alliances_alliance_id_contacts_labels.return_value\
             .result.return_value = get_my_test_data()['alliance_labels']
 
         mock_response = Mock()
         mock_response.headers = dict()
-        mock_client.Contacts\
+        mock_esi_client.return_value.Contacts\
             .get_alliances_alliance_id_contacts.return_value\
             .result.return_value = (
                 get_my_test_data()['alliance_contacts'], 
@@ -621,7 +762,79 @@ class TestContactsWrapper(TestCase):
         
         create_entity(EveCharacter, 1001)
 
-        x = ContactsWrapper(mock_client, 1001)
-        self.assertEqual(len(x.alliance), len(
+        contacts = ContactsWrapper(Mock(spec=Token), 1001)
+        self.assertEqual(len(contacts.alliance), len(
             get_my_test_data()['alliance_contacts'])
+        )
+
+
+@patch(MODULE_PATH + '.StandingsManager.all_corp_apis_recorded')
+class TestValidateStandingRequest(NoSocketsTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user = AuthUtils.create_member('Bruce Wayne')
+    
+    def setUp(self):
+        StandingsRequest.objects.all().delete()
+
+    def test_do_nothing_character_request_is_valid(
+        self, mock_all_corp_apis_recorded
+    ):
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 1002, CHARACTER_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertTrue(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+
+    def test_remove_character_standing_request_if_user_has_no_permission(
+        self, mock_all_corp_apis_recorded
+    ):
+        request = StandingsRequest.add_request(
+            self.user, 1002, CHARACTER_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertFalse(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+    
+    def test_remove_corp_standing_request_if_not_all_apis_recorded(
+        self, mock_all_corp_apis_recorded
+    ):
+        mock_all_corp_apis_recorded.return_value = False
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 2001, CORPORATION_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertFalse(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
+        )
+    
+    def test_keep_corp_standing_request_if_all_apis_recorded(
+        self, mock_all_corp_apis_recorded
+    ):
+        mock_all_corp_apis_recorded.return_value = True
+        AuthUtils.add_permission_to_user_by_name(
+            'standingsrequests.request_standings', self.user
+        )
+        request = StandingsRequest.add_request(
+            self.user, 2001, CORPORATION_TYPE_ID
+        )
+
+        StandingsManager.validate_standings_requests()
+        self.assertTrue(
+            StandingsRequest.objects.filter(pk=request.pk).exists()
         )

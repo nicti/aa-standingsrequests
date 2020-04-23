@@ -1,22 +1,13 @@
-{% extends "allianceauth/base.html" %}
+{% extends "standingsrequests/base.html" %}
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
 
-{% block title %}Alliance Auth - Standings Tool {% endblock %}
-
-{% block page_title %}Request Standings{% endblock page_title %}
-{% block extra_css %}
-
-{% endblock extra_css %}
-
-{% block content %}
-    {% include 'standingsrequests/partials/_menu.html' %}
-
+{% block page_content %}    
     <div id="div_request_entities">        
         <br>
         <br>
-        <img class="center-block" src="{% static "standingsrequests/Spinner-1s-200px.gif" %}" alt="Spinner"/>
+        <img class="center-block" src="{% static 'standingsrequests/Spinner-1s-200px.gif' %}" alt="Spinner"/>
         <br>
     </div>
     
@@ -29,54 +20,42 @@
                 <table class="table">
                     <tr>
                         <td>
-                            <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}" style="color:#042177;"></i>
+                            <i class="fa fa-star fa-fw" title="{% trans 'In Organisation' %}" style="color:#042177;"></i>
                         </td>
                         <td>
-                            {% blocktrans %}
-                                Character is in this organisation.
-                            {% endblocktrans %}
+                            {% trans "Character is in this organisation." %}
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
-                                                   title="{% trans "No Standing" %}"></i>
+                            <i class="fa fa-exclamation-triangle fa-fw grayiconecolor" title="{% trans 'No Standing' %}"></i>
                         </td>
                         <td>
-                            {% blocktrans %}
-                                The character has no standings from this organisation towards it.
-                            {% endblocktrans %}
+                            {% trans "The character has no standings from this organisation towards it." %}
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                            <i class="fa fa-sliders fa-fw" title="{% trans 'Standing Pending' %}"></i>
                         </td>
                         <td>
-                            {% blocktrans %}
-                                The standing has been requested and is pending action by a Standings Manager.
-                            {% endblocktrans %}
+                            {% trans "The standing has been requested and is pending action by a Standings Manager." %}
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
-                                                                               style="color:#00ba32;"></i>
+                            <i class="fa fa-sliders fa-fw" title="{% trans 'Actioned, pending API pull.' %}" style="color:#00ba32;"></i>
                         </td>
                         <td>
-                            {% blocktrans %}
-                                The standing has been actioned by a Standings Manager but is waiting for API verification.
-                            {% endblocktrans %}
+                            {% trans "The standing has been actioned by a Standings Manager but is waiting for API verification." %}
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}" style="color:#e81341;"></i>
+                            <i class="fa fa-reply-all fa-fw" title="{% trans 'Standing Revoked' %}" style="color:#e81341;"></i>
                         </td>
                         <td>
-                            {% blocktrans %}
-                                The standing has been revoked by a Standings Manager or automatically if you no longer meet the requirements permitting blue standings access.
-                            {% endblocktrans %}
+                            {% trans "The standing has been revoked by a Standings Manager or automatically if you no longer meet the requirements permitting blue standings access." %}
                         </td>
                     </tr>
                 </table>
@@ -84,7 +63,7 @@
         </div>
     </div>
 
-{% endblock content %}
+{% endblock page_content %}
 
 {% block extra_script %}
     $(function() {
@@ -94,7 +73,7 @@
             function(responseTxt, statusTxt, xhr){                
                 if(statusTxt == "error"){
                     $("#div_request_entities").html(
-                        '<p class="text-danger">Failed to load content. Please reload this page to try again.</p>'
+                        '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
                     );
                 }
         });       

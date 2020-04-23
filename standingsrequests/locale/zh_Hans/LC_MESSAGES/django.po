@@ -1,0 +1,347 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-04-23 01:39+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: managers/standings.py:232
+msgid "Standings Request Action"
+msgstr ""
+
+#: managers/standings.py:234
+#, python-format
+msgid ""
+"A standings request for contact ID %d you actioned has been reset as it did "
+"not appear in game before the timeout period expired."
+msgstr ""
+
+#: templates/standingsrequests/error.html:8
+msgid "Not yet initialized"
+msgstr ""
+
+#: templates/standingsrequests/index.html:17
+msgid "Icon Legend"
+msgstr ""
+
+#: templates/standingsrequests/index.html:23
+#: templates/standingsrequests/partials/_request_entities.html:53
+#: templates/standingsrequests/partials/_request_entities.html:139
+msgid "In Organisation"
+msgstr ""
+
+#: templates/standingsrequests/index.html:26
+msgid "Character is in this organisation."
+msgstr ""
+
+#: templates/standingsrequests/index.html:31
+#: templates/standingsrequests/partials/_request_entities.html:65
+#: templates/standingsrequests/partials/_request_entities.html:151
+msgid "No Standing"
+msgstr ""
+
+#: templates/standingsrequests/index.html:34
+msgid "The character has no standings from this organisation towards it."
+msgstr ""
+
+#: templates/standingsrequests/index.html:39
+#: templates/standingsrequests/partials/_request_entities.html:59
+#: templates/standingsrequests/partials/_request_entities.html:145
+msgid "Standing Pending"
+msgstr ""
+
+#: templates/standingsrequests/index.html:42
+msgid ""
+"The standing has been requested and is pending action by a Standings Manager."
+msgstr ""
+
+#: templates/standingsrequests/index.html:47
+#: templates/standingsrequests/partials/_request_entities.html:56
+#: templates/standingsrequests/partials/_request_entities.html:142
+msgid "Actioned, pending API pull."
+msgstr ""
+
+#: templates/standingsrequests/index.html:50
+msgid ""
+"The standing has been actioned by a Standings Manager but is waiting for API "
+"verification."
+msgstr ""
+
+#: templates/standingsrequests/index.html:55
+#: templates/standingsrequests/partials/_request_entities.html:61
+#: templates/standingsrequests/partials/_request_entities.html:147
+msgid "Standing Revoked"
+msgstr ""
+
+#: templates/standingsrequests/index.html:58
+msgid ""
+"The standing has been revoked by a Standings Manager or automatically if you "
+"no longer meet the requirements permitting blue standings access."
+msgstr ""
+
+#: templates/standingsrequests/index.html:76
+msgid "Failed to load content. Please reload this page to try again."
+msgstr ""
+
+#: templates/standingsrequests/manage.html:16
+#: templates/standingsrequests/requests.html:16
+msgid "Requests"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:29
+#: templates/standingsrequests/manage.html:102
+#: templates/standingsrequests/requests.html:29
+msgid "Contact Name"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:30
+#: templates/standingsrequests/manage.html:103
+#: templates/standingsrequests/partials/_request_entities.html:20
+#: templates/standingsrequests/partials/_request_entities.html:119
+#: templates/standingsrequests/requests.html:30
+#: templates/standingsrequests/view_groups.html:33
+#: templates/standingsrequests/view_pilots.html:54
+msgid "Corporation"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:31
+#: templates/standingsrequests/manage.html:104
+#: templates/standingsrequests/partials/_request_entities.html:21
+#: templates/standingsrequests/requests.html:31
+#: templates/standingsrequests/view_groups.html:64
+#: templates/standingsrequests/view_pilots.html:55
+msgid "Alliance"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:32
+#: templates/standingsrequests/manage.html:105
+#: templates/standingsrequests/requests.html:33
+#: templates/standingsrequests/view_pilots.html:56
+msgid "Main Character"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:33
+#: templates/standingsrequests/manage.html:106
+#: templates/standingsrequests/partials/_request_entities.html:22
+#: templates/standingsrequests/requests.html:34
+#: templates/standingsrequests/view_pilots.html:58
+msgid "Scopes"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:34
+#: templates/standingsrequests/manage.html:107
+#: templates/standingsrequests/requests.html:35
+#: templates/standingsrequests/view_pilots.html:59
+msgid "State"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:35
+#: templates/standingsrequests/requests.html:38
+msgid "Reject and delete this standings request"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:35
+#: templates/standingsrequests/requests.html:38
+msgid "Reject"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:36
+#: templates/standingsrequests/manage.html:110
+msgid "Standings change has been made in game"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:36
+#: templates/standingsrequests/manage.html:110
+#: templates/standingsrequests/requests.html:36
+msgid "Actioned"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:89
+msgid "Revocations"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:108
+msgid "Delete this standings request. Standing will become unmanaged"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:108
+msgid "Delete"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:109
+msgid "Undo this standings revocation and generate a new standings request"
+msgstr ""
+
+#: templates/standingsrequests/manage.html:109
+msgid "Undo"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:8
+msgid "Toggle navigation"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:18
+msgid "Request Standings"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:22
+msgid "View Pilots Standings"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:25
+msgid "View Groups Standings"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:30
+msgid "Manage Requests"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:33
+msgid "View Requests"
+msgstr ""
+
+#: templates/standingsrequests/partials/_menu.html:40
+msgid "Setup Alliance Token"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:7
+msgid "Your Characters"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:12
+#: templates/standingsrequests/partials/_request_entities.html:112
+msgid "No primary character set"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:19
+#: templates/standingsrequests/view_pilots.html:53
+msgid "Character"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:23
+#: templates/standingsrequests/partials/_request_entities.html:121
+#: templates/standingsrequests/view_groups.html:34
+#: templates/standingsrequests/view_groups.html:65
+#: templates/standingsrequests/view_pilots.html:57
+msgid "Standing"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:24
+#: templates/standingsrequests/partials/_request_entities.html:122
+msgid "Action"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:45
+msgid "Add required scopes"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:45
+msgid "Required"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:107
+msgid "Your Corporations"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:120
+msgid "Keys/Req"
+msgstr ""
+
+#: templates/standingsrequests/partials/_request_entities.html:176
+msgid "More keys required to request standings"
+msgstr ""
+
+#: templates/standingsrequests/requests.html:32
+msgid "Type"
+msgstr ""
+
+#: templates/standingsrequests/requests.html:37
+msgid "Effective"
+msgstr ""
+
+#: templates/standingsrequests/view_groups.html:14
+msgid "Groups"
+msgstr ""
+
+#: templates/standingsrequests/view_groups.html:35
+#: templates/standingsrequests/view_groups.html:66
+#: templates/standingsrequests/view_pilots.html:60
+msgid "Labels"
+msgstr ""
+
+#: templates/standingsrequests/view_pilots.html:15
+msgid "Pilots"
+msgstr ""
+
+#: templates/standingsrequests/view_pilots.html:17
+msgid "Download"
+msgstr ""
+
+#. Translators: Abbreviation for years
+#: utils.py:269
+msgid "y"
+msgstr ""
+
+#. Translators: Abbreviation for months
+#: utils.py:272
+msgid "mt"
+msgstr ""
+
+#. Translators: Abbreviation for days
+#: utils.py:275
+msgid "d"
+msgstr ""
+
+#. Translators: Abbreviation for hours
+#: utils.py:278
+msgid "h"
+msgstr ""
+
+#. Translators: Abbreviation for months
+#: utils.py:281
+msgid "m"
+msgstr ""
+
+#. Translators: Abbreviation for seconds
+#: utils.py:284
+msgid "s"
+msgstr ""
+
+#: utils.py:344
+msgid "yes"
+msgstr ""
+
+#: utils.py:346
+msgid "no"
+msgstr ""
+
+#: views.py:900
+#, python-format
+msgid "Successfully setup alliance token for configured character %s"
+msgstr ""
+
+#: views.py:907
+#, python-format
+msgid ""
+"Failed to setup alliance token for configured character %(char_name)s (id:"
+"%(standings_api_char_id)s). Instead got token for different character: "
+"%(token_char_name)s (id:%(token_char_id)s)"
+msgstr ""
+
+#: views.py:928
+#, python-format
+msgid "Successfully added token with required scopes for %(char_name)s"
+msgstr ""

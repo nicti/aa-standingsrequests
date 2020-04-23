@@ -1,24 +1,24 @@
 import random
 from unittest.mock import Mock, patch
 
-from bravado.exception \
-    import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
+from bravado.exception import HTTPNotFound
 
-from django.contrib.auth.models import User
 from django.test import TestCase
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models \
     import EveCharacter, EveCorporationInfo, EveAllianceInfo
 from allianceauth.eveonline.providers import ObjectNotFound
+from allianceauth.tests.auth_utils import AuthUtils
 
-from . import _set_logger, _get_random_string
+from . import _get_random_string
 from .my_test_data import get_entity_name, get_entity_names
 from ..managers.eveentity import EveEntityManager
+from ..utils import set_test_logger
 
 
 MODULE_PATH = 'standingsrequests.managers.eveentity'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
 def get_entity_name_auth(entity_id):
@@ -182,7 +182,9 @@ class TestEveEntityManager(TestCase):
             'Dummy Alliance 1'
         )
 
-    @patch(MODULE_PATH + '.EveEntityManager._EveEntityManager__get_names_from_api')
+    @patch(
+        MODULE_PATH + '.EveEntityManager._EveEntityManager__get_names_from_api'
+    )
     def test_get_names_from_api_normal(self, mock__get_names_from_api):
         mock__get_names_from_api.side_effect = get_names_from_api
 
@@ -192,7 +194,9 @@ class TestEveEntityManager(TestCase):
             {1001: 'Bruce Wayne', 1003: 'Clark Kent'}
         )
 
-    @patch(MODULE_PATH + '.EveEntityManager._EveEntityManager__get_names_from_api')
+    @patch(
+        MODULE_PATH + '.EveEntityManager._EveEntityManager__get_names_from_api'
+    )
     def test_get_names_from_api_chunks(self, mock__get_names_from_api):
                 
         def get_names_from_api_randoms(eve_entity_ids):
@@ -208,59 +212,26 @@ class TestEveEntityManager(TestCase):
         names = EveEntityManager.get_names_from_api(ids)
         self.assertEqual(len(names), len(ids))
 
-    @patch(MODULE_PATH + '.esi_client_factory')
-    def test__get_names_from_api_normal(self, mock_esi_client_factory):
+    @patch('standingsrequests.helpers.esi_fetch._esi_client')
+    def test__get_names_from_api_normal(self, mock_esi_client):
         ids = [1001, 1002, 1003]
         infos_expected = get_names_from_api(ids)
-        mock_esi_client_factory.return_value.Universe.post_universe_names.return_value\
+        mock_esi_client.return_value.Universe.post_universe_names.return_value\
             .result.return_value = infos_expected
 
         infos = EveEntityManager._EveEntityManager__get_names_from_api(ids)
-        self.assertListEqual(
-            infos,
-            infos_expected
-        )
+        self.assertListEqual(infos, infos_expected)
 
-    @patch(MODULE_PATH + '.esi_client_factory')
-    def test__get_names_from_api_not_found(self, mock_esi_client_factory):
+    @patch('standingsrequests.helpers.esi_fetch._esi_client')
+    def test__get_names_from_api_not_found(self, mock_esi_client):
         ids = [1001, 1002, 1003]
         get_names_from_api(ids)
-        mock_esi_client_factory.return_value.Universe.post_universe_names.return_value\
-            .result.side_effect = HTTPNotFound(Mock())
+        mock_esi_client.return_value.Universe.post_universe_names.return_value\
+            .result.side_effect = HTTPNotFound(Mock(), message='TestException')
 
         with self.assertRaises(ObjectNotFound):
             EveEntityManager._EveEntityManager__get_names_from_api(ids)
-        
-    @patch(MODULE_PATH + '.sleep')
-    @patch(MODULE_PATH + '.esi_client_factory')
-    def test__get_names_from_api_repeat_on_HTTPBadGateway(
-        self, mock_esi_client_factory, mock_sleep
-    ):
-        ids = [1001, 1002, 1003]
-        get_names_from_api(ids)
-        mock_esi_client_factory.return_value.Universe.post_universe_names.return_value\
-            .result.side_effect = HTTPBadGateway(Mock())
-        
-        self.assertIsNone(
-            EveEntityManager._EveEntityManager__get_names_from_api(ids)
-        )
-        self.assertEqual(mock_esi_client_factory.call_count, 5)
-
-    @patch(MODULE_PATH + '.sleep')
-    @patch(MODULE_PATH + '.esi_client_factory')
-    def test__get_names_from_api_repeat_on_HTTPGatewayTimeout(
-        self, mock_esi_client_factory, mock_sleep
-    ):
-        ids = [1001, 1002, 1003]
-        get_names_from_api(ids)
-        mock_esi_client_factory.return_value.Universe.post_universe_names.return_value\
-            .result.side_effect = HTTPGatewayTimeout(Mock())
-        
-        self.assertIsNone(
-            EveEntityManager._EveEntityManager__get_names_from_api(ids)
-        )
-        self.assertEqual(mock_esi_client_factory.call_count, 5)
-           
+               
     @patch(MODULE_PATH + '.EveEntityManager.get_names_from_api')
     def test_get_name_from_api_exists(self, mock_get_names_from_api):        
         mock_get_names_from_api.side_effect = get_entity_names
@@ -275,12 +246,8 @@ class TestEveEntityManager(TestCase):
         name = EveEntityManager.get_name_from_api(1999)
         self.assertIsNone(name)
 
-    def test_get_owner_from_character_id_normal(self):
-        my_user = User.objects.create_user(
-            'Mike Manager',
-            'mm@example.com',
-            'password'
-        )
+    def test_get_owner_from_character_id_normal(self):        
+        my_user = AuthUtils.create_user('Mike Manager')
         my_character = EveCharacter.objects.create(
             character_id=1001,
             character_name='Bruce Wayne',
@@ -311,12 +278,8 @@ class TestEveEntityManager(TestCase):
     def test_get_owner_from_character_id_no_char(self):                
         self.assertIsNone(EveEntityManager.get_owner_from_character_id(1001))
 
-    def test_get_character_by_user(self):
-        my_user = User.objects.create_user(
-            'Mike Manager',
-            'mm@example.com',
-            'password'
-        )
+    def test_get_character_by_user(self):      
+        my_user = AuthUtils.create_user('Mike Manager')
         my_character_1 = EveCharacter.objects.create(
             character_id=1001,
             character_name='Bruce Wayne',
@@ -347,12 +310,8 @@ class TestEveEntityManager(TestCase):
             {my_character_1, my_character_2}
         )
         
-    def test_is_character_owned_by_user_match(self):
-        my_user = User.objects.create_user(
-            'Mike Manager',
-            'mm@example.com',
-            'password'
-        )
+    def test_is_character_owned_by_user_match(self):        
+        my_user = AuthUtils.create_user('Mike Manager')
         my_character = EveCharacter.objects.create(
             character_id=1001,
             character_name='Bruce Wayne',
@@ -369,12 +328,8 @@ class TestEveEntityManager(TestCase):
             EveEntityManager.is_character_owned_by_user(1001, my_user)
         )
 
-    def test_is_character_owned_by_user_no_match(self):
-        my_user = User.objects.create_user(
-            'Mike Manager',
-            'mm@example.com',
-            'password'
-        )
+    def test_is_character_owned_by_user_no_match(self):        
+        my_user = AuthUtils.create_user('Mike Manager')
         my_character = EveCharacter.objects.create(
             character_id=1001,
             character_name='Bruce Wayne',
@@ -391,12 +346,8 @@ class TestEveEntityManager(TestCase):
             EveEntityManager.is_character_owned_by_user(1002, my_user)
         )
 
-    def test_get_state_of_character_match(self):
-        my_user = User.objects.create_user(
-            'Mike Manager',
-            'mm@example.com',
-            'password'
-        )
+    def test_get_state_of_character_match(self):        
+        my_user = AuthUtils.create_user('Mike Manager')
         my_character = EveCharacter.objects.create(
             character_id=1001,
             character_name='Bruce Wayne',

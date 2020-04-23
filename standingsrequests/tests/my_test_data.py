@@ -9,13 +9,15 @@ from allianceauth.eveonline.models import (
     EveCharacter, EveCorporationInfo, EveAllianceInfo
 )
 
+from ..managers.standings import ContactsWrapper, StandingsManager
+
 from ..models import (
     AllianceStanding,
     CharacterAssociation, 
     ContactSet, 
     CorpStanding,    
     EveNameCache,
-    PilotStanding, 
+    PilotStanding,     
 )
 
 
@@ -94,8 +96,7 @@ def get_entity_data(EntityClass: type, entity_id: int) -> object:
 
 
 def create_entity(EntityClass: type, entity_id: int) -> object:
-    """creates an Eve entity from test data"""
-    
+    """creates an Eve entity from test data"""    
     data = get_entity_data(EntityClass, entity_id)
     return EntityClass.objects.create(**data)
 
@@ -120,7 +121,7 @@ def esi_get_corporations_corporation_id(corporation_id):
     result = []
     corporation_id = str(corporation_id)
     if corporation_id not in _my_test_data['EveCorporationInfo']:
-        raise HTTPNotFound()
+        raise HTTPNotFound(Mock(), message='Test Exception')
         
     row = _my_test_data['EveCorporationInfo'][corporation_id]
     result = {
@@ -140,7 +141,31 @@ def esi_get_corporations_corporation_id(corporation_id):
 ##########################
 # app specific functions
 
-def create_contacts_from_test_data(my_set: object = None) -> object:    
+def get_test_labels() -> list:
+    """returns labels from test data as list of ContactsWrapper.Label"""
+    labels = list()
+    for label_data in get_my_test_data()['alliance_labels']:
+        labels.append(ContactsWrapper.Label(label_data))
+    
+    return labels
+
+
+def get_test_contacts():
+    """returns contacts from test data as list of ContactsWrapper.Contact"""
+    labels = get_test_labels()
+    
+    contact_ids = [
+        x['contact_id'] for x in get_my_test_data()['alliance_contacts']
+    ]
+    names_info = get_entity_names(contact_ids)
+    contacts = list()
+    for contact_data in get_my_test_data()['alliance_contacts']:
+        contacts.append(ContactsWrapper.Contact(contact_data, labels, names_info))
+
+    return contacts
+
+
+def create_contacts_set(my_set: object = None) -> object:    
     
     if not my_set:
         my_set = ContactSet.objects.create(name='Dummy Set')
@@ -187,28 +212,39 @@ def create_contacts_from_test_data(my_set: object = None) -> object:
     for assoc in _my_test_data['CharacterAssociation']:
         CharacterAssociation.objects.create(**assoc)
 
+    # add labels
+    StandingsManager.api_add_labels(my_set, get_test_labels())
+
     return my_set
 
-    """
-    def create_contract_set_from_characters() -> object:
-        my_set = ContactSet.objects.create(name='dummy')
 
-        for character_id, character_data in _my_test_data['EveCharacter'].items():
-            EveNameCache.objects.get_or_create(
-                entityID=character_id,
-                defaults={'name': character_data['character_name']}
+def create_eve_objects():
+    """creates all Eve objects from test data"""
+    EveCharacter.objects.all().delete()
+    EveCorporationInfo.objects.all().delete()
+    EveAllianceInfo.objects.all().delete()
+    for character_data in _my_test_data[EveCharacter.__name__].values():
+        character = EveCharacter.objects.create(**character_data)
+        if character.alliance_id:
+            defaults = {                
+                'alliance_name': character.alliance_name,
+                'alliance_ticker': character.alliance_ticker,
+                'executor_corp_id': 2001
+            }                        
+            alliance, _ = EveAllianceInfo.objects.get_or_create(
+                alliance_id=character.alliance_id,
+                defaults=defaults
             )
-            EveNameCache.objects.get_or_create(
-                entityID=character_data['corporation_id'],
-                defaults={'name': character_data['corporation_name']}
-            )
-            if character_data['alliance_id']:
-                EveNameCache.objects.get_or_create(
-                entityID=character_data['alliance_id'],
-                defaults={'name': character_data['alliance_name']}
-            )
-            args = {
-                'contactID': character_id,
-                ''
-            }
-    """
+        else:
+            alliance = None
+
+        defaults = {            
+            'corporation_name': character.corporation_name,
+            'corporation_ticker': character.corporation_ticker,
+            'member_count': 99,
+            'alliance': alliance
+        }
+        EveCorporationInfo.objects.get_or_create(
+            corporation_id=character.corporation_id,
+            defaults=defaults
+        )

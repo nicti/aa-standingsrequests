@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
-import logging
 import random
-import os
 import string
+
+from django.contrib.auth.models import User
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveCharacter
 
 
 def _dt_eveformat(dt: object) -> str:
@@ -13,33 +15,6 @@ def _dt_eveformat(dt: object) -> str:
     return dt2.isoformat()
 
 
-def _set_logger(logger_name: str, name: str) -> object:
-    """set logger for current test module
-    
-    Args:
-    - logger: current logger object
-    - name: name of current module, e.g. __file__
-    
-    Returns:
-    - amended logger
-    """
-    
-    # reconfigure logger so we get logging from tested module
-    f_format = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(module)s:%(funcName)s - %(message)s'
-    )
-    f_handler = logging.FileHandler(
-        '{}.log'.format(os.path.splitext(name)[0]),
-        'w+'
-    )
-    f_handler.setFormatter(f_format)
-    logger = logging.getLogger(logger_name)
-    logger.level = logging.DEBUG
-    logger.addHandler(f_handler)
-    logger.propagate = False
-    return logger
-
-
 def _generate_token(
     character_id: int, 
     character_name: str,
@@ -47,7 +22,7 @@ def _generate_token(
     refresh_token: str = 'refresh_token',    
     scopes: list = None,
     timestamp_dt: object = None,
-    expires_in: int  = 1200,
+    expires_in: int = 1200,
 ) -> dict:
     
     if timestamp_dt is None:
@@ -81,7 +56,7 @@ def _store_as_Token(token: dict, user: object) -> object:
     returns Token object
     """    
     from esi.models import Scope, Token
-    
+        
     obj = Token.objects.create(
         access_token=token['access_token'],
         refresh_token=token['refresh_token'],
@@ -89,7 +64,7 @@ def _store_as_Token(token: dict, user: object) -> object:
         character_id=token['CharacterID'],
         character_name=token['CharacterName'],
         token_type=token['TokenType'],
-        character_owner_hash=token['CharacterOwnerHash'],        
+        character_owner_hash=token['CharacterOwnerHash'],
     )    
     for scope_name in token['Scopes'].split(' '):
         scope, _ = Scope.objects.get_or_create(
@@ -100,6 +75,33 @@ def _store_as_Token(token: dict, user: object) -> object:
     return obj
 
 
+def add_new_token(user: object, character: object, scopes: list) -> object:
+    """generates a new Token for the given character and adds it to the user"""
+    return _store_as_Token(
+        _generate_token(
+            character_id=character.character_id,
+            character_name=character.character_name,
+            scopes=scopes
+        ), 
+        user
+    )
+
+
+def add_character_to_user(
+    user: User, character: EveCharacter, is_main: bool = False
+) -> CharacterOwnership:
+    ownership = CharacterOwnership.objects.create(
+        character=character,
+        owner_hash='abc',
+        user=user
+    )
+    if is_main:
+        user.profile.main_character = character
+        user.profile.save()
+    
+    return ownership
+
+
 def _get_random_string(char_count):    
     return ''.join(
         random.choice(string.ascii_uppercase + string.digits) 
@@ -107,4 +109,5 @@ def _get_random_string(char_count):
     )
 
 
-            
+def get_invalid_object_pk(MyModel) -> int:
+    return max(MyModel.objects.values_list('pk', flat=True)) + 1

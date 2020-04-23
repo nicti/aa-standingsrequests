@@ -6,7 +6,6 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from . import _set_logger
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,    
     CHARACTER_TYPE_ID, 
@@ -27,24 +26,24 @@ from .entity_type_ids import (
     CHARACTER_DRIFTER_TYPE_ID
 )
 from .my_test_data import (
-    create_contacts_from_test_data, get_entity_name, get_entity_names
+    create_contacts_set, get_entity_name, get_entity_names
 )
 from ..models import (
     AbstractStanding, 
     AllianceStanding,     
     CharacterAssociation,
-    ContactSet, 
-    ContactLabel, 
+    ContactSet,     
     CorpStanding, 
     EveNameCache,     
     PilotStanding,    
     StandingsRequest, 
     StandingsRevocation, 
 )
+from ..utils import set_test_logger
 
 
 MODULE_PATH = 'standingsrequests.models'
-logger = _set_logger(MODULE_PATH, __file__)
+logger = set_test_logger(MODULE_PATH, __file__)
 
 
 class TestContactSet(TestCase):
@@ -193,18 +192,17 @@ class TestAllianceStanding(TestCase):
 
 class TestStandingsRequest(TestCase):
 
-    def setUp(self):
-        ContactSet.objects.all().delete() 
-        my_set = ContactSet.objects.create(
-            name='Dummy Set'
-        )
-        create_contacts_from_test_data(my_set)
-        self.user_manager = User.objects.create_user(
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        ContactSet.objects.all().delete()         
+        create_contacts_set()
+        cls.user_manager = User.objects.create_user(
             'Mike Manager',
             'mm@example.com',
             'password'
         )
-        self.user_requestor = User.objects.create_user(
+        cls.user_requestor = User.objects.create_user(
             'Roger Requestor',
             'rr@example.com',
             'password'
@@ -860,8 +858,7 @@ class TestEveNameCache(TestCase):
         
     @patch(MODULE_PATH + '.EveEntityManager')
     def test_get_names_when_table_is_empty(self, mock_EveEntityManager):        
-        mock_EveEntityManager.get_names.side_effect = \
-            get_entity_names
+        mock_EveEntityManager.get_names.side_effect = get_entity_names
 
         entities = EveNameCache.get_names([1001, 1002])
         self.assertDictEqual(
@@ -878,8 +875,7 @@ class TestEveNameCache(TestCase):
 
     @patch(MODULE_PATH + '.EveEntityManager')
     def test_get_names_from_cache(self, mock_EveEntityManager):        
-        mock_EveEntityManager.get_names.side_effect = \
-            get_entity_names
+        mock_EveEntityManager.get_names.side_effect = get_entity_names
 
         EveNameCache.objects.create(
             entityID=1001,

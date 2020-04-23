@@ -1,5 +1,4 @@
 from django.db import models
-from django.conf import settings
 
 ##
 # QuerySet helpers for overriding StandingsRequest.objects.delete()

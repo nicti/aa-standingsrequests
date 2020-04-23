@@ -1,46 +1,42 @@
-
 import logging
-from allianceauth.eveonline.models import EveCorporationInfo, EveCharacter,\
-    EveAllianceInfo
-from esi.clients import esi_client_factory
-from allianceauth.eveonline.providers import ObjectNotFound
-from bravado.exception import HTTPNotFound, HTTPBadGateway, HTTPGatewayTimeout
-from allianceauth.authentication.models import CharacterOwnership
-from . import SWAGGER_SPEC_PATH
-from time import sleep
-from past.builtins import xrange
 
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import (
+    EveCorporationInfo, EveCharacter, EveAllianceInfo
+)
+from allianceauth.eveonline.providers import ObjectNotFound
+
+from bravado.exception import HTTPError
+
+from ..helpers.esi_fetch import esi_fetch
+from ..utils import chunks
 
 logger = logging.getLogger(__name__)
 
 
 class EveEntityManager:
-
-    def __init__(self):
-        pass
-
+    
     @staticmethod
     def get_name(eve_entity_id):
         name = EveEntityManager.get_name_from_auth(eve_entity_id)
         if name is None:
             name = EveEntityManager.get_name_from_api(eve_entity_id)
         if name is None:
-            logger.error('Could not get name for eve_entity_id %s',
-                         eve_entity_id)
+            logger.error(
+                'Could not get name for eve_entity_id %s', eve_entity_id
+            )
         return name
 
     @staticmethod
     def get_names(eve_entity_ids):
         """
         Get the names of the given entity ids from auth or if not there api
-        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: dict with entity_id as key and name as value
-        """
-        if not isinstance(eve_entity_ids, set):
-            eve_entity_ids = set(eve_entity_ids)
+        """        
         need_api = []
-        names_info = {}
-        for entity_id in eve_entity_ids:
+        names_info = dict()
+        for entity_id in set(eve_entity_ids):
             entity_id = int(entity_id)
             entity_name = EveEntityManager.get_name_from_auth(entity_id)
             if entity_name is None:
@@ -79,8 +75,8 @@ class EveEntityManager:
 
         # Try alliances
         try:
-            alli = EveAllianceInfo.objects.get(alliance_id=eve_entity_id)
-            return alli.alliance_name
+            alliance = EveAllianceInfo.objects.get(alliance_id=eve_entity_id)
+            return alliance.alliance_name
         except EveAllianceInfo.DoesNotExist:
             # not this one either
             pass
@@ -92,66 +88,43 @@ class EveEntityManager:
     def get_names_from_api(eve_entity_ids):
         """
         Get the names of the given entity ids from the EVE API servers
-        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: dict with entity_id as key and name as value
         """
-        # this is to make sure there is no duplicates
-        if not isinstance(eve_entity_ids, set):
-            eve_entity_ids = set(eve_entity_ids)
-        eve_entity_ids = list(eve_entity_ids)
+        # this is to make sure there are no duplicates        
+        eve_entity_ids = list(set(eve_entity_ids))
 
+        names_info = dict()
         chunk_size = 1000
-        length = len(eve_entity_ids)
-        chunks = [
-            eve_entity_ids[x:x+chunk_size] 
-            for x in xrange(0, length, chunk_size)
-        ]
-        logger.debug(
-            'Got %s chunks containing max %s each to process with a total of %s', 
-            len(chunks), 
-            chunk_size, 
-            length
-        )
-
-        names_info = {}
-        for chunk in chunks:
-            infos = EveEntityManager.__get_names_from_api(chunk)
+        for ids_chunk in chunks(eve_entity_ids, chunk_size):
+            infos = EveEntityManager.__get_names_from_api(ids_chunk)
             for info in infos:
                 names_info[info['id']] = info['name']
+        
         return names_info
 
     @staticmethod
-    def __get_names_from_api(eve_entity_ids, count=1):
+    def __get_names_from_api(eve_entity_ids):
         """
         Get the names of the given entity ids from the EVE API servers
-        :param eve_entity_ids: array of int entity ids whos names to fetch
+        :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: array of objects with keys id and name or None if unsuccessful
         """
         logger.debug(
-            "Attempting to get entity name from API for ids {0}".format(
-                eve_entity_ids
-        ))
-        client = esi_client_factory(spec_file=SWAGGER_SPEC_PATH)
+            "Attempting to get entity name from API for ids %s", eve_entity_ids
+        )
         try:
-            infos = client.Universe\
-                .post_universe_names(ids=eve_entity_ids).result()
+            infos = esi_fetch(
+                'Universe.post_universe_names', args={'ids': eve_entity_ids}
+            )
             return infos
         
-        except HTTPNotFound:
-            logger.error(
-                "Error occurred while trying to query api for entity id=%s", eve_entity_ids
+        except HTTPError:
+            logger.exception(
+                "Error occurred while trying to query api for entity id=%s",
+                eve_entity_ids
             )
             raise ObjectNotFound(eve_entity_ids, 'universe_entities')
-
-        except (HTTPBadGateway, HTTPGatewayTimeout):
-            if count >= 5:
-                logger.exception('Failed to get entity name %s times.', count)
-                return None
-
-            else:
-                sleep(count**2)
-                return EveEntityManager.__get_names_from_api(eve_entity_ids,
-                                                             count=count+1)
 
     @staticmethod
     def get_name_from_api(eve_entity_id):

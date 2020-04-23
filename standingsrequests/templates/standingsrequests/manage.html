@@ -1,17 +1,13 @@
-{% extends "allianceauth/base.html" %}
+{% extends "standingsrequests/base.html" %}
 {% load bootstrap %}
 {% load staticfiles %}
 {% load i18n %}
 
-{% block title %}Alliance Auth - Standings Tool {% endblock %}
-
-{% block page_title %}Request Standings{% endblock page_title %}
 {% block extra_css %}
-{% include "standingsrequests/bundles/angular.html" %}
+    {% include "standingsrequests/bundles/angular.html" %}
 {% endblock extra_css %}
 
-{% block content %}
-    {% include 'standingsrequests/partials/_menu.html' %}
+{% block page_content %}    
     <div ng-app="standingsApp" ng-controller="ManageStandingsController">
         <error-messages></error-messages>
         
@@ -22,7 +18,7 @@
                 
                 <div id="div_spinner_requests" class="row">                    
                     <div class="col-md-12">
-                        <img src="{% static "standingsrequests/Spinner-1s-64px.gif" %}" alt="Spinner"/>
+                        <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
                 </div>
 
@@ -36,8 +32,8 @@
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
                                 <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
-                                <th class="col-md-1" title="Reject and delete this standings request">{% trans "Reject" %}</th>
-                                <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
+                                <th class="col-md-1" title="{% trans 'Reject and delete this standings request' %}">{% trans "Reject" %}</th>
+                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Actioned" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
@@ -64,12 +60,12 @@
                                     {{contact.state}}
                                 </td>
                                 <td>
-                                    <span style="font-size:1.5em; cursor: pointer;" title="Reject" ng-click="rejectRequest(contact)">
+                                    <span style="font-size:1.5em; cursor: pointer;" title="{% trans 'Reject' %}" ng-click="rejectRequest(contact)">
                                         <i class="fa fa-thumbs-o-down" aria-hidden="true"></i>
                                     </span>
                                 </td>
                                 <td>
-                                    <span style="font-size:1.5em; color:#0006BA; cursor: pointer;" ng-click="actionRequest(contact)" title="Standing Set">
+                                    <span style="font-size:1.5em; color:#0006BA; cursor: pointer;" ng-click="actionRequest(contact)" title="{% trans 'Standing Set' %}">
                                         <i class="fa fa-thumbs-o-up" aria-hidden="true"></i>
                                     </span>
                                 </td>
@@ -95,7 +91,7 @@
 
                 <div id="div_spinner_revocations" class="row">                    
                     <div class="col-md-12">
-                        <img src="{% static "standingsrequests/Spinner-1s-64px.gif" %}" alt="Spinner"/>
+                        <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
                 </div>
 
@@ -109,9 +105,9 @@
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
                                 <th class="col-md-2">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
-                                <th class="col-md-1" title="Delete this standings request. Standing will become unmanaged">{% trans "Delete" %}</th>
-                                <th class="col-md-1" title="Undo this standings revocation and generate a new standings request">{% trans "Undo" %}</th>
-                                <th class="col-md-1" title="Standings change has been made in game">{% trans "Actioned" %}</th>
+                                <th class="col-md-1" title="{% trans 'Delete this standings request. Standing will become unmanaged' %}">{% trans "Delete" %}</th>
+                                <th class="col-md-1" title="{% trans 'Undo this standings revocation and generate a new standings request' %}">{% trans "Undo" %}</th>
+                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Actioned" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
@@ -167,7 +163,7 @@
             </div>
         </div>
     </div>
-{% endblock content %}
+{% endblock page_content %}
 
 {% block extra_javascript %}
     <script type="text/javascript">
