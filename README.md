@@ -37,11 +37,11 @@ Here are some example screenshots:
 
 ## Installation
 
-1. Activate your virtual environment and install this app with:`pip install git+https://gitlab.com/basraah/standingsrequests.git`
+1. Activate your virtual environment and install this app with: `pip install aa-standingsrequests`
 
 1. Add the scope `esi-alliances.read_contacts.v1` to your Eve Online app
 
-1. Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
+1. Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
 
 1. Run database migrations: `python manage.py migrate standingsrequests`
 

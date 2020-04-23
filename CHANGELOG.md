@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.4.0] - 2020-04-23
 
-### Import note
+### IMPORTANT UDPATE NOTE
 
 The Python package of the app has been renamed to "aa-standingsrequests". To avoid any naming conflicts please remove the previous version of the app from your venv before upgrading. You can remove the previous version with the following command:
 
