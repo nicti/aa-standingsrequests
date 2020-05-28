@@ -391,7 +391,7 @@ def view_pilots_standings_json(request):
                 'state': state,
                 'main_character_ticker': main.corporation_ticker if main else None,
                 'standing': p.standing,
-                'labels': [l.name for l in p.labels.all()]
+                'labels': [label.name for label in p.labels.all()]
             }
 
             try:
@@ -476,7 +476,7 @@ def download_pilot_standings(request):
             main_character_name,
             main.corporation_ticker if main else '',
             p.standing,
-            ', '.join([l.name for l in p.labels.all()])
+            ', '.join([label.name for label in p.labels.all()])
         ]
 
         writer.writerow([str(v) if v is not None else '' for v in pilot])
@@ -513,7 +513,7 @@ def view_groups_standings_json(request):
             'corporation_id': p.contactID,
             'corporation_name': p.name,
             'standing': p.standing,
-            'labels': [l.name for l in p.labels.all()]
+            'labels': [label.name for label in p.labels.all()]
         })
 
     alliances = list()
@@ -522,7 +522,7 @@ def view_groups_standings_json(request):
             'alliance_id': p.contactID,
             'alliance_name': p.name,
             'standing': p.standing,
-            'labels': [l.name for l in p.labels.all()]
+            'labels': [label.name for label in p.labels.all()]
         })
 
     return JsonResponse({'corps': corps, 'alliances': alliances}, safe=False)

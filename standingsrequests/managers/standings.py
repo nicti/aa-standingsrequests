@@ -69,10 +69,10 @@ class StandingsManager:
         :param labels: Label dictionary
         :return:
         """
-        for l in labels:
+        for label in labels:
             contact_label = ContactLabel(
-                labelID=l.id,
-                name=l.name,
+                labelID=label.id,
+                name=label.name,
                 set=contact_set
             )
             contact_label.save()
@@ -88,12 +88,12 @@ class StandingsManager:
         """
         for c in contacts:
             # Flatten labels so we can do a simple in comparison
-            flat_labels = [l.id for l in c.labels]
+            flat_labels = [label.id for label in c.labels]
             # Create a list of applicable django ContactLabel objects
             # Can be replaced in django 1.9 as .set() is available
             labels = [
-                l for l in contact_set.contactlabel_set.all() 
-                if l.labelID in flat_labels
+                label for label in contact_set.contactlabel_set.all() 
+                if label.labelID in flat_labels
             ]
             StandingFactory.create_standing(
                 contact_set=contact_set,
@@ -417,8 +417,8 @@ class StandingFactory:
             standing=standing,
         )
         standing.save()
-        for l in labels:
-            standing.labels.add(l)
+        for label in labels:
+            standing.labels.add(label)
         standing.save()
         return standing
 
@@ -508,7 +508,7 @@ class ContactsWrapper:
                 json['contact_type']
             )
             # list of labels
-            self.labels = [l for l in labels if l.id in self.label_ids]
+            self.labels = [label for label in labels if label.id in self.label_ids]
 
         def __str__(self):
             return u'{}'.format(self.name)

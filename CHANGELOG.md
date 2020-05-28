@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.4.1] - 2020-05-28
+
+### Changed
+
+- Updated dependency for django-esi to exclude 2.0
+- Added timeout to ESI requests
+
 ## [0.4.0] - 2020-04-23
 
-### IMPORTANT UDPATE NOTE
+### IMPORTANT UPDATE NOTE
 
 The Python package of the app has been renamed to "aa-standingsrequests". To avoid any naming conflicts please remove the previous version of the app from your venv before upgrading. You can remove the previous version with the following command:
 

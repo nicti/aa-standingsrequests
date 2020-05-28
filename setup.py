@@ -27,6 +27,7 @@ setup(
     install_requires=[
         'future>=0.16.0',
         'requests>=2.18.4',
+        'django-esi<2.0',
     ],
     zip_safe=False,
     include_package_data=True,
