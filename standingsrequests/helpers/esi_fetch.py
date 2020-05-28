@@ -19,13 +19,14 @@ from esi.clients import esi_client_factory
 from esi.models import Token
 
 from .. import __title__
-from ..utils import LoggerAddTag, get_swagger_spec_path
+from ..utils import LoggerAddTag
 
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 
 ESI_MAX_RETRIES = 3
 ESI_RETRY_SLEEP_SECS = 1
+ESI_API_TIMEOUT = 10
 
 _my_esi_client = None
 
@@ -176,7 +177,7 @@ def _esi_client() -> object:
 
     if not _my_esi_client:
         logger.info('Initializing esi client for esi_fetch....')
-        _my_esi_client = esi_client_factory(spec_file=get_swagger_spec_path())
+        _my_esi_client = esi_client_factory()
     
     return _my_esi_client
 
@@ -285,7 +286,7 @@ def _execute_esi_request(
             operation = getattr(esi_category, esi_method_name)(**args)
             if has_pages:
                 operation.also_return_response = True
-                response_object, response = operation.result()
+                response_object, response = operation.result(timeout=ESI_API_TIMEOUT)
                 if 'x-pages' in response.headers:
                     pages = int(response.headers['x-pages'])
                 else:
