@@ -2,7 +2,7 @@
 
 App for managing character standing requests, made for [Alliance Auth](https://gitlab.com/allianceauth/allianceauth).
 
-![release](https://img.shields.io/pypi/v/aa-standingsrequests?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-standingsrequests) ![django](https://img.shields.io/pypi/djversions/aa-standingsrequests?label=django) ![pipeline](https://gitlab.com/basraah/standingsrequests/badges/master/pipeline.svg) ![coverage](https://gitlab.com/basraah/standingsrequests/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-GPLv3-green)
+![release](https://img.shields.io/pypi/v/aa-standingsrequests?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-standingsrequests) ![django](https://img.shields.io/pypi/djversions/aa-standingsrequests?label=django) ![pipeline](https://gitlab.com/basraah/standingsrequests/badges/master/pipeline.svg) ![coverage](https://gitlab.com/basraah/standingsrequests/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-GPLv3-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
 ## Contents
 
