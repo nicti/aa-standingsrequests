@@ -6,6 +6,7 @@ class EveCharacterHelper:
     """
     Mimics Alliance Auths EveCharacter with internal standingstool data instead
     """
+
     # Not implemented
     corporation_ticker = None
     api_id = ""
@@ -26,7 +27,7 @@ class EveCharacterHelper:
 
             # Add a main character attribute (deviates from original model)
             if (
-                assoc.main_character_id is not None 
+                assoc.main_character_id is not None
                 and assoc.main_character_id != self.character_id
             ):
                 self.main_character = EveCharacterHelper(assoc.main_character_id)

@@ -2,7 +2,9 @@ import logging
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import (
-    EveCorporationInfo, EveCharacter, EveAllianceInfo
+    EveCorporationInfo,
+    EveCharacter,
+    EveAllianceInfo,
 )
 from allianceauth.eveonline.providers import ObjectNotFound
 
@@ -15,16 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 class EveEntityManager:
-    
     @staticmethod
     def get_name(eve_entity_id):
         name = EveEntityManager.get_name_from_auth(eve_entity_id)
         if name is None:
             name = EveEntityManager.get_name_from_api(eve_entity_id)
         if name is None:
-            logger.error(
-                'Could not get name for eve_entity_id %s', eve_entity_id
-            )
+            logger.error("Could not get name for eve_entity_id %s", eve_entity_id)
         return name
 
     @staticmethod
@@ -33,7 +32,7 @@ class EveEntityManager:
         Get the names of the given entity ids from auth or if not there api
         :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: dict with entity_id as key and name as value
-        """        
+        """
         need_api = []
         names_info = dict()
         for entity_id in set(eve_entity_ids):
@@ -91,7 +90,7 @@ class EveEntityManager:
         :param eve_entity_ids: array of int entity ids who's names to fetch
         :return: dict with entity_id as key and name as value
         """
-        # this is to make sure there are no duplicates        
+        # this is to make sure there are no duplicates
         eve_entity_ids = list(set(eve_entity_ids))
 
         names_info = dict()
@@ -99,8 +98,8 @@ class EveEntityManager:
         for ids_chunk in chunks(eve_entity_ids, chunk_size):
             infos = EveEntityManager.__get_names_from_api(ids_chunk)
             for info in infos:
-                names_info[info['id']] = info['name']
-        
+                names_info[info["id"]] = info["name"]
+
         return names_info
 
     @staticmethod
@@ -115,16 +114,16 @@ class EveEntityManager:
         )
         try:
             infos = esi_fetch(
-                'Universe.post_universe_names', args={'ids': eve_entity_ids}
+                "Universe.post_universe_names", args={"ids": eve_entity_ids}
             )
             return infos
-        
+
         except HTTPError:
             logger.exception(
                 "Error occurred while trying to query api for entity id=%s",
-                eve_entity_ids
+                eve_entity_ids,
             )
-            raise ObjectNotFound(eve_entity_ids, 'universe_entities')
+            raise ObjectNotFound(eve_entity_ids, "universe_entities")
 
     @staticmethod
     def get_name_from_api(eve_entity_id):
@@ -152,7 +151,7 @@ class EveEntityManager:
             try:
                 ownership = CharacterOwnership.objects.get(character=char)
                 return ownership.user
-                
+
             except CharacterOwnership.DoesNotExist:
                 return None
         else:
@@ -161,15 +160,16 @@ class EveEntityManager:
     @staticmethod
     def get_characters_by_user(user):
         return [
-            owner_ship.character 
+            owner_ship.character
             for owner_ship in CharacterOwnership.objects.filter(user=user)
         ]
 
     @staticmethod
     def is_character_owned_by_user(character_id, user):
         try:
-            CharacterOwnership.objects\
-                .get(user=user, character__character_id=character_id)
+            CharacterOwnership.objects.get(
+                user=user, character__character_id=character_id
+            )
 
             return True
         except CharacterOwnership.DoesNotExist:
@@ -178,8 +178,9 @@ class EveEntityManager:
     @staticmethod
     def get_state_of_character(char):
         try:
-            ownership = CharacterOwnership.objects\
-                .get(character__character_id=char.character_id)
+            ownership = CharacterOwnership.objects.get(
+                character__character_id=char.character_id
+            )
             return ownership.user.profile.state.name
 
         except CharacterOwnership.DoesNotExist:

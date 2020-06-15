@@ -11,16 +11,16 @@ logger = logging.getLogger(__name__)
 
 
 class EveCorporation:
-    CACHE_PREFIX = 'STANDINGS_REQUESTS_EVECORPORATION_'
+    CACHE_PREFIX = "STANDINGS_REQUESTS_EVECORPORATION_"
     CACHE_TIME = 60 * 30  # 30 minutes
 
     def __init__(self, **kwargs):
-        self.corporation_id = int(kwargs.get('corporation_id'))
-        self.corporation_name = kwargs.get('corporation_name')
-        self.ticker = kwargs.get('ticker')
-        self.member_count = kwargs.get('member_count')
-        self.ceo_id = kwargs.get('ceo_id')
-        self.alliance_id = kwargs.get('alliance_id')
+        self.corporation_id = int(kwargs.get("corporation_id"))
+        self.corporation_name = kwargs.get("corporation_name")
+        self.ticker = kwargs.get("ticker")
+        self.member_count = kwargs.get("member_count")
+        self.ceo_id = kwargs.get("ceo_id")
+        self.alliance_id = kwargs.get("alliance_id")
 
     def __str__(self):
         return self.corporation_name
@@ -55,21 +55,21 @@ class EveCorporation:
 
     @classmethod
     def get_corp_esi(cls, corp_id):
-        logger.debug("Attempting to get corp from esi with id %s", corp_id)        
+        logger.debug("Attempting to get corp from esi with id %s", corp_id)
         try:
             info = esi_fetch(
-                'Corporation.get_corporations_corporation_id',
-                args={'corporation_id': corp_id}
+                "Corporation.get_corporations_corporation_id",
+                args={"corporation_id": corp_id},
             )
             return cls(
                 corporation_id=corp_id,
-                corporation_name=info['name'],
-                ticker=info['ticker'],
-                member_count=info['member_count'],
-                ceo_id=info['ceo_id'],
-                alliance_id=info['alliance_id'] if 'alliance_id' in info else None
+                corporation_name=info["name"],
+                ticker=info["ticker"],
+                member_count=info["member_count"],
+                ceo_id=info["ceo_id"],
+                alliance_id=info["alliance_id"] if "alliance_id" in info else None,
             )
-        
+
         except HTTPError:
-            logger.exception('Failed to get corp from ESI with id %i', corp_id)
+            logger.exception("Failed to get corp from ESI with id %i", corp_id)
             return None

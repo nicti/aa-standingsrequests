@@ -25,38 +25,37 @@ def token_required_by_state(new=False):
     def decorator(view_func):
         @wraps(view_func, assigned=available_attrs(view_func))
         def _wrapped_view(request, *args, **kwargs):
-            scopes = ''
+            scopes = ""
             if request.user.profile.state is not None:
-                scopes = ' '.join(
+                scopes = " ".join(
                     StandingsManager.get_required_scopes_for_state(
-                        request.user.profile.state.name)
+                        request.user.profile.state.name
+                    )
                 )
 
             # if we're coming back from SSO for a new token, return it
             token = _check_callback(request)
             if token and new:
                 logger.debug(
-                    "Got new token from %s session %s. Returning to view.", 
-                    request.user, 
-                    request.session.session_key[:5]
+                    "Got new token from %s session %s. Returning to view.",
+                    request.user,
+                    request.session.session_key[:5],
                 )
                 return view_func(request, token, *args, **kwargs)
 
             # if we're selecting a token, return it
-            if request.method == 'POST':
+            if request.method == "POST":
                 if request.POST.get("_add", False):
                     logger.debug(
-                        "%s has selected to add new token. Redirecting to SSO.", 
-                        request.user
+                        "%s has selected to add new token. Redirecting to SSO.",
+                        request.user,
                     )
-                    # user has selected to add a new token                    
+                    # user has selected to add a new token
                     return sso_redirect(request, scopes=scopes)
 
-                token_pk = request.POST.get('_token', None)
+                token_pk = request.POST.get("_token", None)
                 if token_pk:
-                    logger.debug(
-                        "%s has selected token %d", request.user, token_pk
-                    )
+                    logger.debug("%s has selected token %d", request.user, token_pk)
                     try:
                         token = Token.objects.get(pk=token_pk)
                         # ensure token belongs to this user and has required scopes
@@ -64,9 +63,8 @@ def token_required_by_state(new=False):
                             (
                                 (token.user and token.user == request.user)
                                 or not token.user
-                            ) 
-                            and Token.objects
-                            .filter(pk=token_pk)
+                            )
+                            and Token.objects.filter(pk=token_pk)
                             .require_scopes(scopes)
                             .require_valid()
                             .exists()
@@ -81,30 +79,30 @@ def token_required_by_state(new=False):
 
             if not new:
                 # present the user with token choices
-                tokens = Token.objects\
-                    .filter(user__pk=request.user.pk)\
-                    .require_scopes(scopes)\
+                tokens = (
+                    Token.objects.filter(user__pk=request.user.pk)
+                    .require_scopes(scopes)
                     .require_valid()
+                )
                 if tokens.exists():
                     logger.debug(
-                        "Returning list of available tokens for %s.", 
-                        request.user
-                    )                    
+                        "Returning list of available tokens for %s.", request.user
+                    )
                     return select_token(request, scopes=scopes, new=new)
                 else:
                     logger.debug(
-                        "No tokens found for %s session %s with scopes %s", 
-                        request.user, 
-                        request.session.session_key[:5], 
-                        scopes
+                        "No tokens found for %s session %s with scopes %s",
+                        request.user,
+                        request.session.session_key[:5],
+                        scopes,
                     )
 
             # prompt the user to add a new token
             logger.debug(
-                "Redirecting %s session %s to SSO.", 
-                request.user, 
-                request.session.session_key[:5]
-            )            
+                "Redirecting %s session %s to SSO.",
+                request.user,
+                request.session.session_key[:5],
+            )
             return sso_redirect(request, scopes=scopes)
 
         return _wrapped_view

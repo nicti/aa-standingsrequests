@@ -8,13 +8,11 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('standingsrequests', '0001_initial'),
+        ("standingsrequests", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='contactlabel',
-            name='labelID',
-            field=models.BigIntegerField(),
+            model_name="contactlabel", name="labelID", field=models.BigIntegerField(),
         ),
     ]
