@@ -14,11 +14,12 @@ logger = logging.getLogger(__name__)
 
 class ContactSet(models.Model):
     class Meta:
-        get_latest_by = 'date'
+        get_latest_by = "date"
         permissions = (
             ("view", "User can view standings"),
-            ("download", "User can export standings to a CSV file")
+            ("download", "User can export standings to a CSV file"),
         )
+
     date = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=254)
 
@@ -66,9 +67,10 @@ class AbstractStanding(models.Model):
     CHARACTER_DRIFTER_TYPE_ID = 34574
     ALLIANCE_TYPE_ID = 16159
     CORPORATION_TYPE_ID = 2
-    
+
     class Meta:
         abstract = True
+
     set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     contactID = models.IntegerField()
     name = models.CharField(max_length=254)
@@ -117,7 +119,7 @@ class PilotStanding(AbstractStanding):
         return type_id in cls.contactTypes
 
 
-class CorpStanding(AbstractStanding):    
+class CorpStanding(AbstractStanding):
     contactTypes = [AbstractStanding.CORPORATION_TYPE_ID]
 
     @classmethod
@@ -133,9 +135,9 @@ class CorpStanding(AbstractStanding):
         return type_id in cls.contactTypes
 
 
-class AllianceStanding(AbstractStanding):        
+class AllianceStanding(AbstractStanding):
     contactTypes = [AbstractStanding.ALLIANCE_TYPE_ID]
- 
+
     @classmethod
     def get_contact_type(cls, contact_id):
         """
@@ -165,13 +167,13 @@ class AbstractStandingsRequest(models.Model):
     effectiveDate = models.DateTimeField(null=True)
 
     # Standing less than or equal
-    expectStandingLTEQ = 10.0 
-    
-    # Standing greater than or equal 
-    expectStandingGTEQ = -10.0  
+    expectStandingLTEQ = 10.0
+
+    # Standing greater than or equal
+    expectStandingGTEQ = -10.0
 
     # Hours to wait for a standing to be effective after being marked actioned
-    standingTimeoutHours = 24  
+    standingTimeoutHours = 24
 
     def check_standing_satisfied(self, check_only=False):
         """
@@ -182,15 +184,8 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contactID)
             latest = ContactSet.objects.latest()
-            contact = latest.get_standing_for_id(
-                self.contactID, 
-                self.contactType
-            )
-            if (
-                self.expectStandingGTEQ 
-                <= contact.standing 
-                <= self.expectStandingLTEQ
-            ):
+            contact = latest.get_standing_for_id(self.contactID, self.contactType)
+            if self.expectStandingGTEQ <= contact.standing <= self.expectStandingLTEQ:
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contactID)
                 if not check_only:
@@ -199,14 +194,12 @@ class AbstractStandingsRequest(models.Model):
 
         except exceptions.ObjectDoesNotExist:
             logger.debug(
-                "No standing set for %d, checking if neutral is OK", 
-                self.contactID
+                "No standing set for %d, checking if neutral is OK", self.contactID
             )
             if self.expectStandingLTEQ == 0:
                 # Standing satisfied but deleted (neutral)
                 logger.debug(
-                    "Standing satisfied but deleted (neutral) for %d",
-                    self.contactID
+                    "Standing satisfied but deleted (neutral) for %d", self.contactID
                 )
                 if not check_only:
                     self.mark_standing_effective()
@@ -265,12 +258,12 @@ class AbstractStandingsRequest(models.Model):
 
         # More than 24 hours after, reset
         if (
-            self.actionDate 
-            + datetime.timedelta(hours=self.standingTimeoutHours) < latest.date
+            self.actionDate + datetime.timedelta(hours=self.standingTimeoutHours)
+            < latest.date
         ):
             logger.debug(
                 "Standing actioned timed out, resetting actioned for contactID %d",
-                self.contactID
+                self.contactID,
             )
             actioner = self.actionBy
             self.actionBy = None
@@ -298,10 +291,11 @@ class AbstractStandingsRequest(models.Model):
         :param contact_id: int contactID to check the pending request for
         :return: bool True if a request is already pending, False otherwise
         """
-        pending = cls.objects\
-            .filter(contactID=contact_id)\
-            .filter(actionBy=None)\
+        pending = (
+            cls.objects.filter(contactID=contact_id)
+            .filter(actionBy=None)
             .filter(effective=False)
+        )
         return pending.exists()
 
     @classmethod
@@ -312,10 +306,11 @@ class AbstractStandingsRequest(models.Model):
         :param contact_id: int contactID to check the pending request for
         :return: bool True if a request is pending API confirmation, False otherwise
         """
-        pending = cls.objects\
-            .filter(contactID=contact_id)\
-            .exclude(actionBy=None)\
+        pending = (
+            cls.objects.filter(contactID=contact_id)
+            .exclude(actionBy=None)
             .filter(effective=False)
+        )
         return pending.exists()
 
 
@@ -357,7 +352,7 @@ class StandingsRequest(AbstractStandingsRequest):
             )
 
         super(AbstractStandingsRequest, self).delete(using, keep_parents)
-        
+
     @classmethod
     def add_request(cls, user, contact_id, contact_type):
         """
@@ -369,28 +364,18 @@ class StandingsRequest(AbstractStandingsRequest):
         """
         logger.debug(
             "Adding new standings request for user %s, contact %d type %s",
-            user, 
-            contact_id, 
-            contact_type
+            user,
+            contact_id,
+            contact_type,
         )
 
-        if (
-            cls.objects
-            .filter(contactID=contact_id, contactType=contact_type)
-            .exists()
-        ):
+        if cls.objects.filter(contactID=contact_id, contactType=contact_type).exists():
             logger.debug(
-                "Standings request already exists, "
-                "returning first existing request"
+                "Standings request already exists, " "returning first existing request"
             )
-            return cls.objects\
-                .filter(contactID=contact_id, contactType=contact_type)[0]
+            return cls.objects.filter(contactID=contact_id, contactType=contact_type)[0]
 
-        instance = cls(
-            user=user, 
-            contactID=contact_id, 
-            contactType=contact_type
-        )
+        instance = cls(user=user, contactID=contact_id, contactType=contact_type)
         instance.save()
         return instance
 
@@ -422,18 +407,15 @@ class StandingsRevocation(AbstractStandingsRequest):
         """
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
-            contact_id, 
-            contact_type
+            contact_id,
+            contact_type,
         )
-        pending = cls.objects\
-            .filter(contactID=contact_id)\
-            .filter(effective=False)
+        pending = cls.objects.filter(contactID=contact_id).filter(effective=False)
         if pending.exists():
             logger.debug(
-                "Cannot add revocation for contact %d %s, "
-                "pending revocation exists",
+                "Cannot add revocation for contact %d %s, " "pending revocation exists",
                 contact_id,
-                contact_type
+                contact_type,
             )
             return None
 
@@ -457,9 +439,7 @@ class StandingsRevocation(AbstractStandingsRequest):
             return False
 
         request = StandingsRequest.add_request(
-            owner, 
-            contact_id, 
-            revocations[0].contactType
+            owner, contact_id, revocations[0].contactType
         )
         revocations.delete()
         return request
@@ -470,6 +450,7 @@ class CharacterAssociation(models.Model):
     Alt Character Associations with declared mains
     Main characters are associated with themselves
     """
+
     character_id = models.IntegerField(primary_key=True)
     corporation_id = models.IntegerField(null=True)
     alliance_id = models.IntegerField(null=True)
@@ -483,7 +464,7 @@ class CharacterAssociation(models.Model):
         """
         Character name property for character_id
         :return: str character name
-        """                
+        """
         name = EveNameCache.get_name(self.character_id)
         return name
 
@@ -508,11 +489,10 @@ class CharacterAssociation(models.Model):
         :return: QuerySet of CharacterAssociation items 
         that have expired their API timer
         """
-        expired = cls.objects\
-            .filter(updated__lt=timezone.now() - cls.API_CACHE_TIMER)
+        expired = cls.objects.filter(updated__lt=timezone.now() - cls.API_CACHE_TIMER)
         if items_in is not None:
             expired = expired.filter(character_id__in=items_in)
-        
+
         return expired
 
 
@@ -522,6 +502,7 @@ class EveNameCache(models.Model):
 
     Keeping our own cache because allianceauth deletes characters with no API key
     """
+
     entityID = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=254)
     updated = models.DateTimeField(auto_now_add=True)
@@ -551,8 +532,9 @@ class EveNameCache(models.Model):
             else:
                 entity_ids_not_found.append(entity_id)
 
-        entities_need_names = \
-            [e.entityID for e in entities_need_update] + entity_ids_not_found
+        entities_need_names = [
+            e.entityID for e in entities_need_update
+        ] + entity_ids_not_found
 
         names_info_api = EveEntityManager.get_names(entities_need_names)
 
@@ -593,7 +575,7 @@ class EveNameCache(models.Model):
             entity = cls()
             entity.entityID = entity_id
             entity._update_entity()
-            # If the name is updated it will be saved, 
+            # If the name is updated it will be saved,
             # otherwise this object will be discarded
             # when it goes out of scope
         return entity.name or None
@@ -621,27 +603,15 @@ class EveNameCache(models.Model):
         contact = None
         try:
             contacts = ContactSet.objects.latest()
-            if (
-                contacts.pilotstanding_set
-                .filter(contactID=self.entityID).exists()
-            ):
-                contact = \
-                    contacts.pilotstanding_set.get(contactID=self.entityID)
-            
-            elif (
-                contacts.corpstanding_set
-                .filter(contactID=self.entityID).exists()
-            ):
-                contact = \
-                    contacts.corpstanding_set.get(contactID=self.entityID)
-            
-            elif (
-                contacts.alliancestanding_set
-                .filter(contactID=self.entityID).exists()
-            ):
-                contact = \
-                    contacts.alliancestanding_set.get(contactID=self.entityID)
-        
+            if contacts.pilotstanding_set.filter(contactID=self.entityID).exists():
+                contact = contacts.pilotstanding_set.get(contactID=self.entityID)
+
+            elif contacts.corpstanding_set.filter(contactID=self.entityID).exists():
+                contact = contacts.corpstanding_set.get(contactID=self.entityID)
+
+            elif contacts.alliancestanding_set.filter(contactID=self.entityID).exists():
+                contact = contacts.alliancestanding_set.get(contactID=self.entityID)
+
         except ContactSet.DoesNotExist:
             pass
 
@@ -695,8 +665,6 @@ class EveNameCache(models.Model):
 
     @classmethod
     def update_name(cls, entity_id, name):
-        cls.objects.update_or_create(entityID=entity_id,
-                                     defaults={
-                                         'name': name,
-                                         'updated': timezone.now(),
-                                     })
+        cls.objects.update_or_create(
+            entityID=entity_id, defaults={"name": name, "updated": timezone.now(),}
+        )
