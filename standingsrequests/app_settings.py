@@ -20,7 +20,6 @@ SR_REQUIRED_SCOPES = getattr(
 # switch to enable/disable ability to request standings for corporations
 SR_CORPORATIONS_ENABLED = clean_setting("SR_CORPORATIONS_ENABLED", True)
 
-
 # Standing data will be considered stale and removed from the local
 # database after the configured hours.
 # The latest standings data will never be purged, no matter how old it is
@@ -29,3 +28,6 @@ SR_STANDINGS_STALE_HOURS = clean_setting("SR_STANDINGS_STALE_HOURS", 48)
 # Standings revocations will be considered stale and removed
 # from the local database after the configured days
 SR_REVOCATIONS_STALE_DAYS = clean_setting("SR_REVOCATIONS_STALE_DAYS", 7)
+
+# whether ESI requests have a timeout
+SR_ESI_TIMEOUT_ENABLED = clean_setting("SR_ESI_TIMEOUT_ENABLED", True)
