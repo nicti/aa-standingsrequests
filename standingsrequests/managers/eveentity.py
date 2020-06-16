@@ -1,5 +1,3 @@
-import logging
-
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import (
     EveCorporationInfo,
@@ -7,13 +5,15 @@ from allianceauth.eveonline.models import (
     EveAllianceInfo,
 )
 from allianceauth.eveonline.providers import ObjectNotFound
+from allianceauth.services.hooks import get_extension_logger
 
 from bravado.exception import HTTPError
 
+from .. import __title__
 from ..helpers.esi_fetch import esi_fetch
-from ..utils import chunks
+from ..utils import chunks, LoggerAddTag
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class EveEntityManager:

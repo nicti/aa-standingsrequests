@@ -1,5 +1,3 @@
-import logging
-
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
@@ -8,9 +6,11 @@ from django.utils.translation import gettext_lazy as _
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.services.hooks import get_extension_logger
 
 from esi.models import Token
 
+from .. import __title__
 from ..app_settings import (
     STANDINGS_API_CHARID,
     STR_CORP_IDS,
@@ -29,9 +29,9 @@ from ..models import (
 )
 from ..models import StandingsRequest, StandingsRevocation
 from ..models import CharacterAssociation, EveNameCache
-from ..utils import chunks
+from ..utils import chunks, LoggerAddTag
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class StandingsManager:

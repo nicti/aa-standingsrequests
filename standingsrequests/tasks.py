@@ -1,4 +1,3 @@
-import logging
 import datetime
 
 from celery import shared_task, chain
@@ -8,6 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from allianceauth.notifications import notify
+from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_REVOCATIONS_STALE_DAYS
@@ -17,7 +17,7 @@ from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
 from .utils import LoggerAddTag
 
 
-logger = LoggerAddTag(logging.getLogger(__name__), __title__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @shared_task(name="standings_requests.update_all")

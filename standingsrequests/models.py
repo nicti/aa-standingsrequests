@@ -1,4 +1,3 @@
-import logging
 import datetime
 
 from django.core import exceptions
@@ -7,12 +6,15 @@ from django.db import models
 from django.utils import timezone
 
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.services.hooks import get_extension_logger
 
+from . import __title__
 from .app_settings import SR_OPERATION_MODE, STANDINGS_API_CHARID
 from .helpers import StandingsRequestManager
 from .managers.eveentity import EveEntityManager
+from .utils import LoggerAddTag
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ContactSet(models.Model):

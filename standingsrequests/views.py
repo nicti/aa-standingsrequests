@@ -1,5 +1,3 @@
-import logging
-
 from django.http import Http404, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
@@ -12,6 +10,7 @@ from django.db.models import Q
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.services.hooks import get_extension_logger
 
 from esi.decorators import token_required
 
@@ -25,15 +24,21 @@ from .app_settings import (
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
-from .models import ContactSet, StandingsRequest, StandingsRevocation
-from .models import PilotStanding, CorpStanding, EveNameCache
-from .models import CharacterAssociation
-from .managers.standings import StandingsManager
+from .models import (
+    CharacterAssociation,
+    ContactSet,
+    CorpStanding,
+    EveNameCache,
+    PilotStanding,
+    StandingsRequest,
+    StandingsRevocation,
+)
 from .managers.eveentity import EveEntityManager
+from .managers.standings import StandingsManager
 from .tasks import update_all
-from .utils import messages_plus
+from .utils import messages_plus, LoggerAddTag
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @login_required

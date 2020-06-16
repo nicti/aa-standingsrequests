@@ -1,13 +1,15 @@
-from __future__ import unicode_literals
-
-import logging
-
-from django.core.cache import cache
 from bravado.exception import HTTPError
 
-from ..helpers.esi_fetch import esi_fetch
+from django.core.cache import cache
 
-logger = logging.getLogger(__name__)
+from allianceauth.services.hooks import get_extension_logger
+
+from .. import __title__
+from ..helpers.esi_fetch import esi_fetch
+from ..utils import LoggerAddTag
+
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class EveCorporation:

@@ -1,12 +1,6 @@
 import csv
 import codecs
-
-try:
-    # Py2
-    from cStringIO.StringIO import StringIO
-except ImportError:
-    # Py3
-    from io import StringIO
+from io import StringIO
 
 
 class UnicodeWriter:

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Icons upgraded to Font Awesome v5
+- Logging directed to extensions logger
 
 ## [0.4.1] - 2020-05-28
 
