@@ -3,7 +3,11 @@ import datetime
 
 from celery import shared_task, chain
 
+from django.contrib.auth.models import User
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+
+from allianceauth.notifications import notify
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_REVOCATIONS_STALE_DAYS
@@ -12,14 +16,51 @@ from .models import ContactSet, StandingsRevocation
 from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
 from .utils import LoggerAddTag
 
+
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
+
+
+@shared_task(name="standings_requests.update_all")
+def update_all(user_pk: int = None):
+    """Updates standings and names cache"""
+    my_chain = chain(
+        [
+            standings_update.si(),
+            update_associations_auth.si(),
+            update_associations_api.si(),
+            report_result_to_user.si(user_pk),
+        ]
+    )
+    my_chain.delay()
+
+
+@shared_task(name="standings_requests.report_result_to_user")
+def report_result_to_user(user_pk: int = None):
+    if user_pk:
+        try:
+            user = User.objects.get(pk=user_pk)
+        except User.DoesNotExit:
+            logger.warning("Can not find a user with pk %d", user_pk)
+            return
+        else:
+            source_entity = ContactSet.standings_source_entity()
+            notify(
+                user,
+                _("%s: Standings loaded" % __title__),
+                _(
+                    "Standings have been successfully loaded for %s"
+                    % source_entity.name
+                ),
+                level="success",
+            )
 
 
 @shared_task(name="standings_requests.standings_update")
 def standings_update():
+    """Updates standings from ESI"""
     logger.info("Standings API update started")
     try:
-        st = StandingsManager.api_update_alliance_standings()
+        st = StandingsManager.api_update_standings()
         if st is None:
             logger.warn(
                 "Standings API update returned None (API error probably),"
@@ -41,9 +82,7 @@ def validate_standings_requests():
 
 @shared_task(name="standings_requests.update_associations_auth")
 def update_associations_auth():
-    """
-    Update associations from local auth data (Main character, corporations)
-    """
+    """Update associations from local auth data (Main character, corporations)"""
     logger.info("Associations updating from Auth")
     StandingsManager.update_character_associations_auth()
     logger.info("Finished Associations update from Auth")
@@ -51,9 +90,7 @@ def update_associations_auth():
 
 @shared_task(name="standings_requests.update_associations_api")
 def update_associations_api():
-    """
-    Update character associations from the EVE API (corporations)
-    """
+    """Update character associations from the EVE API (corporations)"""
     logger.info("Associations updating from EVE API")
     StandingsManager.update_character_associations_api()
     logger.info("Finished associations update from EVE API")
@@ -61,8 +98,7 @@ def update_associations_api():
 
 @shared_task(name="standings_requests.purge_stale_data")
 def purge_stale_data():
-    """
-    Delete all the data which is beyond its useful life. 
+    """Delete all the data which is beyond its useful life. 
     There is no harm in disabling this if you wish to keep everything.
     """
     my_chain = chain([purge_stale_standings_data.si(), purge_stale_revocations.si(),])

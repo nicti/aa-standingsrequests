@@ -16,10 +16,10 @@ from ..app_settings import (
     STR_CORP_IDS,
     STR_ALLIANCE_IDS,
     SR_REQUIRED_SCOPES,
+    SR_OPERATION_MODE,
 )
 from ..helpers.esi_fetch import esi_fetch
 from ..helpers.evecorporation import EveCorporation
-from ..managers import REQUIRED_TOKENS
 from ..models import (
     ContactSet,
     ContactLabel,
@@ -42,20 +42,19 @@ class StandingsManager:
         """returns a valid token with required scopes"""
         return (
             Token.objects.filter(character_id=cls.charID)
-            .require_scopes(REQUIRED_TOKENS)
+            .require_scopes(ContactSet.required_esi_scope())
             .require_valid()
             .first()
         )
 
     @classmethod
     @transaction.atomic
-    def api_update_alliance_standings(cls):
-        """fetches alliance constacts with standings from ESI 
-        and stores them as new ContactSet
+    def api_update_standings(cls):
+        """fetches contacts with standings for configured alliance 
+        or corporation from ESI and stores them as new ContactSet
         """
         try:
             contacts = ContactsWrapper(cls.token(), cls.charID)
-
         except Exception:
             logger.exception("APIError occurred while trying to query api server.")
             return
@@ -452,23 +451,7 @@ class StandingFactory:
 
 
 class ContactsWrapper:
-    """
-    XML API Wrapper for /char/ContactList
-    Basically replicates evelinks behavior while including contactTypeID
-    """
-
-    # These need to match the XML name on the left self attributes on the right
-    CONTACTS_MAP = {
-        "contactList": "personal",
-        "corporateContactList": "corp",
-        "allianceContactList": "alliance",
-    }
-
-    LABEL_MAP = {
-        "contactLabels": "personalLabels",
-        "corporateContactLabels": "corpLabels",
-        "allianceContactLabels": "allianceLabels",
-    }
+    """Converts raw contacts and contact labels data from ESI into an object"""
 
     class Label:
         def __init__(self, json):
@@ -539,21 +522,45 @@ class ContactsWrapper:
         self.alliance = []
         self.allianceLabels = []
 
-        alliance_id = EveCharacter.objects.get_character_by_id(character_id).alliance_id
-        labels = esi_fetch(
-            "Contacts.get_alliances_alliance_id_contacts_labels",
-            args={"alliance_id": alliance_id},
-            token=token,
-        )
-        for label in labels:
-            self.allianceLabels.append(self.Label(label))
+        if SR_OPERATION_MODE == "alliance":
+            alliance_id = EveCharacter.objects.get_character_by_id(
+                character_id
+            ).alliance_id
+            labels = esi_fetch(
+                "Contacts.get_alliances_alliance_id_contacts_labels",
+                args={"alliance_id": alliance_id},
+                token=token,
+            )
+            for label in labels:
+                self.allianceLabels.append(self.Label(label))
 
-        contacts = esi_fetch(
-            "Contacts.get_alliances_alliance_id_contacts",
-            args={"alliance_id": alliance_id},
-            token=token,
-            has_pages=True,
-        )
+            contacts = esi_fetch(
+                "Contacts.get_alliances_alliance_id_contacts",
+                args={"alliance_id": alliance_id},
+                token=token,
+                has_pages=True,
+            )
+        elif SR_OPERATION_MODE == "corporation":
+            corporation_id = EveCharacter.objects.get_character_by_id(
+                character_id
+            ).corporation_id
+            labels = esi_fetch(
+                "Contacts.get_corporations_corporation_id_contacts_labels",
+                args={"corporation_id": corporation_id},
+                token=token,
+            )
+            for label in labels:
+                self.allianceLabels.append(self.Label(label))
+
+            contacts = esi_fetch(
+                "Contacts.get_corporations_corporation_id_contacts",
+                args={"corporation_id": corporation_id},
+                token=token,
+                has_pages=True,
+            )
+        else:
+            raise NotImplementedError()
+
         logger.debug("Got %d contacts in total", len(contacts))
         entity_ids = []
         for contact in contacts:

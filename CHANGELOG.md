@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.5.0] - 2020-06-16
+
+### Added
+
+- Ability to also use corporations as standings source
+- First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
+
 ## [0.4.1] - 2020-05-28
 
 ### Changed

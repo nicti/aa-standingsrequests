@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
+from allianceauth.eveonline.models import EveCharacter
+
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_TYPE_ID,
@@ -37,14 +39,17 @@ from ..models import (
     StandingsRequest,
     StandingsRevocation,
 )
-from ..utils import set_test_logger
+from ..utils import set_test_logger, NoSocketsTestCase
 
 
 MODULE_PATH = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
 
+TEST_STANDINGS_API_CHARID = 1001
+TEST_STANDINGS_API_CHARNAME = "Peter Parker"
 
-class TestContactSet(TestCase):
+
+class TestContactSet(NoSocketsTestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
 
@@ -98,6 +103,35 @@ class TestContactSet(TestCase):
         )
         with self.assertRaises(ObjectDoesNotExist):
             my_set.get_standing_for_id(9999, 99)
+
+    @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    def test_standings_character_exists(self):
+        character, _ = EveCharacter.objects.get_or_create(
+            character_id=TEST_STANDINGS_API_CHARID,
+            defaults={
+                "character_name": TEST_STANDINGS_API_CHARNAME,
+                "corporation_id": 2099,
+                "corporation_name": "Dummy Corp",
+            },
+        )
+        self.assertEqual(ContactSet.standings_character(), character)
+
+    @patch(MODULE_PATH + ".STANDINGS_API_CHARID", 1002)
+    @patch(MODULE_PATH + ".EveCharacter.objects.create_character")
+    def test_standings_character_not_exists(self, mock_create_character):
+        character, _ = EveCharacter.objects.get_or_create(
+            character_id=TEST_STANDINGS_API_CHARID,
+            defaults={
+                "character_name": TEST_STANDINGS_API_CHARNAME,
+                "corporation_id": 2099,
+                "corporation_name": "Dummy Corp",
+            },
+        )
+        mock_create_character.return_value = character
+        self.assertEqual(ContactSet.standings_character(), character)
+        self.assertTrue(
+            EveNameCache.objects.filter(entityID=TEST_STANDINGS_API_CHARID).exists()
+        )
 
 
 class TestAbstractStanding(TestCase):

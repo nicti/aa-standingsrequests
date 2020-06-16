@@ -37,7 +37,11 @@
              <ul class="nav navbar-nav navbar-right"> 
                 {% if perms.standingsrequests.affect_standings %}
                     <a class="btn btn-default navbar-btn" href="{% url 'standingsrequests:view_auth_page' %}">
-                        {% trans "Setup Alliance Token" %}
+                        {% if operation_mode == "corporation" %}
+                            {% trans "Setup Corporation Token" %}                            
+                        {% else %}
+                            {% trans "Setup Alliance Token" %}
+                        {% endif %}
                     </a>
                 {% endif %}                
             </ul>

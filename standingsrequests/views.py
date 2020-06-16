@@ -2,11 +2,11 @@ import logging
 
 from django.http import Http404, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
@@ -17,7 +17,11 @@ from esi.decorators import token_required
 
 from . import __title__
 from .decorators import token_required_by_state
-from .app_settings import STANDINGS_API_CHARID, SR_CORPORATIONS_ENABLED
+from .app_settings import (
+    STANDINGS_API_CHARID,
+    SR_CORPORATIONS_ENABLED,
+    SR_OPERATION_MODE,
+)
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
@@ -26,6 +30,7 @@ from .models import PilotStanding, CorpStanding, EveNameCache
 from .models import CharacterAssociation
 from .managers.standings import StandingsManager
 from .managers.eveentity import EveEntityManager
+from .tasks import update_all
 from .utils import messages_plus
 
 logger = logging.getLogger(__name__)
@@ -35,7 +40,11 @@ logger = logging.getLogger(__name__)
 @permission_required("standingsrequests.request_standings")
 def index_view(request):
     logger.debug("Start index_view request")
-    context = {"app_title": __title__, "corporations_enabled": SR_CORPORATIONS_ENABLED}
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "corporations_enabled": SR_CORPORATIONS_ENABLED,
+    }
     return render(request, "standingsrequests/index.html", context)
 
 
@@ -47,7 +56,11 @@ def partial_request_entities(request):
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
-        return render(request, "standingsrequests/error.html", {"app_title": __title__})
+        return render(
+            request,
+            "standingsrequests/error.html",
+            {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
+        )
 
     characters = EveEntityManager.get_characters_by_user(request.user)
     char_ids = [c.character_id for c in characters]
@@ -140,6 +153,7 @@ def partial_request_entities(request):
         "app_title": __title__,
         "characters": char_standings_data,
         "corps": corp_standings_data,
+        "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
@@ -313,7 +327,11 @@ def view_pilots_standings(request):
     return render(
         request,
         "standingsrequests/view_pilots.html",
-        {"lastUpdate": last_update, "app_title": __title__},
+        {
+            "lastUpdate": last_update,
+            "app_title": __title__,
+            "operation_mode": SR_OPERATION_MODE,
+        },
     )
 
 
@@ -476,7 +494,11 @@ def view_groups_standings(request):
     return render(
         request,
         "standingsrequests/view_groups.html",
-        {"lastUpdate": last_update, "app_title": __title__},
+        {
+            "lastUpdate": last_update,
+            "app_title": __title__,
+            "operation_mode": SR_OPERATION_MODE,
+        },
     )
 
 
@@ -523,7 +545,11 @@ def view_groups_standings_json(request):
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
     logger.debug("manage_standings called by %s", request.user)
-    return render(request, "standingsrequests/manage.html", {"app_title": __title__})
+    return render(
+        request,
+        "standingsrequests/manage.html",
+        {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
+    )
 
 
 @login_required
@@ -785,7 +811,11 @@ def manage_revocations_undo(request, contact_id):
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def view_active_requests(request):
-    return render(request, "standingsrequests/requests.html", {"app_title": __title__})
+    return render(
+        request,
+        "standingsrequests/requests.html",
+        {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
+    )
 
 
 @login_required
@@ -869,20 +899,41 @@ def view_active_requests_json(request):
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-@token_required(new=False, scopes="esi-alliances.read_contacts.v1")
+@token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
+    source_entity = ContactSet.standings_source_entity()
     char_name = EveNameCache.get_name(STANDINGS_API_CHARID)
-    if token.character_id == STANDINGS_API_CHARID:
+    if not source_entity:
+        messages_plus.error(
+            request,
+            format_html(
+                _(
+                    "The configured character <strong>%s</strong> does not belong "
+                    "to an alliance and can therefore not be used "
+                    "to setup alliance standings. "
+                    "Please configure a character that has an alliance."
+                )
+                % char_name,
+            ),
+        )
+    elif token.character_id == STANDINGS_API_CHARID:
+        update_all.delay(user_pk=request.user.pk)
         messages_plus.success(
             request,
-            _("Successfully setup alliance token for configured character %s")
-            % char_name,
+            format_html(
+                _(
+                    "Token for character <strong>%s</strong> has been setup "
+                    "successfully and the app has started pulling standings "
+                    "from <strong>%s</strong>."
+                )
+                % (char_name, source_entity.name),
+            ),
         )
     else:
         messages_plus.error(
             request,
             _(
-                "Failed to setup alliance token for configured character "
+                "Failed to setup token for configured character "
                 "%(char_name)s (id:%(standings_api_char_id)s). "
                 "Instead got token for different character: "
                 "%(token_char_name)s (id:%(token_char_id)s)"

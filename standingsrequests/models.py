@@ -6,6 +6,9 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from allianceauth.eveonline.models import EveCharacter
+
+from .app_settings import SR_OPERATION_MODE, STANDINGS_API_CHARID
 from .helpers import StandingsRequestManager
 from .managers.eveentity import EveEntityManager
 
@@ -13,15 +16,19 @@ logger = logging.getLogger(__name__)
 
 
 class ContactSet(models.Model):
+    """Set of contacts from configured alliance or corporation 
+    which defines its current standings
+    """
+
+    date = models.DateTimeField(auto_now_add=True)
+    name = models.CharField(max_length=254)
+
     class Meta:
         get_latest_by = "date"
         permissions = (
             ("view", "User can view standings"),
             ("download", "User can export standings to a CSV file"),
         )
-
-    date = models.DateTimeField(auto_now_add=True)
-    name = models.CharField(max_length=254)
 
     def __str__(self):
         return str(self.date)
@@ -42,14 +49,67 @@ class ContactSet(models.Model):
             return self.alliancestanding_set.get(contactID=contact_id)
         raise exceptions.ObjectDoesNotExist()
 
+    @staticmethod
+    def required_esi_scope() -> str:
+        """returns the required ESI scopes for syncing"""
+        if SR_OPERATION_MODE == "alliance":
+            return "esi-alliances.read_contacts.v1"
+        elif SR_OPERATION_MODE == "corporation":
+            return "esi-corporations.read_contacts.v1"
+        else:
+            raise NotImplementedError()
+
+    @staticmethod
+    def standings_character() -> EveCharacter:
+        """returns the configured standings character"""
+        try:
+            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
+        except EveCharacter.DoesNotExist:
+            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
+            EveNameCache.objects.get_or_create(
+                entityID=character.character_id,
+                defaults={"name": character.character_name},
+            )
+
+        return character
+
+    @classmethod
+    def standings_source_entity(cls) -> object:
+        """returns the entity that all standings are fetched from
+        
+        returns None when in alliance mode, but character has no alliance
+        """
+        character = cls.standings_character()
+        if SR_OPERATION_MODE == "alliance":
+            if character.alliance_id:
+                entity, _ = EveNameCache.objects.get_or_create(
+                    entityID=character.alliance_id,
+                    defaults={"name": character.alliance_name},
+                )
+            else:
+                entity = None
+        elif SR_OPERATION_MODE == "corporation":
+            entity, _ = EveNameCache.objects.get_or_create(
+                entityID=character.corporation_id,
+                defaults={"name": character.corporation_name},
+            )
+        else:
+            raise NotImplementedError()
+
+        return entity
+
 
 class ContactLabel(models.Model):
+    """A contact label"""
+
     labelID = models.BigIntegerField()
     set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     name = models.CharField(max_length=254)
 
 
 class AbstractStanding(models.Model):
+    """Base class for a standing"""
+
     CHARACTER_AMARR_TYPE_ID = 1373
     CHARACTER_NI_KUNNI_TYPE_ID = 1374
     CHARACTER_CIVRE_TYPE_ID = 1375
@@ -152,19 +212,7 @@ class AllianceStanding(AbstractStanding):
 
 
 class AbstractStandingsRequest(models.Model):
-    class Meta:
-        permissions = (
-            ("affect_standings", "User can process standings requests."),
-            ("request_standings", "User can request standings."),
-        )
-
-    contactID = models.IntegerField()
-    contactType = models.IntegerField()
-    requestDate = models.DateTimeField(auto_now_add=True)
-    actionBy = models.ForeignKey(User, null=True, on_delete=models.DO_NOTHING)
-    actionDate = models.DateTimeField(null=True)
-    effective = models.BooleanField(default=False)
-    effectiveDate = models.DateTimeField(null=True)
+    """Base class for a standing request"""
 
     # Standing less than or equal
     expectStandingLTEQ = 10.0
@@ -174,6 +222,20 @@ class AbstractStandingsRequest(models.Model):
 
     # Hours to wait for a standing to be effective after being marked actioned
     standingTimeoutHours = 24
+
+    contactID = models.IntegerField()
+    contactType = models.IntegerField()
+    requestDate = models.DateTimeField(auto_now_add=True)
+    actionBy = models.ForeignKey(User, null=True, on_delete=models.DO_NOTHING)
+    actionDate = models.DateTimeField(null=True)
+    effective = models.BooleanField(default=False)
+    effectiveDate = models.DateTimeField(null=True)
+
+    class Meta:
+        permissions = (
+            ("affect_standings", "User can process standings requests."),
+            ("request_standings", "User can request standings."),
+        )
 
     def check_standing_satisfied(self, check_only=False):
         """
@@ -315,6 +377,8 @@ class AbstractStandingsRequest(models.Model):
 
 
 class StandingsRequest(AbstractStandingsRequest):
+    """A standing request"""
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     expectStandingGTEQ = 0.01
 
@@ -395,6 +459,8 @@ class StandingsRequest(AbstractStandingsRequest):
 
 
 class StandingsRevocation(AbstractStandingsRequest):
+    """A standing revocation"""
+
     expectStandingLTEQ = 0.0
 
     @classmethod

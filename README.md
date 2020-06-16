@@ -17,10 +17,11 @@ App for managing character standing requests, made for [Alliance Auth](https://g
 
 ## Features
 
-- User can requests alliance standings for their characters
+- User can requests standings for their characters
 - Standing managers can approve / deny standings requests from users
 - Automatic verification that approved / revoked standings are added / removed in-game
-- When user leaves alliance app will automatically identify and suggest required standing revocations
+- When user leaves the group, the app will automatically suggest required standing revocations
+- Alliance or corporation can be defined as master for standings
 - Tool for researching all current alliance standing incl. link to their owners
 
 ## Screenshots
@@ -37,31 +38,50 @@ Here are some example screenshots:
 
 ## Installation
 
-1. Activate your virtual environment and install this app with: `pip install aa-standingsrequests`
+### Step 1: Update Eve Online scopes
 
-1. Add the scope `esi-alliances.read_contacts.v1` to your Eve Online app
+Add the following scopes to the Eve Online app used by Auth on [developers.eveonline.com](https://developers.eveonline.com/):
 
-1. Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
+```plain
+esi-alliances.read_contacts.v1
+esi-corporations.read_contacts.v1
+```
 
-1. Run database migrations: `python manage.py migrate standingsrequests`
+### Step 2: Python installation
 
-1. Copy static files to your webserver: `python manage.py collectstatic`
+Activate your virtual environment and install this app with:
 
-1. Restart Django and Celery.
+```bash
+pip install aa-standingsrequests
+```
 
-1. Open the standingsrequests app in Alliance Auth and add your alliance token
+### Step 2: Django Installation
 
-1. Do the initial pull of standings data: `celery -A myauth call standings_requests.standings_update`
+Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
 
-1. When that's completed, pull all the name data available locally: `celery -A myauth call standings_requests.update_associations_auth`
+The most important part of the settings is `STANDINGS_API_CHARID`, which need to be the Eve Online ID of the character that will be used to sync standings with your alliance or corporation.
 
-1. When *that's* completed, pull the rest of the data from API: `celery -A myauth call standings_requests.update_associations_api`
+Run database migrations:
 
-1. Add permissions to groups where required.
+```bash
+python manage.py migrate standingsrequests
+```
+
+Copy static files to your webserver:
+
+```bash
+python manage.py collectstatic
+```
+
+Finally restart Django and Celery.
+
+### Step 3: Setup app within Auth
+
+Open the standingsrequests app in Alliance Auth and add the token for the configured standings character. This will initiate the first pull of standings. You will get a notification once the standings pull is completed (Usually within a few minutes).
+
+Last, but not least make sure to add [permissions](#permissions) to groups / states as required to make the new app available to users.
 
 That's it, you should be ready to roll.
-
-**Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has `manage.py`).
 
 ## Settings Example
 
@@ -116,8 +136,9 @@ Name | Description | Default
 `STR_CORP_IDS` | id of standing corporations (Mandatory, can be []) | N/A
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | N/A
 `SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations |True
-`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is |48
+`SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
 `SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | 7
+`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is |48
 
 ## Permissions
 

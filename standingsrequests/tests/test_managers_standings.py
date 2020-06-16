@@ -79,7 +79,7 @@ class TestStandingsManager(NoSocketsTestCase):
 
         mock_ContactsWrapper.return_value = mock_contacts
 
-        x = StandingsManager.api_update_alliance_standings()
+        x = StandingsManager.api_update_standings()
         self.assertIsInstance(x, ContactSet)
 
         # todo: needs more validations !!
@@ -90,7 +90,7 @@ class TestStandingsManager(NoSocketsTestCase):
         self, mock_token, mock_ContactsWrapper
     ):
         mock_ContactsWrapper.side_effect = RuntimeError
-        self.assertIsNone(StandingsManager.api_update_alliance_standings())
+        self.assertIsNone(StandingsManager.api_update_standings())
 
     def test_api_add_labels(self):
         my_set = ContactSet.objects.create(name="My Set")
@@ -398,7 +398,7 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
 
-    def test_reset_request_with_eff_standing_not_statisfied_in_game(self, mock_notify):
+    def test_reset_request_with_eff_standing_not_satisfied_in_game(self, mock_notify):
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1008,
@@ -683,17 +683,15 @@ class TestContactsWrapperContact(TestCase):
 
 
 class TestContactsWrapper(TestCase):
+    @patch(MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch("standingsrequests.helpers.esi_fetch._esi_client")
     @patch(MODULE_PATH + ".EveNameCache")
     def test_init(self, mock_EveNameCache, mock_esi_client):
         mock_EveNameCache.get_names.side_effect = get_entity_names
-
         mock_esi_client.return_value.Contacts.get_alliances_alliance_id_contacts_labels.return_value.result.return_value = get_my_test_data()[
             "alliance_labels"
         ]
-
-        mock_response = Mock()
-        mock_response.headers = dict()
+        mock_response = Mock(**{"headers": dict()})
         mock_esi_client.return_value.Contacts.get_alliances_alliance_id_contacts.return_value.result.return_value = (
             get_my_test_data()["alliance_contacts"],
             mock_response,

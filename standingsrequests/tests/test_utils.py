@@ -5,11 +5,11 @@ import requests
 
 from django.test import TestCase
 from django.utils import translation
+from django.utils.html import mark_safe
 
 from ..utils import (
     clean_setting,
     messages_plus,
-    make_logger_prefix,
     chunks,
     timeuntil_str,
     NoSocketsTestCase,
@@ -17,7 +17,11 @@ from ..utils import (
     app_labels,
     add_no_wrap_html,
     yesno_str,
-    create_bs_label_html,
+    create_bs_button_html,
+    create_bs_glyph_html,
+    create_link_html,
+    add_bs_label_html,
+    get_site_base_url,
 )
 from ..utils import set_test_logger
 
@@ -131,6 +135,22 @@ class TestCleanSetting(TestCase):
         with self.assertRaises(ValueError):
             clean_setting("TEST_SETTING_DUMMY", default_value=None)
 
+    @patch(MODULE_PATH + ".settings")
+    def test_when_value_in_choices_return_it(self, mock_settings):
+        mock_settings.TEST_SETTING_DUMMY = "bravo"
+        result = clean_setting(
+            "TEST_SETTING_DUMMY", default_value="alpha", choices=["alpha", "bravo"]
+        )
+        self.assertEqual(result, "bravo")
+
+    @patch(MODULE_PATH + ".settings")
+    def test_when_value_not_in_choices_return_default(self, mock_settings):
+        mock_settings.TEST_SETTING_DUMMY = "charlie"
+        result = clean_setting(
+            "TEST_SETTING_DUMMY", default_value="alpha", choices=["alpha", "bravo"]
+        )
+        self.assertEqual(result, "alpha")
+
 
 class TestTimeUntil(TestCase):
     def test_timeuntil(self):
@@ -178,26 +198,88 @@ class TestHtmlHelper(TestCase):
         expected = '<span style="white-space: nowrap;">Dummy</span>'
         self.assertEqual(add_no_wrap_html("Dummy"), expected)
 
-    def test_create_bs_label_html(self):
-        expected = '<span class="label label-danger">Dummy</span>'
-        self.assertEqual(create_bs_label_html("Dummy", "danger"), expected)
-
     def test_yesno_str(self):
         with translation.override("en"):
             self.assertEqual(yesno_str(True), "yes")
             self.assertEqual(yesno_str(False), "no")
-            self.assertEqual(yesno_str(None), "")
-            self.assertEqual(yesno_str(123), "")
-            self.assertEqual(yesno_str("xxxx"), "")
+            self.assertEqual(yesno_str(None), "no")
+            self.assertEqual(yesno_str(123), "no")
+            self.assertEqual(yesno_str("xxxx"), "no")
+
+    def test_add_bs_label_html(self):
+        expected = '<div class="label label-danger">Dummy</div>'
+        self.assertEqual(add_bs_label_html("Dummy", "danger"), expected)
+
+    def test_create_link_html_default(self):
+        expected = (
+            '<a href="https://www.example.com" target="_blank">' "Example Link</a>"
+        )
+        self.assertEqual(
+            create_link_html("https://www.example.com", "Example Link"), expected
+        )
+
+    def test_create_link_html(self):
+        expected = '<a href="https://www.example.com">Example Link</a>'
+        self.assertEqual(
+            create_link_html("https://www.example.com", "Example Link", False), expected
+        )
+        expected = (
+            '<a href="https://www.example.com">' "<strong>Example Link</strong></a>"
+        )
+        self.assertEqual(
+            create_link_html(
+                "https://www.example.com",
+                mark_safe("<strong>Example Link</strong>"),
+                False,
+            ),
+            expected,
+        )
+
+    def test_create_bs_glyph_html(self):
+        expected = '<span class="glyphicon glyphicon-example"></span>'
+        self.assertEqual(create_bs_glyph_html("example"), expected)
+
+    def test_create_bs_button_html_default(self):
+        expected = (
+            '<a href="https://www.example.com" class="btn btn-info">'
+            '<span class="glyphicon glyphicon-example"></span></a>'
+        )
+        self.assertEqual(
+            create_bs_button_html("https://www.example.com", "example", "info"),
+            expected,
+        )
+
+    def test_create_bs_button_html_disabled(self):
+        expected = (
+            '<a href="https://www.example.com" class="btn btn-info"'
+            ' disabled="disabled">'
+            '<span class="glyphicon glyphicon-example"></span></a>'
+        )
+        self.assertEqual(
+            create_bs_button_html("https://www.example.com", "example", "info", True),
+            expected,
+        )
 
 
-class TestMakeLoggerPrefix(TestCase):
-    def test_make_logger_prefix_with_content(self):
-        add_prefix = make_logger_prefix("tag")
-        expected = "tag: dummy"
-        self.assertEqual(add_prefix("dummy"), expected)
+class TestGetSiteBaseUrl(NoSocketsTestCase):
+    @patch(
+        MODULE_PATH + ".settings.ESI_SSO_CALLBACK_URL",
+        "https://www.mysite.com/sso/callback",
+    )
+    def test_return_url_if_url_defined_and_valid(self):
+        expected = "https://www.mysite.com"
+        self.assertEqual(get_site_base_url(), expected)
 
-    def test_make_logger_prefix_empty(self):
-        add_prefix = make_logger_prefix("tag")
-        expected = "tag"
-        self.assertEqual(add_prefix(), expected)
+    @patch(
+        MODULE_PATH + ".settings.ESI_SSO_CALLBACK_URL",
+        "https://www.mysite.com/not-valid/",
+    )
+    def test_return_dummy_if_url_defined_but_not_valid(self):
+        expected = "http://www.example.com"
+        self.assertEqual(get_site_base_url(), expected)
+
+    @patch(MODULE_PATH + ".settings")
+    def test_return_dummy_if_url_not_defined(self, mock_settings):
+        delattr(mock_settings, "ESI_SSO_CALLBACK_URL")
+        expected = "http://www.example.com"
+        self.assertEqual(get_site_base_url(), expected)

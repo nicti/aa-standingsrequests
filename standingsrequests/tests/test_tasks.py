@@ -29,19 +29,19 @@ app = Celery("myauth")
 class TestStandingsUpdate(NoSocketsTestCase):
     def test_can_update_standings(self, mock_StandingsManager):
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_alliance_standings.called)
+        self.assertTrue(mock_StandingsManager.api_update_standings.called)
         self.assertTrue(mock_StandingsManager.process_pending_standings.called)
 
     def test_can_handle_api_error(self, mock_StandingsManager):
-        mock_StandingsManager.api_update_alliance_standings.return_value = None
+        mock_StandingsManager.api_update_standings.return_value = None
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_alliance_standings.called)
+        self.assertTrue(mock_StandingsManager.api_update_standings.called)
         self.assertFalse(mock_StandingsManager.process_pending_standings.called)
 
     def test_can_handle_exception(self, mock_StandingsManager):
-        mock_StandingsManager.api_update_alliance_standings.side_effect = RuntimeError
+        mock_StandingsManager.api_update_standings.side_effect = RuntimeError
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_alliance_standings.called)
+        self.assertTrue(mock_StandingsManager.api_update_standings.called)
         self.assertFalse(mock_StandingsManager.process_pending_standings.called)
 
 
