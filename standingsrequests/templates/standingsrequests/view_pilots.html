@@ -14,7 +14,11 @@
             <h1 class="page-header">
                 {% trans "Pilots" %}
                 {% if perms.standingstool.download %}
-                <div class="pull-right"><a href="{% url 'standingsrequests:download_pilots' %}" class="btn btn-info">{% trans "Download" %}</a></div>
+                    <div class="pull-right">
+                        <a href="{% url 'standingsrequests:download_pilots' %}" class="btn btn-default">
+                            {% trans "Download" %}
+                        </a>
+                    </div>
                 {% endif %}
             </h1>
             <div class="pull-left">

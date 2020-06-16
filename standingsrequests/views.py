@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
@@ -57,7 +58,6 @@ def index_view(request):
 @permission_required("standingsrequests.request_standings")
 def partial_request_entities(request):
     logger.debug("Start partial_request_entities request")
-
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -88,7 +88,7 @@ def partial_request_entities(request):
         char_standings_data.append(
             {
                 "character": character,
-                "standing": standing,
+                "standing": standing if standing else 0.0,
                 "pendingRequest": StandingsRequest.pending_request(
                     character.character_id
                 ),
@@ -144,7 +144,7 @@ def partial_request_entities(request):
                     {
                         "have_scopes": have_scopes,
                         "corp": corporation,
-                        "standing": standing,
+                        "standing": standing if standing else 0.0,
                         "pendingRequest": StandingsRequest.pending_request(corp_id),
                         "pendingRevocation": StandingsRevocation.pending_request(
                             corp_id
@@ -154,12 +154,24 @@ def partial_request_entities(request):
                     }
                 )
 
+    organization = ContactSet.standings_source_entity()
+    if SR_OPERATION_MODE == "alliance":
+        organization_image_url = eveimageserver.alliance_logo_url(organization.entityID)
+    elif SR_OPERATION_MODE == "corporation":
+        organization_image_url = eveimageserver.corporation_logo_url(
+            organization.entityID
+        )
+    else:
+        organization_image_url = ""
+
     render_items = {
         "app_title": __title__,
         "characters": char_standings_data,
         "corps": corp_standings_data,
         "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
+        "organization_name": organization.name,
+        "organization_image_url": organization_image_url,
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
     return render(

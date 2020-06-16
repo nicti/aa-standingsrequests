@@ -15,11 +15,11 @@
             </button>
             <button type="button" class="btn btn-default" title="Has required scopes"
                     ng-class="{'btn-primary': filters.has_scopes}" ng-click="filters.has_scopes = true">
-              <i class="fas fa-check fa-fw" style="color:#018c24;"></i>
+              <i class="fas fa-check fa-fw text-success"></i>
             </button>
             <button type="button" class="btn btn-default" title="Is missing required scopes"
                     ng-class="{'btn-primary': filters.has_scopes === false}" ng-click="filters.has_scopes = false">
-              <i class="fas fa-times fa-fw" style="color:#b31414;"></i>
+              <i class="fas fa-times fa-fw text-danger"></i>
             </button>
         </div>
     </div>

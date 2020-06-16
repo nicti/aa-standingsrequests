@@ -71,10 +71,10 @@
                                 <td>
                                     <bool-checkmark value="contact.effective" true-title="Standing Effective" false-title="Standing not effective"></bool-checkmark>
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; cursor: pointer;" title="Reject" ng-click="rejectRequest(contact)">
-                                        <i class="glyphicon glyphicon-trash" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                 </td>
                             </tr>
                             

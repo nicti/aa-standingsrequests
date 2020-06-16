@@ -13,9 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Ability to also use corporations as standings source
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
+- Standing organization now shown on the request page
 
 ### Changed
 
+- UI improvements
+- Characters without standing are now shown as neutral
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger
 

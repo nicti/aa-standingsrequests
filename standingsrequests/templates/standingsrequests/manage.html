@@ -59,15 +59,15 @@
                                 <td>
                                     {{contact.state}}
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; cursor: pointer;" title="{% trans 'Reject' %}" ng-click="rejectRequest(contact)">
-                                        <i class="fas fa-thumbs-o-down" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">
+                                        <i class="far fa-thumbs-down"></i>
+                                    </button>
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; color:#0006BA; cursor: pointer;" ng-click="actionRequest(contact)" title="{% trans 'Standing Set' %}">
-                                        <i class="fas fa-thumbs-o-up" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-success" ng-click="actionRequest(contact)" title="Accept">
+                                        <i class="far fa-thumbs-up"></i>
+                                    </button>
                                 </td>
                             </tr>
 
@@ -133,20 +133,20 @@
                                 <td>
                                     {{contact.state}}
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; cursor: pointer;" title="Delete" ng-click="deleteRevocation(contact)">
-                                        <i class="fas fa-times" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Delete">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; cursor: pointer;" title="Undo" ng-click="undoRevocation(contact)">
-                                        <i class="fas fa-undo" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-warning" ng-click="undoRevocation(contact)" title="Undo">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
                                 </td>
-                                <td>
-                                    <span style="font-size:1.5em; color:#575757; cursor: pointer;" title="Standing Set" ng-click="actionRevocation(contact)">
-                                        <i class="fas fa-thumbs-o-up" aria-hidden="true"></i>
-                                    </span>
+                                <td>                                    
+                                    <button class="btn btn-primary" ng-click="actionRevocation(contact)" title="Standing Removed">
+                                        <i class="far fa-thumbs-up"></i>
+                                    </button>
                                 </td>
                             </tr>
 
