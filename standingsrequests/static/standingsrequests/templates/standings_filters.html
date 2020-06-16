@@ -11,15 +11,15 @@
         <div class="btn-group-vertical " role="group" aria-label="Scopes">
             <button type="button" class="btn btn-default" title="Both"
                     ng-class="{'btn-primary': filters.has_scopes === null}" ng-click="filters.has_scopes = null">
-              <i class="fa fa-circle-thin fa-fw"></i>
+              <i class="fas fa-circle-thin fa-fw"></i>
             </button>
             <button type="button" class="btn btn-default" title="Has required scopes"
                     ng-class="{'btn-primary': filters.has_scopes}" ng-click="filters.has_scopes = true">
-              <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
+              <i class="fas fa-check fa-fw" style="color:#018c24;"></i>
             </button>
             <button type="button" class="btn btn-default" title="Is missing required scopes"
                     ng-class="{'btn-primary': filters.has_scopes === false}" ng-click="filters.has_scopes = false">
-              <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
+              <i class="fas fa-times fa-fw" style="color:#b31414;"></i>
             </button>
         </div>
     </div>

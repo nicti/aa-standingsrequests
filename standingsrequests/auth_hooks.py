@@ -41,7 +41,7 @@ class StandingsRequestMenuItem(MenuItemHook):
         MenuItemHook.__init__(
             self,
             _(__title__),
-            "fa fa-plus-square fa-fw grayiconecolor",
+            "fas fa-plus-square fa-fw grayiconecolor",
             "standingsrequests:index",
         )
 
