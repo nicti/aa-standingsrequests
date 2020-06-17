@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import QuerySet
@@ -19,6 +21,7 @@ from ..app_settings import (
     SR_REQUIRED_SCOPES,
     SR_OPERATION_MODE,
     SR_NOTIFICATIONS_ENABLED,
+    SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS,
 )
 from ..helpers.esi_fetch import esi_fetch
 from ..helpers.evecorporation import EveCorporation
@@ -186,7 +189,8 @@ class StandingsManager:
         Process all the Standing requests/revocation objects
         :param standing_requests: AbstractStandingsRequest QuerySet        
         """
-        organization_name = ContactSet.standings_source_entity().name
+        organization = ContactSet.standings_source_entity()
+        organization_name = organization.name if organization else ""
         for standing_request in standing_requests:
             character_name = EveNameCache.get_name(standing_request.contactID)
             was_already_effective = standing_request.effective
@@ -240,7 +244,14 @@ class StandingsManager:
                 # that are set effective
                 pass
 
-            elif not is_satisfied_standing and standing_request.effective:
+            elif (
+                not is_satisfied_standing
+                and standing_request.effective
+                and (
+                    standing_request.effectiveDate
+                    < timezone.now() - timedelta(SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS)
+                )
+            ):
                 # Standing is not effective, but has previously
                 # been marked as effective.
                 # Unset effective

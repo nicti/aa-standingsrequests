@@ -19,9 +19,6 @@ from . import (
     _store_as_Token,
     add_new_token,
     add_character_to_user,
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
-    create_standings_char,
 )
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
@@ -38,6 +35,8 @@ from .my_test_data import (
     get_my_test_data,
     get_test_labels,
     get_test_contacts,
+    TEST_STANDINGS_API_CHARID,
+    create_standings_char,
 )
 
 from ..managers.standings import StandingsManager, ContactsWrapper, StandingFactory
@@ -362,20 +361,40 @@ class TestStandingsManagerGetRequiredScopesForState(NoSocketsTestCase):
 
 
 @patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(MODULE_PATH + ".SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS", 2)
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODULE_PATH_MODELS + ".SR_STANDING_TIMEOUT_HOURS", 24)
 @patch(MODULE_PATH + ".notify")
 class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
         ContactSet.objects.all().delete()
-        create_contacts_set()
+        self.contact_set = create_contacts_set()
         create_standings_char()
 
     def test_when_pilot_standing_satisfied_in_game_mark_effective_and_inform_user(
         self, mock_notify
     ):
-        my_request = StandingsRequest(
+        my_request = StandingsRequest.objects.create(
+            user=self.user_requestor,
+            contactID=1002,
+            contactType=CHARACTER_TYPE_ID,
+            actionBy=self.user_manager,
+            actionDate=now(),
+        )
+        StandingsManager.process_requests([my_request])
+        my_request.refresh_from_db()
+        self.assertTrue(my_request.effective)
+        self.assertIsNotNone(my_request.effectiveDate)
+        self.assertEqual(my_request.actionBy, self.user_manager)
+        self.assertIsNotNone(my_request.actionDate)
+        self.assertEqual(mock_notify.call_count, 1)
+        args, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs["user"], self.user_requestor)
+
+    def test_dont_inform_user_when_sr_was_effective_before(self, mock_notify):
+        my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
             contactID=1002,
             contactType=CHARACTER_TYPE_ID,
@@ -390,21 +409,17 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
         self.assertIsNotNone(my_request.effectiveDate)
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
-        self.assertEqual(mock_notify.call_count, 1)
-        args, kwargs = mock_notify.call_args
-        self.assertEqual(kwargs["user"], self.user_requestor)
+        self.assertEqual(mock_notify.call_count, 0)
 
     def test_when_corporation_standing_satisfied_in_game_mark_effective(
         self, mock_notify
     ):
-        my_request = StandingsRequest(
+        my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
             contactID=2004,
             contactType=CORPORATION_TYPE_ID,
             actionBy=self.user_manager,
             actionDate=now(),
-            effective=True,
-            effectiveDate=now(),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
@@ -414,8 +429,10 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
         self.assertIsNotNone(my_request.actionDate)
         self.assertFalse(mock_notify.called)
 
-    def test_reset_request_with_eff_standing_not_satisfied_in_game(self, mock_notify):
-        my_request = StandingsRequest(
+    def test_dont_reset_standing_previously_marked_effective_during_grace_period(
+        self, mock_notify
+    ):
+        my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
             contactID=1008,
             contactType=CHARACTER_TYPE_ID,
@@ -426,19 +443,37 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
+        self.assertTrue(my_request.effective)
+        self.assertIsNotNone(my_request.effectiveDate)
+        self.assertIsNotNone(my_request.actionBy)
+        self.assertIsNotNone(my_request.actionDate)
+
+    def test_reset_standing_previously_marked_effective_after_grace_period(
+        self, mock_notify
+    ):
+        my_request = StandingsRequest.objects.create(
+            user=self.user_requestor,
+            contactID=1008,
+            contactType=CHARACTER_TYPE_ID,
+            actionBy=self.user_manager,
+            actionDate=now(),
+            effective=True,
+            effectiveDate=now() - timedelta(3),
+        )
+        StandingsManager.process_requests([my_request])
+        my_request.refresh_from_db()
         self.assertFalse(my_request.effective)
         self.assertIsNone(my_request.effectiveDate)
         self.assertIsNone(my_request.actionBy)
         self.assertIsNone(my_request.actionDate)
 
     def test_notify_about_requests_that_are_reset_and_timed_out(self, mock_notify):
-        my_request = StandingsRequest(
+        my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
             contactID=1008,
             contactType=CHARACTER_TYPE_ID,
             actionBy=self.user_manager,
             actionDate=now() - timedelta(hours=25),
-            effective=False,
         )
         StandingsManager.process_requests([my_request])
         self.assertEqual(mock_notify.call_count, 2)
@@ -446,15 +481,29 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     def test_dont_notify_about_requests_that_are_reset_and_not_timed_out(
         self, mock_notify
     ):
-        my_request = StandingsRequest(
+        my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
             contactID=1008,
             contactType=CHARACTER_TYPE_ID,
             actionBy=self.user_manager,
             actionDate=now() - timedelta(hours=1),
-            effective=False,
         )
         StandingsManager.process_requests([my_request])
+        self.assertEqual(mock_notify.call_count, 0)
+
+    def test_no_action_when_actioned_standing_but_not_in_game_yet(self, mock_notify):
+        my_request = StandingsRequest.objects.create(
+            user=self.user_requestor,
+            contactID=1002,
+            contactType=CHARACTER_TYPE_ID,
+            actionBy=self.user_manager,
+            actionDate=now(),
+        )
+        self.contact_set.get_standing_for_id(1002, CHARACTER_TYPE_ID).delete()
+        StandingsManager.process_requests([my_request])
+        my_request.refresh_from_db()
+        self.assertFalse(my_request.effective)
+        self.assertIsNone(my_request.effectiveDate)
         self.assertEqual(mock_notify.call_count, 0)
 
 

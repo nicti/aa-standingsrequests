@@ -23,6 +23,10 @@ from ..models import (
 )
 
 
+TEST_STANDINGS_API_CHARID = 1001
+TEST_STANDINGS_API_CHARNAME = "Peter Parker"
+
+
 ##########################
 # internal functions
 
@@ -58,6 +62,18 @@ _entities = _load_entities()
 
 ##########################
 # common functions
+
+
+def create_standings_char():
+    character, _ = EveCharacter.objects.get_or_create(
+        character_id=TEST_STANDINGS_API_CHARID,
+        defaults={
+            "character_name": TEST_STANDINGS_API_CHARNAME,
+            "corporation_id": 2099,
+            "corporation_name": "Dummy Corp",
+        },
+    )
+    return character
 
 
 def get_my_test_data() -> dict:

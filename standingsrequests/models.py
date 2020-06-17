@@ -9,7 +9,11 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .app_settings import SR_OPERATION_MODE, STANDINGS_API_CHARID
+from .app_settings import (
+    SR_OPERATION_MODE,
+    STANDINGS_API_CHARID,
+    SR_STANDING_TIMEOUT_HOURS,
+)
 from .helpers import StandingsRequestManager
 from .managers.eveentity import EveEntityManager
 from .utils import LoggerAddTag
@@ -222,9 +226,6 @@ class AbstractStandingsRequest(models.Model):
     # Standing greater than or equal
     expectStandingGTEQ = -10.0
 
-    # Hours to wait for a standing to be effective after being marked actioned
-    standingTimeoutHours = 24
-
     contactID = models.IntegerField()
     contactType = models.IntegerField()
     requestDate = models.DateTimeField(auto_now_add=True)
@@ -319,9 +320,9 @@ class AbstractStandingsRequest(models.Model):
             logger.debug("Cannot check standing timeout, no standings available")
             return None
 
-        # More than 24 hours after, reset
+        # Reset request that has not become effective after timeout expired
         if (
-            self.actionDate + datetime.timedelta(hours=self.standingTimeoutHours)
+            self.actionDate + datetime.timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
             < latest.date
         ):
             logger.info(

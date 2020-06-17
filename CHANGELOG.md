@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Characters without standing are now shown as neutral
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger
+- App will wait a grace period before resetting previous effective standings
+- Timeout before actioned standings are reset can now be configured via setting
 
 ## [0.4.1] - 2020-05-28
 

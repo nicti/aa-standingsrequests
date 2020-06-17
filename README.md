@@ -55,7 +55,7 @@ Activate your virtual environment and install this app with:
 pip install aa-standingsrequests
 ```
 
-### Step 2: Django Installation
+### Step 3: Django Installation
 
 Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
 
@@ -75,7 +75,7 @@ python manage.py collectstatic
 
 Finally restart Django and Celery.
 
-### Step 3: Setup app within Auth
+### Step 4: Setup app within Auth
 
 Open the standingsrequests app in Alliance Auth and add the token for the configured standings character. This will initiate the first pull of standings. You will get a notification once the standings pull is completed (Usually within a few minutes).
 
@@ -134,9 +134,11 @@ Name | Description | Default
 `SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations | `True`
 `SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests | `False`
 `SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
+`SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS` | Grace period before a standing previously marked effective, but that is no longer effective, will be reset | `2`
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
 `SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`
 `SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`
+`SR_STANDING_TIMEOUT_HOURS` | Max hours to wait for a standing to be effective after being marked actioned. Non effective standing requests will be reset when this timeout expires. | `24`
 `STANDINGS_API_CHARID` | Eve Online ID of character to use for fetching alliance contacts from ESI (Mandatory) | -
 `STR_ALLIANCE_IDS` | Eve Online ID of alliances. Characters belonging to one of those alliances are considered "in organization". Your main alliance goes here when in alliance mode. (Mandatory, can be []) | -
 `STR_CORP_IDS` | Eve Online ID of corporations. Characters belonging to one of those corporations are considered "in organization". Your main corporation goes here when in corporation mode. (Mandatory, can be []) | -

@@ -8,11 +8,6 @@ from django.utils import timezone
 
 from allianceauth.eveonline.models import EveCharacter
 
-from . import (
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
-    create_standings_char,
-)
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_TYPE_ID,
@@ -32,7 +27,15 @@ from .entity_type_ids import (
     CHARACTER_VHEROKIOR_TYPE_ID,
     CHARACTER_DRIFTER_TYPE_ID,
 )
-from .my_test_data import create_contacts_set, get_entity_name, get_entity_names
+from .my_test_data import (
+    create_contacts_set,
+    get_entity_name,
+    get_entity_names,
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
+    create_standings_char,
+)
+
 from ..models import (
     AbstractStanding,
     AllianceStanding,
