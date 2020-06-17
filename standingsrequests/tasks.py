@@ -22,7 +22,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 @shared_task(name="standings_requests.update_all")
 def update_all(user_pk: int = None):
-    """Updates standings and names cache"""
+    """Updates standings, names cache and associations"""
     my_chain = chain(
         [
             standings_update.si(),

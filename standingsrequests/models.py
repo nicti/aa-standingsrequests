@@ -239,11 +239,10 @@ class AbstractStandingsRequest(models.Model):
             ("request_standings", "User can request standings."),
         )
 
-    def check_standing_satisfied(self, check_only=False):
+    def process_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
-        :param check_only: Check the standing only, take no action
-        :return: True if satisfied else False
+        :param check_only: Check the standing only, take no action        
         """
         try:
             logger.debug("Checking standing for %d", self.contactID)
@@ -325,7 +324,7 @@ class AbstractStandingsRequest(models.Model):
             self.actionDate + datetime.timedelta(hours=self.standingTimeoutHours)
             < latest.date
         ):
-            logger.debug(
+            logger.info(
                 "Standing actioned timed out, resetting actioned for contactID %d",
                 self.contactID,
             )

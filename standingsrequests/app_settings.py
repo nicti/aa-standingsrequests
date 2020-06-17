@@ -23,6 +23,9 @@ SR_CORPORATIONS_ENABLED = clean_setting("SR_CORPORATIONS_ENABLED", True)
 # whether ESI requests have a timeout
 SR_ESI_TIMEOUT_ENABLED = clean_setting("SR_ESI_TIMEOUT_ENABLED", True)
 
+# Send notifications to users about the results of standings requests
+SR_NOTIFICATIONS_ENABLED = clean_setting("SR_NOTIFICATIONS_ENABLED", False)
+
 # Select the entity type of your standings master
 SR_OPERATION_MODE = clean_setting(
     "SR_OPERATION_MODE", "alliance", choices=["alliance", "corporation"]

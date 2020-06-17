@@ -7,6 +7,22 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 
 
+TEST_STANDINGS_API_CHARID = 1001
+TEST_STANDINGS_API_CHARNAME = "Peter Parker"
+
+
+def create_standings_char():
+    character, _ = EveCharacter.objects.get_or_create(
+        character_id=TEST_STANDINGS_API_CHARID,
+        defaults={
+            "character_name": TEST_STANDINGS_API_CHARNAME,
+            "corporation_id": 2099,
+            "corporation_name": "Dummy Corp",
+        },
+    )
+    return character
+
+
 def _dt_eveformat(dt: object) -> str:
     """converts a datetime to a string in eve format
     e.g. '2019-06-25T19:04:44'

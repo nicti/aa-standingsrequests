@@ -1,7 +1,7 @@
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
-from django.test import TestCase
+# from django.test import TestCase
 from django.utils.timezone import now
 
 from esi.models import Token
@@ -14,7 +14,15 @@ from allianceauth.eveonline.models import (
 )
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import _generate_token, _store_as_Token, add_new_token, add_character_to_user
+from . import (
+    _generate_token,
+    _store_as_Token,
+    add_new_token,
+    add_character_to_user,
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
+    create_standings_char,
+)
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_AMARR_TYPE_ID,
@@ -47,6 +55,7 @@ from ..utils import set_test_logger, NoSocketsTestCase
 
 
 MODULE_PATH = "standingsrequests.managers.standings"
+MODULE_PATH_MODELS = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
@@ -290,7 +299,7 @@ class TestStandingsManager(NoSocketsTestCase):
 
 
 @patch(MODULE_PATH + ".StandingsManager.get_required_scopes_for_state")
-class TestStandingsManagerHasRequiredScopesForRequest(TestCase):
+class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
     def test_true_when_user_has_required_scopes(
         self, mock_get_required_scopes_for_state
     ):
@@ -329,7 +338,7 @@ class TestStandingsManagerHasRequiredScopesForRequest(TestCase):
         self.assertFalse(StandingsManager.has_required_scopes_for_request(character))
 
 
-class TestStandingsManagerGetRequiredScopesForState(TestCase):
+class TestStandingsManagerGetRequiredScopesForState(NoSocketsTestCase):
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_scopes_if_defined_for_state(self):
         expected = ["abc"]
@@ -352,15 +361,18 @@ class TestStandingsManagerGetRequiredScopesForState(TestCase):
         )
 
 
+@patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH + ".notify")
-class TestStandingsManagerProcessRequests(TestCase):
+class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
         ContactSet.objects.all().delete()
         create_contacts_set()
+        create_standings_char()
 
-    def test_no_action_for_pilot_request_when_standing_satisfied_in_game(
+    def test_when_pilot_standing_satisfied_in_game_mark_effective_and_inform_user(
         self, mock_notify
     ):
         my_request = StandingsRequest(
@@ -378,8 +390,11 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertIsNotNone(my_request.effectiveDate)
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
+        self.assertEqual(mock_notify.call_count, 1)
+        args, kwargs = mock_notify.call_args
+        self.assertEqual(kwargs["user"], self.user_requestor)
 
-    def test_no_action_for_corp_request_when_standing_satisfied_in_game(
+    def test_when_corporation_standing_satisfied_in_game_mark_effective(
         self, mock_notify
     ):
         my_request = StandingsRequest(
@@ -397,6 +412,7 @@ class TestStandingsManagerProcessRequests(TestCase):
         self.assertIsNotNone(my_request.effectiveDate)
         self.assertEqual(my_request.actionBy, self.user_manager)
         self.assertIsNotNone(my_request.actionDate)
+        self.assertFalse(mock_notify.called)
 
     def test_reset_request_with_eff_standing_not_satisfied_in_game(self, mock_notify):
         my_request = StandingsRequest(
@@ -425,7 +441,7 @@ class TestStandingsManagerProcessRequests(TestCase):
             effective=False,
         )
         StandingsManager.process_requests([my_request])
-        self.assertEqual(mock_notify.call_count, 1)
+        self.assertEqual(mock_notify.call_count, 2)
 
     def test_dont_notify_about_requests_that_are_reset_and_not_timed_out(
         self, mock_notify
@@ -443,7 +459,7 @@ class TestStandingsManagerProcessRequests(TestCase):
 
 
 @patch(MODULE_PATH + ".EveNameCache")
-class TestStandingsUpdateCharacterAssociationsAuth(TestCase):
+class TestStandingsUpdateCharacterAssociationsAuth(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -579,7 +595,7 @@ class TestStandingsUpdateCharacterAssociationsApi(NoSocketsTestCase):
         )
 
 
-class TestStandingFactory(TestCase):
+class TestStandingFactory(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -628,7 +644,7 @@ class TestStandingFactory(TestCase):
         self.assertEqual(obj.standing, 5)
 
 
-class TestContactsWrapperLabel(TestCase):
+class TestContactsWrapperLabel(NoSocketsTestCase):
     def test_all(self):
         json = {"label_id": 3, "label_name": "Dummy Label 3"}
         x = ContactsWrapper.Label(json)
@@ -638,7 +654,7 @@ class TestContactsWrapperLabel(TestCase):
         self.assertEqual(repr(x), "Dummy Label 3")
 
 
-class TestContactsWrapperContact(TestCase):
+class TestContactsWrapperContact(NoSocketsTestCase):
     def test_all(self):
         json = {
             "contact_id": 1001,
@@ -682,7 +698,7 @@ class TestContactsWrapperContact(TestCase):
             ContactsWrapper.Contact.get_type_id_from_name("not supported")
 
 
-class TestContactsWrapper(TestCase):
+class TestContactsWrapper(NoSocketsTestCase):
     @patch(MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch("standingsrequests.helpers.esi_fetch._esi_client")
     @patch(MODULE_PATH + ".EveNameCache")

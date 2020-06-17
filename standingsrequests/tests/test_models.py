@@ -8,6 +8,11 @@ from django.utils import timezone
 
 from allianceauth.eveonline.models import EveCharacter
 
+from . import (
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
+    create_standings_char,
+)
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_TYPE_ID,
@@ -44,9 +49,6 @@ from ..utils import set_test_logger, NoSocketsTestCase
 
 MODULE_PATH = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
-
-TEST_STANDINGS_API_CHARID = 1001
-TEST_STANDINGS_API_CHARNAME = "Peter Parker"
 
 
 class TestContactSet(NoSocketsTestCase):
@@ -106,14 +108,7 @@ class TestContactSet(NoSocketsTestCase):
 
     @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
-        character, _ = EveCharacter.objects.get_or_create(
-            character_id=TEST_STANDINGS_API_CHARID,
-            defaults={
-                "character_name": TEST_STANDINGS_API_CHARNAME,
-                "corporation_id": 2099,
-                "corporation_name": "Dummy Corp",
-            },
-        )
+        character = create_standings_char()
         self.assertEqual(ContactSet.standings_character(), character)
 
     @patch(MODULE_PATH + ".STANDINGS_API_CHARID", 1002)
@@ -214,41 +209,41 @@ class TestStandingsRequest(TestCase):
         my_request = StandingsRequest(
             user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID
         )
-        self.assertTrue(my_request.check_standing_satisfied(check_only=True))
+        self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1002,
             contactType=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertTrue(my_request.check_standing_satisfied(check_only=True))
+        self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1003,
             contactType=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertTrue(my_request.check_standing_satisfied(check_only=True))
+        self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1005,
             contactType=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertFalse(my_request.check_standing_satisfied(check_only=True))
+        self.assertFalse(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
             contactID=1009,
             contactType=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertFalse(my_request.check_standing_satisfied(check_only=True))
+        self.assertFalse(my_request.process_standing(check_only=True))
 
     def test_check_standing_satisfied_no_standing(self):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor, contactID=1999, contactType=CHARACTER_TYPE_ID
         )
-        self.assertFalse(my_request.check_standing_satisfied(check_only=True))
+        self.assertFalse(my_request.process_standing(check_only=True))
 
     def test_mark_standing_effective(self):
         my_request = StandingsRequest.objects.create(
@@ -270,7 +265,7 @@ class TestStandingsRequest(TestCase):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID
         )
-        self.assertTrue(my_request.check_standing_satisfied())
+        self.assertTrue(my_request.process_standing())
         my_request.refresh_from_db()
         self.assertTrue(my_request.effective)
         self.assertIsInstance(my_request.effectiveDate, datetime)
@@ -574,11 +569,11 @@ class TestStandingsRevocation(TestCase):
 
     def test_check_standing_satisfied_but_deleted_for_neutral_check_only(self):
         my_revocation = StandingsRevocation.add_revocation(1999, CHARACTER_TYPE_ID)
-        self.assertTrue(my_revocation.check_standing_satisfied(check_only=True))
+        self.assertTrue(my_revocation.process_standing(check_only=True))
 
     def test_check_standing_satisfied_but_deleted_for_neutral(self):
         my_revocation = StandingsRevocation.add_revocation(1999, CHARACTER_TYPE_ID)
-        self.assertTrue(my_revocation.check_standing_satisfied())
+        self.assertTrue(my_revocation.process_standing())
         self.assertTrue(my_revocation.effective)
 
 

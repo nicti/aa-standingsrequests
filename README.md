@@ -131,14 +131,15 @@ Here is a brief explanation of all available settings:
 
 Name | Description | Default
 -- | -- | --
-`STANDINGS_API_CHARID` | id of character to use for updating alliance contacts (Mandatory) | N/A
-`STR_ALLIANCE_IDS` | id of standing alliances (Mandatory) | N/A
-`STR_CORP_IDS` | id of standing corporations (Mandatory, can be []) | N/A
-`SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | N/A
-`SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations |True
+`SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations | `True`
+`SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests | `False`
 `SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
-`SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | 7
-`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is |48
+`SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
+`SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`
+`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`
+`STANDINGS_API_CHARID` | Eve Online ID of character to use for fetching alliance contacts from ESI (Mandatory) | -
+`STR_ALLIANCE_IDS` | Eve Online ID of alliances. Characters belonging to one of those alliances are considered "in organization". Your main alliance goes here when in alliance mode. (Mandatory, can be []) | -
+`STR_CORP_IDS` | Eve Online ID of corporations. Characters belonging to one of those corporations are considered "in organization". Your main corporation goes here when in corporation mode. (Mandatory, can be []) | -
 
 ## Permissions
 

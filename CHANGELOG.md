@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Ability to also use corporations as standings source
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
+- User are notified once their standing request is effective (turned off by default)
 - Standing organization now shown on the request page
 
 ### Changed

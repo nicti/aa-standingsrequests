@@ -88,7 +88,7 @@ def partial_request_entities(request):
         char_standings_data.append(
             {
                 "character": character,
-                "standing": standing if standing else 0.0,
+                "standing": standing,
                 "pendingRequest": StandingsRequest.pending_request(
                     character.character_id
                 ),
@@ -144,7 +144,7 @@ def partial_request_entities(request):
                     {
                         "have_scopes": have_scopes,
                         "corp": corporation,
-                        "standing": standing if standing else 0.0,
+                        "standing": standing,
                         "pendingRequest": StandingsRequest.pending_request(corp_id),
                         "pendingRevocation": StandingsRevocation.pending_request(
                             corp_id

@@ -1,5 +1,6 @@
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import QuerySet
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -17,18 +18,21 @@ from ..app_settings import (
     STR_ALLIANCE_IDS,
     SR_REQUIRED_SCOPES,
     SR_OPERATION_MODE,
+    SR_NOTIFICATIONS_ENABLED,
 )
 from ..helpers.esi_fetch import esi_fetch
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
+    AllianceStanding,
+    CharacterAssociation,
     ContactSet,
     ContactLabel,
-    PilotStanding,
     CorpStanding,
-    AllianceStanding,
+    EveNameCache,
+    PilotStanding,
+    StandingsRequest,
+    StandingsRevocation,
 )
-from ..models import StandingsRequest, StandingsRevocation
-from ..models import CharacterAssociation, EveNameCache
 from ..utils import chunks, LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -177,50 +181,66 @@ class StandingsManager:
             logger.debug("Skipping StandingsRevocations")
 
     @classmethod
-    def process_requests(cls, standing_requests):
+    def process_requests(cls, standing_requests: QuerySet) -> None:
         """
         Process all the Standing requests/revocation objects
-        :param standing_requests: AbstractStandingsRequest list
-        :return: None
+        :param standing_requests: AbstractStandingsRequest QuerySet        
         """
+        organization_name = ContactSet.standings_source_entity().name
         for standing_request in standing_requests:
-            standing_satisfied = standing_request.check_standing_satisfied()
+            character_name = EveNameCache.get_name(standing_request.contactID)
+            was_already_effective = standing_request.effective
+            is_satisfied_standing = standing_request.process_standing()
             if (
-                standing_satisfied
+                is_satisfied_standing
                 and standing_request.contactType in PilotStanding.contactTypes
             ):
-                pass
-                """
-                char = EveManager.get_character_by_id(standing_request.contactID)
-                if type(standing_request) is StandingsRequest:
-                    # Request, send a notification
-                    notify(
-                        char.user, 
-                        _("Standings Request"), 
-                        message=_(
-                            "Your standings standing_request for %s is "
-                            "now effective in game"
-                        ) % char.character_name
-                    )
-                elif type(standing_request) is StandingsRevocation:
-                    # Revocation. Try and send a standing_request 
-                    # (user or character may be deleted)
-                    if char is not None:
+                if SR_NOTIFICATIONS_ENABLED and not was_already_effective:
+                    if type(standing_request) == StandingsRequest:
+                        # Request, send a notification
                         notify(
-                            char.user, 
-                            "Standings Revocation", 
+                            user=standing_request.user,
+                            title=_(
+                                "%s: Standing for %s now in effect"
+                                % (__title__, character_name)
+                            ),
                             message=_(
-                                "Your standings for {0} have been revoked "
-                                "in game"
-                            ) % char.character_name
+                                "'%s' now has blue standing with your "
+                                "character '%s' Please also update "
+                                "the standing of your character accordingly."
+                            )
+                            % (organization_name, character_name),
                         )
-                """
-            elif standing_satisfied:
+                    elif type(standing_request) == StandingsRevocation:
+                        # Revocation. Try and send a standing_request
+                        # (user or character may be deleted)
+                        try:
+                            character = EveCharacter.objects.get(
+                                character_id=standing_request.contactID
+                            )
+                        except EveCharacter.DoesNotExist:
+                            pass
+                        else:
+                            if hasattr(character, "userprofile"):
+                                user = character.userprofile.user
+                                notify(
+                                    user=user,
+                                    title="%s: Standing for %s revoked"
+                                    % (__title__, character_name),
+                                    message=_(
+                                        "'%s' no longer has blue standing with your "
+                                        "character '%s' Please also update "
+                                        "the standing of your character accordingly."
+                                    )
+                                    % (organization_name, character_name),
+                                )
+
+            elif is_satisfied_standing:
                 # Just catching all other contact types (corps/alliances)
                 # that are set effective
                 pass
 
-            elif not standing_satisfied and standing_request.effective:
+            elif not is_satisfied_standing and standing_request.effective:
                 # Standing is not effective, but has previously
                 # been marked as effective.
                 # Unset effective
@@ -236,17 +256,22 @@ class StandingsManager:
                 # and not updated in game
                 actioned_timeout = standing_request.check_standing_actioned_timeout()
                 if actioned_timeout is not None and actioned_timeout:
-                    # Notify the actor user
-                    notify(
-                        actioned_timeout,
-                        _("Standings Request Action"),
-                        message=_(
-                            "A standings request for contact ID %d you "
-                            "actioned has been reset as it did not appear in "
-                            "game before the timeout period expired."
-                        )
-                        % standing_request.contactID,
+                    logger.info(
+                        "Standing request for contact ID %d has timedout "
+                        "and will be reset" % standing_request.contactID
                     )
+                    if SR_NOTIFICATIONS_ENABLED:
+                        title = _("Standing request reset for %s" % character_name)
+                        message = _(
+                            "The standings request for character '%s' from user "
+                            "'%s' has been reset as it did not appear in "
+                            "game before the timeout period expired."
+                            % (character_name, standing_request.user)
+                        )
+                        # Notify standing manager
+                        notify(user=actioned_timeout, title=title, message=message)
+                        # Notify the user
+                        notify(user=standing_request.user, title=title, message=message)
 
     @classmethod
     def update_character_associations_auth(cls):
