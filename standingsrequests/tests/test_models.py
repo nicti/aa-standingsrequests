@@ -65,7 +65,7 @@ class TestContactSet(NoSocketsTestCase):
     def test_get_standing_for_id_pilot(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         PilotStanding.objects.create(
-            set=my_set, contactID=1001, name="Bruce Wayne", standing=5
+            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=5
         )
         # look for existing pilot
         obj = my_set.get_standing_for_id(1001, CHARACTER_TYPE_ID)
@@ -78,7 +78,7 @@ class TestContactSet(NoSocketsTestCase):
     def test_get_standing_for_id_corporation(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         CorpStanding.objects.create(
-            set=my_set, contactID=2001, name="Dummy Corp 1", standing=5
+            contact_set=my_set, contact_id=2001, name="Dummy Corp 1", standing=5
         )
         # look for existing corp
         obj = my_set.get_standing_for_id(2001, CORPORATION_TYPE_ID)
@@ -91,7 +91,7 @@ class TestContactSet(NoSocketsTestCase):
     def test_get_standing_for_id_alliance(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         AllianceStanding.objects.create(
-            set=my_set, contactID=3001, name="Dummy Alliance 1", standing=5
+            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
         )
         # look for existing alliance
         obj = my_set.get_standing_for_id(3001, ALLIANCE_TYPE_ID)
@@ -104,7 +104,7 @@ class TestContactSet(NoSocketsTestCase):
     def test_get_standing_for_id_other_type(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         AllianceStanding.objects.create(
-            set=my_set, contactID=3001, name="Dummy Alliance 1", standing=5
+            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
         )
         with self.assertRaises(ObjectDoesNotExist):
             my_set.get_standing_for_id(9999, 99)
@@ -128,7 +128,7 @@ class TestContactSet(NoSocketsTestCase):
         mock_create_character.return_value = character
         self.assertEqual(ContactSet.standings_character(), character)
         self.assertTrue(
-            EveNameCache.objects.filter(entityID=TEST_STANDINGS_API_CHARID).exists()
+            EveNameCache.objects.filter(entity_id=TEST_STANDINGS_API_CHARID).exists()
         )
 
 
@@ -210,95 +210,97 @@ class TestStandingsRequest(TestCase):
 
     def test_check_standing_satisfied_check_only(self):
         my_request = StandingsRequest(
-            user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID
+            user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
         self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_BRUTOR_TYPE_ID,
+            contact_id=1002,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
         self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1003,
-            contactType=CHARACTER_BRUTOR_TYPE_ID,
+            contact_id=1003,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
         self.assertTrue(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1005,
-            contactType=CHARACTER_BRUTOR_TYPE_ID,
+            contact_id=1005,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
         self.assertFalse(my_request.process_standing(check_only=True))
 
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1009,
-            contactType=CHARACTER_BRUTOR_TYPE_ID,
+            contact_id=1009,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
         self.assertFalse(my_request.process_standing(check_only=True))
 
     def test_check_standing_satisfied_no_standing(self):
         my_request = StandingsRequest.objects.create(
-            user=self.user_requestor, contactID=1999, contactType=CHARACTER_TYPE_ID
+            user=self.user_requestor, contact_id=1999, contact_type_id=CHARACTER_TYPE_ID
         )
         self.assertFalse(my_request.process_standing(check_only=True))
 
     def test_mark_standing_effective(self):
         my_request = StandingsRequest.objects.create(
-            user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID
+            user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
 
         my_request.mark_standing_effective()
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsInstance(my_request.effectiveDate, datetime)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsInstance(my_request.effective_date, datetime)
 
         my_date = timezone.now() - timedelta(days=5, hours=4)
         my_request.mark_standing_effective(date=my_date)
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertEqual(my_request.effectiveDate, my_date)
+        self.assertTrue(my_request.is_effective)
+        self.assertEqual(my_request.effective_date, my_date)
 
     def test_check_standing_satisfied_and_mark(self):
         my_request = StandingsRequest.objects.create(
-            user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID
+            user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
         self.assertTrue(my_request.process_standing())
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsInstance(my_request.effectiveDate, datetime)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsInstance(my_request.effective_date, datetime)
 
     def test_mark_standing_actioned(self):
         my_request = StandingsRequest.objects.create(
-            user=self.user_requestor, contactID=1001, contactType=CHARACTER_TYPE_ID,
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
         )
         my_request.mark_standing_actioned(self.user_manager)
         my_request.refresh_from_db()
-        self.assertEqual(my_request.actionBy, self.user_manager)
-        self.assertIsInstance(my_request.actionDate, datetime)
+        self.assertEqual(my_request.action_by, self.user_manager)
+        self.assertIsInstance(my_request.action_date, datetime)
 
     def test_check_standing_actioned_timeout_already_effective(self):
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
         )
         self.assertIsNone(my_request.check_standing_actioned_timeout())
 
     def test_check_standing_actioned_timeout_not_actioned(self):
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
         )
         self.assertIsNone(my_request.check_standing_actioned_timeout())
 
@@ -306,187 +308,189 @@ class TestStandingsRequest(TestCase):
         ContactSet.objects.all().delete()
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=False,
         )
         self.assertIsNone(my_request.check_standing_actioned_timeout())
 
     def test_check_standing_actioned_timeout_after_deadline(self):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now() - timedelta(hours=25),
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now() - timedelta(hours=25),
+            is_effective=False,
         )
         self.assertEqual(
             my_request.check_standing_actioned_timeout(), self.user_manager
         )
         my_request.refresh_from_db()
-        self.assertIsNone(my_request.actionBy)
-        self.assertIsNone(my_request.actionDate)
+        self.assertIsNone(my_request.action_by)
+        self.assertIsNone(my_request.action_date)
 
     def test_check_standing_actioned_timeout_before_deadline(self):
         my_request = StandingsRequest(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=False,
         )
         self.assertFalse(my_request.check_standing_actioned_timeout())
 
     def test_reset_to_initial(self):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
-            effectiveDate=timezone.now(),
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
+            effective_date=timezone.now(),
         )
         my_request.reset_to_initial()
         my_request.refresh_from_db()
-        self.assertFalse(my_request.effective)
-        self.assertIsNone(my_request.effectiveDate)
-        self.assertIsNone(my_request.actionBy)
-        self.assertIsNone(my_request.actionDate)
+        self.assertFalse(my_request.is_effective)
+        self.assertIsNone(my_request.effective_date)
+        self.assertIsNone(my_request.action_by)
+        self.assertIsNone(my_request.action_date)
 
     def test_pending_request(self):
         my_request_1 = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
         )
         self.assertTrue(my_request_1.pending_request(1001))
 
         my_request_2 = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
-            effectiveDate=timezone.now(),
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
+            effective_date=timezone.now(),
         )
         self.assertFalse(my_request_2.pending_request(1002))
 
     def test_actioned_request(self):
         my_request_1 = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=False,
         )
         self.assertTrue(my_request_1.actioned_request(1001))
 
         my_request_2 = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
-            effectiveDate=timezone.now(),
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
+            effective_date=timezone.now(),
         )
         self.assertFalse(my_request_2.actioned_request(1002))
 
         my_request_3 = StandingsRequest.objects.create(
-            user=self.user_requestor, contactID=1003, contactType=CHARACTER_TYPE_ID,
+            user=self.user_requestor,
+            contact_id=1003,
+            contact_type_id=CHARACTER_TYPE_ID,
         )
         self.assertFalse(my_request_3.actioned_request(1003))
 
     def test_delete_for_non_effective_dont_add_revocation(self):
         my_request_effective = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
         )
         my_request_effective.delete()
         self.assertFalse(
             StandingsRequest.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
         self.assertFalse(
             StandingsRevocation.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
 
     def test_delete_for_effective_add_revocation(self):
         my_request_effective = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
-            effectiveDate=timezone.now(),
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
+            effective_date=timezone.now(),
         )
         my_request_effective.delete()
         self.assertFalse(
             StandingsRequest.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
         self.assertTrue(
             StandingsRevocation.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
 
     def test_delete_for_pending_add_revocation(self):
         my_request_effective = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=False,
         )
         my_request_effective.delete()
         self.assertFalse(
             StandingsRequest.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
         self.assertTrue(
             StandingsRevocation.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
 
     def test_delete_for_effective_dont_add_another_revocation(self):
         my_request_effective = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=timezone.now(),
-            effective=True,
-            effectiveDate=timezone.now(),
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=timezone.now(),
+            is_effective=True,
+            effective_date=timezone.now(),
         )
         StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
         my_request_effective.delete()
         self.assertFalse(
             StandingsRequest.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
         self.assertEqual(
             StandingsRevocation.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).count(),
             1,
         )
@@ -509,14 +513,14 @@ class TestStandingsRequest(TestCase):
     def test_remove_requests(self):
         StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1001,
-            contactType=CHARACTER_TYPE_ID,
-            effective=False,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
         )
         StandingsRequest.remove_requests(1001)
         self.assertFalse(
             StandingsRequest.objects.filter(
-                contactID=1001, contactType=CHARACTER_TYPE_ID
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
 
@@ -526,22 +530,22 @@ class TestStandingsRevocation(TestCase):
         ContactSet.objects.all().delete()
         my_set = ContactSet.objects.create(name="Dummy Set")
         PilotStanding.objects.create(
-            set=my_set, contactID=1001, name="Bruce Wayne", standing=10
+            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=10
         )
         PilotStanding.objects.create(
-            set=my_set, contactID=1002, name="James Gordon", standing=5
+            contact_set=my_set, contact_id=1002, name="James Gordon", standing=5
         )
         PilotStanding.objects.create(
-            set=my_set, contactID=1003, name="Alfred Pennyworth", standing=0.01
+            contact_set=my_set, contact_id=1003, name="Alfred Pennyworth", standing=0.01
         )
         PilotStanding.objects.create(
-            set=my_set, contactID=1005, name="Clark Kent", standing=0
+            contact_set=my_set, contact_id=1005, name="Clark Kent", standing=0
         )
         PilotStanding.objects.create(
-            set=my_set, contactID=1008, name="Harvey Dent", standing=-5
+            contact_set=my_set, contact_id=1008, name="Harvey Dent", standing=-5
         )
         PilotStanding.objects.create(
-            set=my_set, contactID=1009, name="Lex Luthor", standing=-10
+            contact_set=my_set, contact_id=1009, name="Lex Luthor", standing=-10
         )
         self.user_manager = User.objects.create_user(
             "Mike Manager", "mm@example.com", "password"
@@ -563,8 +567,8 @@ class TestStandingsRevocation(TestCase):
         StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
         my_revocation = StandingsRevocation.undo_revocation(1001, self.user_requestor)
         self.assertEqual(my_revocation.user, self.user_requestor)
-        self.assertEqual(my_revocation.contactID, 1001)
-        self.assertEqual(my_revocation.contactType, CHARACTER_TYPE_ID)
+        self.assertEqual(my_revocation.contact_id, 1001)
+        self.assertEqual(my_revocation.contact_type_id, CHARACTER_TYPE_ID)
 
     def test_undo_revocation_that_not_exists(self):
         my_revocation = StandingsRevocation.undo_revocation(1001, self.user_requestor)
@@ -577,7 +581,7 @@ class TestStandingsRevocation(TestCase):
     def test_check_standing_satisfied_but_deleted_for_neutral(self):
         my_revocation = StandingsRevocation.add_revocation(1999, CHARACTER_TYPE_ID)
         self.assertTrue(my_revocation.process_standing())
-        self.assertTrue(my_revocation.effective)
+        self.assertTrue(my_revocation.is_effective)
 
 
 class TestCharacterAssociation(TestCase):
@@ -675,7 +679,7 @@ class TestEveNameCache(TestCase):
         mock_EveEntityManager.get_name_from_auth.side_effect = RuntimeError
         mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
 
-        EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
+        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
 
     @patch(MODULE_PATH + ".EveEntityManager")
@@ -692,9 +696,12 @@ class TestEveNameCache(TestCase):
 
         contact_set = ContactSet.objects.create(name="Dummy Set")
         AllianceStanding.objects.create(
-            set=contact_set, contactID=3001, name="Dummy Alliance 1", standing=0
+            contact_set=contact_set,
+            contact_id=3001,
+            name="Dummy Alliance 1",
+            standing=0,
         )
-        my_entity = EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
+        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         my_entity.updated = timezone.now() - timedelta(days=31)
         my_entity.save()
         self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
@@ -707,7 +714,7 @@ class TestEveNameCache(TestCase):
 
         contact_set = ContactSet.objects.create(name="Dummy Set")
         PilotStanding.objects.create(
-            set=contact_set, contactID=1001, name="Bruce Wayne", standing=0
+            contact_set=contact_set, contact_id=1001, name="Bruce Wayne", standing=0
         )
         self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
 
@@ -718,7 +725,7 @@ class TestEveNameCache(TestCase):
 
         contact_set = ContactSet.objects.create(name="Dummy Set")
         CorpStanding.objects.create(
-            set=contact_set, contactID=2001, name="Dummy Corp 1", standing=0
+            contact_set=contact_set, contact_id=2001, name="Dummy Corp 1", standing=0
         )
         self.assertEqual(EveNameCache.get_name(2001), "Dummy Corp 1")
 
@@ -729,7 +736,10 @@ class TestEveNameCache(TestCase):
 
         contact_set = ContactSet.objects.create(name="Dummy Set")
         AllianceStanding.objects.create(
-            set=contact_set, contactID=3001, name="Dummy Alliance 1", standing=0
+            contact_set=contact_set,
+            contact_id=3001,
+            name="Dummy Alliance 1",
+            standing=0,
         )
         self.assertEqual(EveNameCache.get_name(3001), "Dummy Alliance 1")
 
@@ -747,8 +757,8 @@ class TestEveNameCache(TestCase):
     def test_get_names_from_cache(self, mock_EveEntityManager):
         mock_EveEntityManager.get_names.side_effect = get_entity_names
 
-        EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
-        EveNameCache.objects.create(entityID=1002, name="Peter Parker")
+        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
+        EveNameCache.objects.create(entity_id=1002, name="Peter Parker")
         entities = EveNameCache.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
         self.assertListEqual(mock_EveEntityManager.get_names.call_args[0][0], [])
@@ -757,7 +767,7 @@ class TestEveNameCache(TestCase):
     def test_get_names_from_cache_and_api(self, mock_EveEntityManager):
         mock_EveEntityManager.get_names.side_effect = get_entity_names
 
-        EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
+        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         entities = EveNameCache.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
         self.assertListEqual(mock_EveEntityManager.get_names.call_args[0][0], [1002])
@@ -766,7 +776,7 @@ class TestEveNameCache(TestCase):
     def test_get_names_from_expired_cache_and_api(self, mock_EveEntityManager):
         mock_EveEntityManager.get_names.side_effect = get_entity_names
 
-        my_entity = EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
+        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         my_entity.updated = timezone.now() - timedelta(days=31)
         my_entity.save()
         entities = EveNameCache.get_names([1001, 1002])
@@ -785,8 +795,8 @@ class TestEveNameCache(TestCase):
             name='Dummy Pilots Set'
         )
         PilotStanding.objects.create(
-            set=contact_set
-            contactID=1001,
+            contact_set=contact_set
+            contact_id=1001,
             name='Bruce Wayne',
             standing=0
         )                
@@ -810,7 +820,7 @@ class TestEveNameCache(TestCase):
         self.assertEqual(len(EveNameCache.get_names([1999])), 0)
 
     def test_cache_timeout(self):
-        my_entity = EveNameCache(entityID=1001, name="Bruce Wayne")
+        my_entity = EveNameCache(entity_id=1001, name="Bruce Wayne")
         # no cache timeout when added recently
         my_entity.updated = timezone.now()
         self.assertFalse(my_entity.cache_timeout())
@@ -820,7 +830,7 @@ class TestEveNameCache(TestCase):
         self.assertTrue(my_entity.cache_timeout())
 
     def test_update_name(self):
-        my_entity = EveNameCache.objects.create(entityID=1001, name="Bruce Wayne")
+        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         EveNameCache.update_name(1001, "Batman")
         my_entity.refresh_from_db()
         self.assertEqual(my_entity.name, "Batman")

@@ -123,10 +123,10 @@ def purge_stale_standings_data():
             # because with lots of them it uses lots of memory
             # lets go over them one by one and delete
             for contact_set in standings_qs:
-                PilotStanding.objects.filter(set=contact_set).delete()
-                CorpStanding.objects.filter(set=contact_set).delete()
-                AllianceStanding.objects.filter(set=contact_set).delete()
-                ContactLabel.objects.filter(set=contact_set).delete()
+                PilotStanding.objects.filter(contact_set=contact_set).delete()
+                CorpStanding.objects.filter(contact_set=contact_set).delete()
+                AllianceStanding.objects.filter(contact_set=contact_set).delete()
+                ContactLabel.objects.filter(contact_set=contact_set).delete()
 
             standings_qs.delete()
         else:
@@ -141,8 +141,8 @@ def purge_stale_revocations():
     """removes revocations older than threshold"""
     logger.info("Purging stale revocations data")
     cutoff_date = timezone.now() - datetime.timedelta(days=SR_REVOCATIONS_STALE_DAYS)
-    revocations_qs = StandingsRevocation.objects.exclude(effective=False).filter(
-        effectiveDate__lt=cutoff_date
+    revocations_qs = StandingsRevocation.objects.exclude(is_effective=False).filter(
+        effective_date__lt=cutoff_date
     )
     count = revocations_qs.count()
     revocations_qs.delete()

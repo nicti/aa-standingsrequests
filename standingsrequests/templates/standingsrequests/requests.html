@@ -69,7 +69,7 @@
                                     <span ng-bind="contact.action_by" ng-show="contact.actioned"></span>
                                 </td>
                                 <td>
-                                    <bool-checkmark value="contact.effective" true-title="Standing Effective" false-title="Standing not effective"></bool-checkmark>
+                                    <bool-checkmark value="contact.is_effective" true-title="Standing Effective" false-title="Standing not effective"></bool-checkmark>
                                 </td>
                                 <td>                                    
                                     <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">

@@ -106,10 +106,14 @@ class TestStandingsManager(NoSocketsTestCase):
 
         StandingsManager.api_add_labels(my_set, labels)
 
-        self.assertEqual(len(labels), ContactLabel.objects.filter(set=my_set).count())
+        self.assertEqual(
+            len(labels), ContactLabel.objects.filter(contact_set=my_set).count()
+        )
 
         for label in labels:
-            label_in_set = ContactLabel.objects.get(set=my_set, labelID=label.id)
+            label_in_set = ContactLabel.objects.get(
+                contact_set=my_set, label_id=label.id
+            )
             self.assertEqual(label.name, label_in_set.name)
 
     def test_api_add_contacts(self):
@@ -121,25 +125,25 @@ class TestStandingsManager(NoSocketsTestCase):
 
         self.assertEqual(
             len(contacts),
-            PilotStanding.objects.filter(set=my_set).count()
-            + CorpStanding.objects.filter(set=my_set).count()
-            + AllianceStanding.objects.filter(set=my_set).count(),
+            PilotStanding.objects.filter(contact_set=my_set).count()
+            + CorpStanding.objects.filter(contact_set=my_set).count()
+            + AllianceStanding.objects.filter(contact_set=my_set).count(),
         )
         for contact in contacts:
-            if contact.type_id in PilotStanding.contactTypes:
+            if contact.type_id in PilotStanding.contact_types:
                 contact_in_set = PilotStanding.objects.get(
-                    set=my_set, contactID=contact.id
+                    contact_set=my_set, contact_id=contact.id
                 )
-            elif contact.type_id in CorpStanding.contactTypes:
+            elif contact.type_id in CorpStanding.contact_types:
                 contact_in_set = CorpStanding.objects.get(
-                    set=my_set, contactID=contact.id
+                    contact_set=my_set, contact_id=contact.id
                 )
 
             self.assertEqual(contact.name, contact_in_set.name)
             self.assertEqual(contact.standing, contact_in_set.standing)
             self.assertSetEqual(
                 set(contact.label_ids),
-                set(contact_in_set.labels.values_list("labelID", flat=True)),
+                set(contact_in_set.labels.values_list("label_id", flat=True)),
             )
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
@@ -378,17 +382,17 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     ):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsNotNone(my_request.effectiveDate)
-        self.assertEqual(my_request.actionBy, self.user_manager)
-        self.assertIsNotNone(my_request.actionDate)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsNotNone(my_request.effective_date)
+        self.assertEqual(my_request.action_by, self.user_manager)
+        self.assertIsNotNone(my_request.action_date)
         self.assertEqual(mock_notify.call_count, 1)
         args, kwargs = mock_notify.call_args
         self.assertEqual(kwargs["user"], self.user_requestor)
@@ -396,19 +400,19 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     def test_dont_inform_user_when_sr_was_effective_before(self, mock_notify):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
-            effective=True,
-            effectiveDate=now(),
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now(),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsNotNone(my_request.effectiveDate)
-        self.assertEqual(my_request.actionBy, self.user_manager)
-        self.assertIsNotNone(my_request.actionDate)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsNotNone(my_request.effective_date)
+        self.assertEqual(my_request.action_by, self.user_manager)
+        self.assertIsNotNone(my_request.action_date)
         self.assertEqual(mock_notify.call_count, 0)
 
     def test_when_corporation_standing_satisfied_in_game_mark_effective(
@@ -416,17 +420,17 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     ):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=2004,
-            contactType=CORPORATION_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
+            contact_id=2004,
+            contact_type_id=CORPORATION_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsNotNone(my_request.effectiveDate)
-        self.assertEqual(my_request.actionBy, self.user_manager)
-        self.assertIsNotNone(my_request.actionDate)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsNotNone(my_request.effective_date)
+        self.assertEqual(my_request.action_by, self.user_manager)
+        self.assertIsNotNone(my_request.action_date)
         self.assertFalse(mock_notify.called)
 
     def test_dont_reset_standing_previously_marked_effective_during_grace_period(
@@ -434,46 +438,46 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     ):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1008,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
-            effective=True,
-            effectiveDate=now(),
+            contact_id=1008,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now(),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertTrue(my_request.effective)
-        self.assertIsNotNone(my_request.effectiveDate)
-        self.assertIsNotNone(my_request.actionBy)
-        self.assertIsNotNone(my_request.actionDate)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsNotNone(my_request.effective_date)
+        self.assertIsNotNone(my_request.action_by)
+        self.assertIsNotNone(my_request.action_date)
 
     def test_reset_standing_previously_marked_effective_after_grace_period(
         self, mock_notify
     ):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1008,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
-            effective=True,
-            effectiveDate=now() - timedelta(3),
+            contact_id=1008,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now() - timedelta(3),
         )
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertFalse(my_request.effective)
-        self.assertIsNone(my_request.effectiveDate)
-        self.assertIsNone(my_request.actionBy)
-        self.assertIsNone(my_request.actionDate)
+        self.assertFalse(my_request.is_effective)
+        self.assertIsNone(my_request.effective_date)
+        self.assertIsNone(my_request.action_by)
+        self.assertIsNone(my_request.action_date)
 
     def test_notify_about_requests_that_are_reset_and_timed_out(self, mock_notify):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1008,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now() - timedelta(hours=25),
+            contact_id=1008,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now() - timedelta(hours=25),
         )
         StandingsManager.process_requests([my_request])
         self.assertEqual(mock_notify.call_count, 2)
@@ -483,10 +487,10 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     ):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1008,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now() - timedelta(hours=1),
+            contact_id=1008,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now() - timedelta(hours=1),
         )
         StandingsManager.process_requests([my_request])
         self.assertEqual(mock_notify.call_count, 0)
@@ -494,16 +498,16 @@ class TestStandingsManagerProcessRequests(NoSocketsTestCase):
     def test_no_action_when_actioned_standing_but_not_in_game_yet(self, mock_notify):
         my_request = StandingsRequest.objects.create(
             user=self.user_requestor,
-            contactID=1002,
-            contactType=CHARACTER_TYPE_ID,
-            actionBy=self.user_manager,
-            actionDate=now(),
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
         )
         self.contact_set.get_standing_for_id(1002, CHARACTER_TYPE_ID).delete()
         StandingsManager.process_requests([my_request])
         my_request.refresh_from_db()
-        self.assertFalse(my_request.effective)
-        self.assertIsNone(my_request.effectiveDate)
+        self.assertFalse(my_request.is_effective)
+        self.assertIsNone(my_request.effective_date)
         self.assertEqual(mock_notify.call_count, 0)
 
 
@@ -653,7 +657,7 @@ class TestStandingFactory(NoSocketsTestCase):
     def test_can_create_pilot_standing(self):
         obj = StandingFactory.create_standing(
             contact_set=self.contact_set,
-            contact_type=CHARACTER_TYPE_ID,
+            contact_type_id=CHARACTER_TYPE_ID,
             name="Lex Luthor",
             contact_id=1009,
             standing=-10,
@@ -661,13 +665,13 @@ class TestStandingFactory(NoSocketsTestCase):
         )
         self.assertIsInstance(obj, PilotStanding)
         self.assertEqual(obj.name, "Lex Luthor")
-        self.assertEqual(obj.contactID, 1009)
+        self.assertEqual(obj.contact_id, 1009)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_corp_standing(self):
         obj = StandingFactory.create_standing(
             contact_set=self.contact_set,
-            contact_type=CORPORATION_TYPE_ID,
+            contact_type_id=CORPORATION_TYPE_ID,
             name="Lexcorp",
             contact_id=2102,
             standing=-10,
@@ -675,13 +679,13 @@ class TestStandingFactory(NoSocketsTestCase):
         )
         self.assertIsInstance(obj, CorpStanding)
         self.assertEqual(obj.name, "Lexcorp")
-        self.assertEqual(obj.contactID, 2102)
+        self.assertEqual(obj.contact_id, 2102)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_alliance_standing(self):
         obj = StandingFactory.create_standing(
             contact_set=self.contact_set,
-            contact_type=ALLIANCE_TYPE_ID,
+            contact_type_id=ALLIANCE_TYPE_ID,
             name="Wayne Enterprises",
             contact_id=3001,
             standing=5,
@@ -689,7 +693,7 @@ class TestStandingFactory(NoSocketsTestCase):
         )
         self.assertIsInstance(obj, AllianceStanding)
         self.assertEqual(obj.name, "Wayne Enterprises")
-        self.assertEqual(obj.contactID, 3001)
+        self.assertEqual(obj.contact_id, 3001)
         self.assertEqual(obj.standing, 5)
 
 
@@ -707,7 +711,7 @@ class TestContactsWrapperContact(NoSocketsTestCase):
     def test_all(self):
         json = {
             "contact_id": 1001,
-            "contact_type": "character",
+            "contact_type_id": "character",
             "label_ids": [3, 7],
             "standing": 5,
         }

@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - UI improvements
-- Characters without standing are now shown as neutral
+- Performance improvements
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger
 - App will wait a grace period before resetting previous effective standings

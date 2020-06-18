@@ -15,22 +15,22 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         "_contact_type_str",
         "_contact_name",
         "_user",
-        "requestDate",
-        "actionBy",
-        "actionDate",
-        "effective",
-        "effectiveDate",
+        "request_date",
+        "action_by",
+        "action_date",
+        "is_effective",
+        "effective_date",
     )
-    list_filter = ("effective",)
+    list_filter = ("is_effective",)
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveNameCache.get_name(obj.contactID)
+        return EveNameCache.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contactType in PilotStanding.contactTypes:
+        if obj.contact_type_id in PilotStanding.contact_types:
             return "Character"
-        elif obj.contactType in CorpStanding.contactTypes:
+        elif obj.contact_type_id in CorpStanding.contact_types:
             return "Corporation"
         else:
             return "(undefined)"
@@ -62,7 +62,7 @@ class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
 
 @admin.register(EveNameCache)
 class EveNameCacheAdmin(admin.ModelAdmin):
-    list_display = ("entityID", "name", "updated")
+    list_display = ("entity_id", "name", "updated")
 
     def has_add_permission(self, request):
         return False

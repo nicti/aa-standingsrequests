@@ -24,12 +24,12 @@ class Command(BaseCommand):
             if (
                 StandingsManager.has_required_scopes_for_request(alt)
                 and not StandingsRequest.objects.filter(
-                    user=user, contactID=alt.character_id
+                    user=user, contact_id=alt.character_id
                 ).exists()
             ):
                 try:
                     contact = contact_set.pilotstanding_set.get(
-                        contactID=alt.character_id
+                        contact_id=alt.character_id
                     )
                 except PilotStanding.DoesNotExist:
                     contact = None
@@ -38,9 +38,9 @@ class Command(BaseCommand):
                     contact
                     and not StandingsManager.pilot_in_organisation(alt.character_id)
                     and (
-                        StandingsRequest.expectStandingGTEQ
+                        StandingsRequest.EXPECT_STANDING_GTEQ
                         <= contact.standing
-                        <= StandingsRequest.expectStandingLTEQ
+                        <= StandingsRequest.EXPECT_STANDING_LTEQ
                     )
                 ):
                     sr = StandingsRequest.add_request(

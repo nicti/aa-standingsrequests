@@ -163,14 +163,14 @@ def create_standings_char():
         },
     )
     EveNameCache.objects.update_or_create(
-        entityID=character.character_id, defaults={"name": character.character_name},
+        entity_id=character.character_id, defaults={"name": character.character_name},
     )
     EveNameCache.objects.update_or_create(
-        entityID=character.corporation_id,
+        entity_id=character.corporation_id,
         defaults={"name": character.corporation_name},
     )
     EveNameCache.objects.update_or_create(
-        entityID=character.alliance_id, defaults={"name": character.alliance_name},
+        entity_id=character.alliance_id, defaults={"name": character.alliance_name},
     )
     return character
 
@@ -204,21 +204,21 @@ def create_contacts_set(my_set: object = None) -> object:
 
     # create contacts for ContactSet
     for contact in _my_test_data["alliance_contacts"]:
-        if contact["contact_type"] == "character":
+        if contact["contact_type_id"] == "character":
             MyStandingClass = PilotStanding
 
-        elif contact["contact_type"] == "corporation":
+        elif contact["contact_type_id"] == "corporation":
             MyStandingClass = CorpStanding
 
-        elif contact["contact_type"] == "alliance":
+        elif contact["contact_type_id"] == "alliance":
             MyStandingClass = AllianceStanding
 
         else:
             raise ValueError("Invalid contact type")
 
         MyStandingClass.objects.create(
-            set=my_set,
-            contactID=contact["contact_id"],
+            contact_set=my_set,
+            contact_id=contact["contact_id"],
             name=get_entity_name(contact["contact_id"]),
             standing=contact["standing"],
         )
@@ -226,15 +226,15 @@ def create_contacts_set(my_set: object = None) -> object:
     # update EveNameCache based on characters
     for character_id, character_data in _my_test_data["EveCharacter"].items():
         EveNameCache.objects.get_or_create(
-            entityID=character_id, defaults={"name": character_data["character_name"]}
+            entity_id=character_id, defaults={"name": character_data["character_name"]}
         )
         EveNameCache.objects.get_or_create(
-            entityID=character_data["corporation_id"],
+            entity_id=character_data["corporation_id"],
             defaults={"name": character_data["corporation_name"]},
         )
         if character_data["alliance_id"]:
             EveNameCache.objects.get_or_create(
-                entityID=character_data["alliance_id"],
+                entity_id=character_data["alliance_id"],
                 defaults={"name": character_data["alliance_name"]},
             )
 

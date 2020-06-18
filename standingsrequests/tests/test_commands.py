@@ -65,11 +65,11 @@ class TestSyncRequests(NoSocketsTestCase):
         self.assertEqual(StandingsRequest.objects.count(), 1)
         request = StandingsRequest.objects.first()
         self.assertEqual(request.user, self.user)
-        self.assertEqual(request.contactID, 1010)
-        self.assertEqual(request.effective, True)
-        self.assertAlmostEqual((now() - request.requestDate).seconds, 0, delta=30)
-        self.assertAlmostEqual((now() - request.actionDate).seconds, 0, delta=30)
-        self.assertAlmostEqual((now() - request.effectiveDate).seconds, 0, delta=30)
+        self.assertEqual(request.contact_id, 1010)
+        self.assertEqual(request.is_effective, True)
+        self.assertAlmostEqual((now() - request.request_date).seconds, 0, delta=30)
+        self.assertAlmostEqual((now() - request.action_date).seconds, 0, delta=30)
+        self.assertAlmostEqual((now() - request.effective_date).seconds, 0, delta=30)
 
     def test_does_not_create_requests_for_blue_alt_if_request_already_exists(
         self, mock_get_input

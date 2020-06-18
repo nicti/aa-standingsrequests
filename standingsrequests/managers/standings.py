@@ -84,7 +84,7 @@ class StandingsManager:
         """
         for label in labels:
             contact_label = ContactLabel(
-                labelID=label.id, name=label.name, set=contact_set
+                label_id=label.id, name=label.name, contact_set=contact_set
             )
             contact_label.save()
 
@@ -105,11 +105,11 @@ class StandingsManager:
             labels = [
                 label
                 for label in contact_set.contactlabel_set.all()
-                if label.labelID in flat_labels
+                if label.label_id in flat_labels
             ]
             StandingFactory.create_standing(
                 contact_set=contact_set,
-                contact_type=c.type_id,
+                contact_type_id=c.type_id,
                 contact_id=c.id,
                 name=c.name,
                 standing=c.standing,
@@ -192,12 +192,12 @@ class StandingsManager:
         organization = ContactSet.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in standing_requests:
-            character_name = EveNameCache.get_name(standing_request.contactID)
-            was_already_effective = standing_request.effective
+            character_name = EveNameCache.get_name(standing_request.contact_id)
+            was_already_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.process_standing()
             if (
                 is_satisfied_standing
-                and standing_request.contactType in PilotStanding.contactTypes
+                and standing_request.contact_type_id in PilotStanding.contact_types
             ):
                 if SR_NOTIFICATIONS_ENABLED and not was_already_effective:
                     if type(standing_request) == StandingsRequest:
@@ -220,7 +220,7 @@ class StandingsManager:
                         # (user or character may be deleted)
                         try:
                             character = EveCharacter.objects.get(
-                                character_id=standing_request.contactID
+                                character_id=standing_request.contact_id
                             )
                         except EveCharacter.DoesNotExist:
                             pass
@@ -246,9 +246,9 @@ class StandingsManager:
 
             elif (
                 not is_satisfied_standing
-                and standing_request.effective
+                and standing_request.is_effective
                 and (
-                    standing_request.effectiveDate
+                    standing_request.effective_date
                     < timezone.now() - timedelta(SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS)
                 )
             ):
@@ -258,7 +258,7 @@ class StandingsManager:
                 logger.info(
                     "Standing for %d is marked as effective but is not "
                     "satisfied in game. Resetting to initial state"
-                    % standing_request.contactID
+                    % standing_request.contact_id
                 )
                 standing_request.reset_to_initial()
 
@@ -269,7 +269,7 @@ class StandingsManager:
                 if actioned_timeout is not None and actioned_timeout:
                     logger.info(
                         "Standing request for contact ID %d has timedout "
-                        "and will be reset" % standing_request.contactID
+                        "and will be reset" % standing_request.contact_id
                     )
                     if SR_NOTIFICATIONS_ENABLED:
                         title = _("Standing request reset for %s" % character_name)
@@ -328,7 +328,7 @@ class StandingsManager:
         # gather character associations of pilots which meed to be updated
         try:
             all_pilots = ContactSet.objects.latest().pilotstanding_set.values_list(
-                "contactID", flat=True
+                "contact_id", flat=True
             )
             expired_character_associations = CharacterAssociation.get_api_expired_items(
                 all_pilots
@@ -394,7 +394,7 @@ class StandingsManager:
         deleted_count = 0
         for standing_request in StandingsRequest.objects.all():
             logger.debug(
-                "Checking request for contactID %d", standing_request.contactID
+                "Checking request for contact_id %d", standing_request.contact_id
             )
             if not standing_request.user.has_perm(
                 "standingsrequests.request_standings"
@@ -403,9 +403,9 @@ class StandingsManager:
                 is_valid = False
 
             elif CorpStanding.is_corp(
-                standing_request.contactType
+                standing_request.contact_type_id
             ) and not cls.all_corp_apis_recorded(
-                standing_request.contactID, standing_request.user
+                standing_request.contact_id, standing_request.user
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
                 is_valid = False
@@ -415,8 +415,8 @@ class StandingsManager:
 
             if not is_valid:
                 logger.info(
-                    "Deleting invalid standing request for contactID %d",
-                    standing_request.contactID,
+                    "Deleting invalid standing request for contact_id %d",
+                    standing_request.contact_id,
                 )
                 standing_request.delete()
                 deleted_count += 1
@@ -462,11 +462,14 @@ class StandingsManager:
 class StandingFactory:
     @classmethod
     def create_standing(
-        cls, contact_set, contact_type, contact_id, name, standing, labels
+        cls, contact_set, contact_type_id, contact_id, name, standing, labels
     ):
-        StandingType = cls.get_class_for_contact_type(contact_type)
+        StandingType = cls.get_class_for_contact_type(contact_type_id)
         standing = StandingType(
-            set=contact_set, contactID=contact_id, name=name, standing=standing,
+            contact_set=contact_set,
+            contact_id=contact_id,
+            name=name,
+            standing=standing,
         )
         standing.save()
         for label in labels:
@@ -475,12 +478,12 @@ class StandingFactory:
         return standing
 
     @staticmethod
-    def get_class_for_contact_type(contact_type):
-        if contact_type in PilotStanding.contactTypes:
+    def get_class_for_contact_type(contact_type_id):
+        if contact_type_id in PilotStanding.contact_types:
             return PilotStanding
-        elif contact_type in CorpStanding.contactTypes:
+        elif contact_type_id in CorpStanding.contact_types:
             return CorpStanding
-        elif contact_type in AllianceStanding.contactTypes:
+        elif contact_type_id in AllianceStanding.contact_types:
             return AllianceStanding
         raise NotImplementedError()
 
@@ -543,7 +546,7 @@ class ContactsWrapper:
                 else []
             )
 
-            self.type_id = self.__class__.get_type_id_from_name(json["contact_type"])
+            self.type_id = self.__class__.get_type_id_from_name(json["contact_type_id"])
             # list of labels
             self.labels = [label for label in labels if label.id in self.label_ids]
 
