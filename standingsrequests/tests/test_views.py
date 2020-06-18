@@ -4,10 +4,14 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory
 from django.urls import reverse
 
-from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 from esi.models import Token
 
+from .my_test_data import (
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
+    create_standings_char,
+)
 from ..models import EveNameCache
 from ..utils import set_test_logger, NoSocketsTestCase
 from .. import views
@@ -15,10 +19,6 @@ from .. import views
 MODULE_PATH = "standingsrequests.views"
 MODELS_MODULE_PATH = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
-
-
-TEST_STANDINGS_API_CHARID = 1001
-TEST_STANDINGS_API_CHARNAME = "Peter Parker"
 
 
 @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
@@ -62,14 +62,7 @@ class TestViewAuthPage(NoSocketsTestCase):
     def test_when_not_provided_standingschar_return_error(
         self, mock_messages, mock_update_all
     ):
-        EveCharacter.objects.get_or_create(
-            character_id=TEST_STANDINGS_API_CHARID,
-            defaults={
-                "character_name": TEST_STANDINGS_API_CHARNAME,
-                "corporation_id": 2099,
-                "corporation_name": "Dummy Corp",
-            },
-        )
+        create_standings_char()
         user = AuthUtils.create_user("Clark Kent")
         character = AuthUtils.add_main_character_2(user, user.username, 1002)
         EveNameCache.objects.create(

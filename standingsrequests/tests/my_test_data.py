@@ -24,7 +24,11 @@ from ..models import (
 
 
 TEST_STANDINGS_API_CHARID = 1001
-TEST_STANDINGS_API_CHARNAME = "Peter Parker"
+TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
+TEST_STANDINGS_CORPORATION_ID = 2001
+TEST_STANDINGS_CORPORATION_NAME = "Wayne Technologies"
+TEST_STANDINGS_ALLIANCE_ID = 3001
+TEST_STANDINGS_ALLIANCE_NAME = "Wayne Enterprises"
 
 
 ##########################
@@ -62,18 +66,6 @@ _entities = _load_entities()
 
 ##########################
 # common functions
-
-
-def create_standings_char():
-    character, _ = EveCharacter.objects.get_or_create(
-        character_id=TEST_STANDINGS_API_CHARID,
-        defaults={
-            "character_name": TEST_STANDINGS_API_CHARNAME,
-            "corporation_id": 2099,
-            "corporation_name": "Dummy Corp",
-        },
-    )
-    return character
 
 
 def get_my_test_data() -> dict:
@@ -157,6 +149,30 @@ def esi_get_corporations_corporation_id(corporation_id):
 
 ##########################
 # app specific functions
+
+
+def create_standings_char():
+    character, _ = EveCharacter.objects.get_or_create(
+        character_id=TEST_STANDINGS_API_CHARID,
+        defaults={
+            "character_name": TEST_STANDINGS_API_CHARNAME,
+            "corporation_id": TEST_STANDINGS_CORPORATION_ID,
+            "corporation_name": TEST_STANDINGS_CORPORATION_ID,
+            "alliance_id": TEST_STANDINGS_ALLIANCE_ID,
+            "alliance_name": TEST_STANDINGS_ALLIANCE_NAME,
+        },
+    )
+    EveNameCache.objects.update_or_create(
+        entityID=character.character_id, defaults={"name": character.character_name},
+    )
+    EveNameCache.objects.update_or_create(
+        entityID=character.corporation_id,
+        defaults={"name": character.corporation_name},
+    )
+    EveNameCache.objects.update_or_create(
+        entityID=character.alliance_id, defaults={"name": character.alliance_name},
+    )
+    return character
 
 
 def get_test_labels() -> list:

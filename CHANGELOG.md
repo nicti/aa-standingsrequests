@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.5.0] - 2020-06-16
+## [0.5.0] - alpha, tbd
 
 ### Added
 
@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - User are notified once their standing request is effective (turned off by default)
 - Standing organization now shown on the request page
+- New management command to automatically create requests from already existing blues
 
 ### Changed
 

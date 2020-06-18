@@ -21,50 +21,75 @@
         {
             "contact_id": 1001,
             "contact_type": "character",
-            "label_ids": [1],
+            "label_ids": [
+                1
+            ],
             "standing": 10
         },
         {
             "contact_id": 1002,
             "contact_type": "character",
-            "label_ids": [1, 2],
+            "label_ids": [
+                1,
+                2
+            ],
             "standing": 10
         },
         {
             "contact_id": 1003,
             "contact_type": "character",
-            "label_ids": [3],
+            "label_ids": [
+                3
+            ],
             "standing": 5
         },
         {
             "contact_id": 1004,
             "contact_type": "character",
-            "label_ids": [3],
+            "label_ids": [
+                3
+            ],
             "standing": 0.01
         },
         {
             "contact_id": 1005,
             "contact_type": "character",
-            "label_ids": [3],
+            "label_ids": [
+                3
+            ],
             "standing": 0
         },
         {
             "contact_id": 1006,
             "contact_type": "character",
-            "label_ids": [3],
+            "label_ids": [
+                3
+            ],
             "standing": 0
-        },        
+        },
         {
             "contact_id": 1008,
             "contact_type": "character",
-            "label_ids": [4],
+            "label_ids": [
+                4
+            ],
             "standing": -5
         },
         {
             "contact_id": 1009,
             "contact_type": "character",
-            "label_ids": [4],
+            "label_ids": [
+                4
+            ],
             "standing": -10
+        },
+        {
+            "contact_id": 1010,
+            "contact_type": "character",
+            "label_ids": [
+                4
+            ],
+            "standing": 5
         },
         {
             "contact_id": 2004,
@@ -79,8 +104,7 @@
             "standing": -10
         }
     ],
-    "CharacterAssociation": 
-    [
+    "CharacterAssociation": [
         {
             "character_id": 1001,
             "alliance_id": 3001,
@@ -134,20 +158,23 @@
             "alliance_id": null,
             "corporation_id": 2102,
             "main_character_id": 1009
+        },
+        {
+            "character_id": 1010,
+            "alliance_id": null,
+            "corporation_id": 2102,
+            "main_character_id": 1002
         }
     ],
-    "EveAllianceInfo":
-    {
-        "3001":
-            {
-                "alliance_id": 3001,
-                "alliance_name": "Wayne Enterprises",
-                "alliance_ticker": "WYE",            
-                "executor_corp_id": 2001
-            }
+    "EveAllianceInfo": {
+        "3001": {
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises",
+            "alliance_ticker": "WYE",
+            "executor_corp_id": 2001
+        }
     },
-    "EveCorporationInfo":
-    {
+    "EveCorporationInfo": {
         "2001": {
             "corporation_id": 2001,
             "corporation_name": "Wayne Technologies",
@@ -183,9 +210,8 @@
             "member_count": 2500,
             "alliance_id": null
         }
-    },    
-    "EveCharacter":
-    {
+    },
+    "EveCharacter": {
         "1001": {
             "character_id": 1001,
             "character_name": "Bruce Wayne",
@@ -264,6 +290,15 @@
         "1009": {
             "character_id": 1009,
             "character_name": "Lex Luthor",
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1010": {
+            "character_id": 1010,
+            "character_name": "Natasha Romanoff",
             "corporation_id": 2102,
             "corporation_name": "Lexcorp",
             "corporation_ticker": "LEX",

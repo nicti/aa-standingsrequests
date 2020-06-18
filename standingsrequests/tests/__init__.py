@@ -3,8 +3,10 @@ import random
 import string
 
 from django.contrib.auth.models import User
+
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.tests.auth_utils import AuthUtils
 
 
 def _dt_eveformat(dt: object) -> str:
@@ -86,16 +88,52 @@ def add_new_token(user: object, character: object, scopes: list) -> object:
 
 
 def add_character_to_user(
-    user: User, character: EveCharacter, is_main: bool = False
+    user: User, character: EveCharacter, is_main: bool = False, scopes: list = None
 ) -> CharacterOwnership:
     ownership = CharacterOwnership.objects.create(
-        character=character, owner_hash="abc", user=user
+        character=character, owner_hash=_get_random_string(28), user=user
     )
     if is_main:
         user.profile.main_character = character
         user.profile.save()
 
+    if scopes:
+        add_new_token(user, character, scopes)
+
     return ownership
+
+
+def add_character_to_user_2(
+    user: User,
+    character_id,
+    character_name,
+    corporation_id,
+    corporation_name,
+    alliance_id=None,
+    alliance_name=None,
+    disconnect_signals=False,
+) -> EveCharacter:
+    defaults = {
+        "character_name": str(character_name),
+        "corporation_id": int(corporation_id),
+        "corporation_name": str(corporation_name),
+    }
+    if alliance_id:
+        defaults["alliance_id"]: int(alliance_id)
+        defaults["alliance_name"]: str(alliance_name)
+
+    if disconnect_signals:
+        AuthUtils.disconnect_signals()
+    character = EveCharacter.update_or_create(
+        character_id=character_id, defaults=defaults
+    )
+    CharacterOwnership.objects.create(
+        character=character, owner_hash=f"{character_id}_{character_name}", user=user
+    )
+    if disconnect_signals:
+        AuthUtils.connect_signals()
+
+    return character
 
 
 def _get_random_string(char_count):

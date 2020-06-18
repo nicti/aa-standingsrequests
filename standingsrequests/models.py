@@ -240,6 +240,13 @@ class AbstractStandingsRequest(models.Model):
             ("request_standings", "User can request standings."),
         )
 
+    def __repr__(self) -> str:
+        user_str = f", user='{self.user}'" if hasattr(self, "user") else ""
+        return (
+            f"{type(self).__name__}(pk={self.pk}, contactID={self.contactID}"
+            f"{user_str}, effective={self.effective})"
+        )
+
     def process_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
@@ -336,7 +343,7 @@ class AbstractStandingsRequest(models.Model):
             return actioner
         return False
 
-    def reset_to_initial(self):
+    def reset_to_initial(self) -> None:
         """
         Reset a standing back to its initial creation state 
         (Not actioned and not effective)
@@ -349,7 +356,7 @@ class AbstractStandingsRequest(models.Model):
         self.save()
 
     @classmethod
-    def pending_request(cls, contact_id):
+    def pending_request(cls, contact_id) -> bool:
         """
         Checks if a request is pending for the given contact_id
         :param contact_id: int contactID to check the pending request for
@@ -363,7 +370,7 @@ class AbstractStandingsRequest(models.Model):
         return pending.exists()
 
     @classmethod
-    def actioned_request(cls, contact_id):
+    def actioned_request(cls, contact_id) -> bool:
         """
         Checks if an actioned request is pending API confirmation for 
         the given contact_id

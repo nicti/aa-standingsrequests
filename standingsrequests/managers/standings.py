@@ -432,13 +432,12 @@ class StandingsManager:
             ownership = CharacterOwnership.objects.get(
                 character__character_id=character.character_id
             )
-            user = ownership.user
-            state_name = user.profile.state.name
-
         except CharacterOwnership.DoesNotExist:
             return False
 
         else:
+            user = ownership.user
+            state_name = user.profile.state.name
             scopes_string = " ".join(
                 StandingsManager.get_required_scopes_for_state(state_name)
             )

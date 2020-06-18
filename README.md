@@ -201,3 +201,19 @@ Turns the standing revocation into a standings request again. Useful if someone 
 #### Actioned
 
 Same as for Standings Requests. The system will hold the revocation in the background until it sees it removed in game. If the standing has still not been unset (or set to neutral or below) in 24 hours then it will appear as a standings revocation again.
+
+## Management Commands
+
+This app comes with management commands that provide special features for admins.
+
+You can run any management command from the command. Make sure you are in the folder that also contains `manage.py` and that you have activate your venv:
+
+```bash
+python manage.py NAME_OF_COMMAND
+```
+
+### `standingsrequests_sync_blue_alts`
+
+This command automatically creates accepted standing requests for alt characters on Auth that already have blue standing in game. This can be useful when this app is first installed to avoid having all users manually request standing for alts that are already blue.
+
+Standings created by this command will not have an actioner name set.
