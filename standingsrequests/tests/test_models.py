@@ -135,12 +135,12 @@ class TestContactSet(NoSocketsTestCase):
 class TestAbstractStanding(TestCase):
     def test_get_contact_type(self):
         with self.assertRaises(NotImplementedError):
-            AbstractStanding.get_contact_type(42)
+            AbstractStanding.get_contact_type_id(42)
 
 
 class TestPilotStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(PilotStanding.get_contact_type(1001), CHARACTER_TYPE_ID)
+        self.assertEqual(PilotStanding.get_contact_type_id(1001), CHARACTER_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(PilotStanding.is_pilot(CHARACTER_TYPE_ID))
@@ -169,7 +169,7 @@ class TestPilotStanding(TestCase):
 
 class TestCorpStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(CorpStanding.get_contact_type(2001), CORPORATION_TYPE_ID)
+        self.assertEqual(CorpStanding.get_contact_type_id(2001), CORPORATION_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(CorpStanding.is_corp(CORPORATION_TYPE_ID))
@@ -183,7 +183,7 @@ class TestCorpStanding(TestCase):
 
 class TestAllianceStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(AllianceStanding.get_contact_type(3001), ALLIANCE_TYPE_ID)
+        self.assertEqual(AllianceStanding.get_contact_type_id(3001), ALLIANCE_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(AllianceStanding.is_alliance(ALLIANCE_TYPE_ID))

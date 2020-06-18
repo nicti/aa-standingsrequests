@@ -144,7 +144,7 @@ class AbstractStanding(models.Model):
         abstract = True
 
     @classmethod
-    def get_contact_type(cls, contact_id):
+    def get_contact_type_id(cls, contact_id):
         raise NotImplementedError()
 
 
@@ -169,7 +169,7 @@ class PilotStanding(AbstractStanding):
     is_watched = models.BooleanField(default=False)
 
     @classmethod
-    def get_contact_type(cls, contact_id):
+    def get_contact_type_id(cls, contact_id):
         """
         Get the type ID for the contact_id
 
@@ -187,7 +187,7 @@ class CorpStanding(AbstractStanding):
     contact_types = [AbstractStanding.CORPORATION_TYPE_ID]
 
     @classmethod
-    def get_contact_type(cls, contact_id):
+    def get_contact_type_id(cls, contact_id):
         """
         Get the type ID for the contact_id
         :return: contact_type_id
@@ -203,9 +203,9 @@ class AllianceStanding(AbstractStanding):
     contact_types = [AbstractStanding.ALLIANCE_TYPE_ID]
 
     @classmethod
-    def get_contact_type(cls, contact_id):
+    def get_contact_type_id(cls, contact_id):
         """
-        Get the type ID for the contact_id
+        Get the type ID for the contact
         :return: contact_type_id
         """
         return cls.contact_types[0]

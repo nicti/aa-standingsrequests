@@ -80,7 +80,7 @@ class TestSyncRequests(NoSocketsTestCase):
         StandingsRequest.add_request(
             self.user,
             alt.character_id,
-            PilotStanding.get_contact_type(alt.character_id),
+            PilotStanding.get_contact_type_id(alt.character_id),
         )
 
         call_command("standingsrequests_sync_blue_alts", stdout=self.out)

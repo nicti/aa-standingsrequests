@@ -195,7 +195,9 @@ def request_pilot_standings(request, character_id):
             character_id
         ) and not StandingsRevocation.pending_request(character_id):
             StandingsRequest.add_request(
-                request.user, character_id, PilotStanding.get_contact_type(character_id)
+                request.user,
+                character_id,
+                PilotStanding.get_contact_type_id(character_id),
             )
         else:
             # Pending request, not allowed
@@ -241,7 +243,7 @@ def remove_pilot_standings(request, character_id):
                     request.user,
                 )
                 StandingsRevocation.add_revocation(
-                    character_id, PilotStanding.get_contact_type(character_id)
+                    character_id, PilotStanding.get_contact_type_id(character_id)
                 )
             else:
                 logger.debug("No standings exist for characterID %d", character_id)
@@ -271,7 +273,7 @@ def request_corp_standings(request, corp_id):
             corp_id
         ) and not StandingsRevocation.pending_request(corp_id):
             StandingsRequest.add_request(
-                request.user, corp_id, CorpStanding.get_contact_type(corp_id)
+                request.user, corp_id, CorpStanding.get_contact_type_id(corp_id)
             )
         else:
             # Pending request, not allowed
@@ -317,7 +319,7 @@ def remove_corp_standings(request, corp_id):
                     request.user,
                 )
                 StandingsRevocation.add_revocation(
-                    corp_id, CorpStanding.get_contact_type(corp_id)
+                    corp_id, CorpStanding.get_contact_type_id(corp_id)
                 )
             else:
                 logger.debug("No standings exist for corpID %d", corp_id)
@@ -367,16 +369,16 @@ def view_pilots_standings_json(request):
         pilots = list()
         # lets catch these in bulk
         pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
-        contact_ids = [p.contact_id for p in pilot_standings]
-        for p in pilot_standings:
-            try:
-                assoc = CharacterAssociation.objects.get(character_id=p.contact_id)
-                if assoc.corporation_id is not None:
-                    contact_ids.append(assoc.corporation_id)
-                if assoc.alliance_id is not None:
-                    contact_ids.append(assoc.alliance_id)
-            except CharacterAssociation.DoesNotExist:
-                pass
+        pilot_contact_ids = pilot_standings.values_list("contact_id", flat=True)
+        assoc_ids = CharacterAssociation.objects.filter(
+            character_id__in=pilot_contact_ids
+        ).values("character_id", "corporation_id", "alliance_id")
+        contact_ids = (
+            list(pilot_contact_ids)
+            + [x["character_id"] for x in assoc_ids]
+            + [x["corporation_id"] for x in assoc_ids]
+            + [x["alliance_id"] for x in assoc_ids if x["alliance_id"]]
+        )
         EveNameCache.get_names(contact_ids)
         for p in pilot_standings:
             char = EveCharacter.objects.get_character_by_id(p.contact_id)

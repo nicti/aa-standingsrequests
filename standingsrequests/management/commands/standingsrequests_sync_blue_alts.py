@@ -46,7 +46,7 @@ class Command(BaseCommand):
                     sr = StandingsRequest.add_request(
                         user,
                         alt.character_id,
-                        PilotStanding.get_contact_type(alt.character_id),
+                        PilotStanding.get_contact_type_id(alt.character_id),
                     )
                     sr.mark_standing_actioned(None)
                     sr.mark_standing_effective()
