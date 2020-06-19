@@ -1,3 +1,4 @@
+from copy import deepcopy
 import inspect
 import json
 import os
@@ -11,7 +12,7 @@ from allianceauth.eveonline.models import (
     EveAllianceInfo,
 )
 
-from ..managers.standings import ContactsWrapper, StandingsManager
+from ..managers import _ContactsWrapper
 
 from ..models import (
     AllianceStanding,
@@ -147,6 +148,21 @@ def esi_get_corporations_corporation_id(corporation_id):
     return mock_operation
 
 
+def esi_get_alliances_alliance_id_contacts_labels(alliance_id, token):
+    mock_operation = Mock()
+    mock_operation.result.return_value = deepcopy(_my_test_data["alliance_labels"])
+    mock_operation.result
+    return mock_operation
+
+
+def esi_get_alliances_alliance_id_contacts(alliance_id, page, token):
+    mock_operation = Mock()
+    data = deepcopy(_my_test_data["alliance_contacts"])
+    response = Mock(**{"headers": dict()})
+    mock_operation.result.return_value = data, response
+    return mock_operation
+
+
 ##########################
 # app specific functions
 
@@ -176,23 +192,23 @@ def create_standings_char():
 
 
 def get_test_labels() -> list:
-    """returns labels from test data as list of ContactsWrapper.Label"""
+    """returns labels from test data as list of _ContactsWrapper.Label"""
     labels = list()
     for label_data in get_my_test_data()["alliance_labels"]:
-        labels.append(ContactsWrapper.Label(label_data))
+        labels.append(_ContactsWrapper.Label(label_data))
 
     return labels
 
 
 def get_test_contacts():
-    """returns contacts from test data as list of ContactsWrapper.Contact"""
+    """returns contacts from test data as list of _ContactsWrapper.Contact"""
     labels = get_test_labels()
 
     contact_ids = [x["contact_id"] for x in get_my_test_data()["alliance_contacts"]]
     names_info = get_entity_names(contact_ids)
     contacts = list()
     for contact_data in get_my_test_data()["alliance_contacts"]:
-        contacts.append(ContactsWrapper.Contact(contact_data, labels, names_info))
+        contacts.append(_ContactsWrapper.Contact(contact_data, labels, names_info))
 
     return contacts
 
@@ -244,7 +260,7 @@ def create_contacts_set(my_set: object = None) -> object:
         CharacterAssociation.objects.create(**assoc)
 
     # add labels
-    StandingsManager.api_add_labels(my_set, get_test_labels())
+    ContactSet.objects._add_labels_from_api(my_set, get_test_labels())
 
     return my_set
 

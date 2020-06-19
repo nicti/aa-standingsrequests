@@ -25,39 +25,61 @@ logger = set_test_logger(MODULE_PATH, __file__)
 app = Celery("myauth")
 
 
-@patch(MODULE_PATH + ".StandingsManager")
+@patch(MODULE_PATH + ".StandingsRequest.objects.process_requests")
+@patch(MODULE_PATH + ".StandingsRevocation.objects.process_requests")
+@patch(MODULE_PATH + ".ContactSet.objects.create_new_from_api")
 class TestStandingsUpdate(NoSocketsTestCase):
-    def test_can_update_standings(self, mock_StandingsManager):
+    def test_can_update_standings(
+        self,
+        mock_create_new_from_api,
+        mock_requests_process_standings,
+        mock_revocations_process_standings,
+    ):
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_standings.called)
-        self.assertTrue(mock_StandingsManager.process_pending_standings.called)
+        self.assertTrue(mock_create_new_from_api.called)
+        self.assertTrue(mock_requests_process_standings.called)
+        self.assertTrue(mock_revocations_process_standings.called)
 
-    def test_can_handle_api_error(self, mock_StandingsManager):
-        mock_StandingsManager.api_update_standings.return_value = None
+    def test_can_handle_api_error(
+        self,
+        mock_create_new_from_api,
+        mock_requests_process_standings,
+        mock_revocations_process_standings,
+    ):
+        mock_create_new_from_api.return_value = None
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_standings.called)
-        self.assertFalse(mock_StandingsManager.process_pending_standings.called)
+        self.assertTrue(mock_create_new_from_api.called)
+        self.assertFalse(mock_requests_process_standings.called)
+        self.assertFalse(mock_revocations_process_standings.called)
 
-    def test_can_handle_exception(self, mock_StandingsManager):
-        mock_StandingsManager.api_update_standings.side_effect = RuntimeError
+    def test_can_handle_exception(
+        self,
+        mock_create_new_from_api,
+        mock_requests_process_standings,
+        mock_revocations_process_standings,
+    ):
+        mock_create_new_from_api.side_effect = RuntimeError
         standings_update()
-        self.assertTrue(mock_StandingsManager.api_update_standings.called)
-        self.assertFalse(mock_StandingsManager.process_pending_standings.called)
+        self.assertTrue(mock_create_new_from_api.called)
+        self.assertFalse(mock_requests_process_standings.called)
+        self.assertFalse(mock_revocations_process_standings.called)
 
 
-@patch(MODULE_PATH + ".StandingsManager")
 class TestOtherTasks(NoSocketsTestCase):
-    def test_validate_standings_requests(self, mock_StandingsManager):
+    @patch(MODULE_PATH + ".StandingsRequest.objects.validate_standings_requests")
+    def test_validate_standings_requests(self, mock_validate_standings_requests):
         validate_standings_requests()
-        self.assertTrue(mock_StandingsManager.validate_standings_requests.called)
+        self.assertTrue(mock_validate_standings_requests.called)
 
-    def test_update_associations_auth(self, mock_StandingsManager):
+    @patch(MODULE_PATH + ".CharacterAssociation.objects.update_from_auth")
+    def test_update_associations_auth(self, mock_update_character_associations_auth):
         update_associations_auth()
-        self.assertTrue(mock_StandingsManager.update_character_associations_auth.called)
+        self.assertTrue(mock_update_character_associations_auth.called)
 
-    def test_update_associations_api(self, mock_StandingsManager):
+    @patch(MODULE_PATH + ".CharacterAssociation.objects.update_from_api")
+    def test_update_associations_api(self, mock_update_character_associations_api):
         update_associations_api()
-        self.assertTrue(mock_StandingsManager.update_character_associations_api.called)
+        self.assertTrue(mock_update_character_associations_api.called)
 
 
 class TestPurgeTasks(NoSocketsTestCase):

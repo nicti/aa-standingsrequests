@@ -10,18 +10,18 @@ from allianceauth.services.hooks import get_extension_logger
 from bravado.exception import HTTPError
 
 from .. import __title__
-from ..helpers.esi_fetch import esi_fetch
+from .esi_fetch import esi_fetch
 from ..utils import chunks, LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-class EveEntityManager:
+class EveEntityHelper:
     @staticmethod
     def get_name(eve_entity_id):
-        name = EveEntityManager.get_name_from_auth(eve_entity_id)
+        name = EveEntityHelper.get_name_from_auth(eve_entity_id)
         if name is None:
-            name = EveEntityManager.get_name_from_api(eve_entity_id)
+            name = EveEntityHelper.get_name_from_api(eve_entity_id)
         if name is None:
             logger.error("Could not get name for eve_entity_id %s", eve_entity_id)
         return name
@@ -37,14 +37,14 @@ class EveEntityManager:
         names_info = dict()
         for entity_id in set(eve_entity_ids):
             entity_id = int(entity_id)
-            entity_name = EveEntityManager.get_name_from_auth(entity_id)
+            entity_name = EveEntityHelper.get_name_from_auth(entity_id)
             if entity_name is None:
                 need_api.append(entity_id)
             else:
                 names_info[entity_id] = entity_name
 
         if len(need_api) > 0:
-            api_names_info = EveEntityManager.get_names_from_api(need_api)
+            api_names_info = EveEntityHelper.get_names_from_api(need_api)
             names_info.update(api_names_info)
 
         return names_info
@@ -96,7 +96,7 @@ class EveEntityManager:
         names_info = dict()
         chunk_size = 1000
         for ids_chunk in chunks(eve_entity_ids, chunk_size):
-            infos = EveEntityManager.__get_names_from_api(ids_chunk)
+            infos = EveEntityHelper.__get_names_from_api(ids_chunk)
             for info in infos:
                 names_info[info["id"]] = info["name"]
 
@@ -133,7 +133,7 @@ class EveEntityManager:
         :return: str entity name or None if unsuccessful
         """
         eve_entity_id = int(eve_entity_id)
-        infos = EveEntityManager.get_names_from_api([eve_entity_id])
+        infos = EveEntityHelper.get_names_from_api([eve_entity_id])
         if eve_entity_id in infos:
             return infos[eve_entity_id]
 

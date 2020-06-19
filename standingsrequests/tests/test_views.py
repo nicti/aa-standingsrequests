@@ -17,12 +17,12 @@ from ..utils import set_test_logger, NoSocketsTestCase
 from .. import views
 
 MODULE_PATH = "standingsrequests.views"
-MODELS_MODULE_PATH = "standingsrequests.models"
+MODULE_PATH_MANAGERS = "standingsrequests.managers"
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
 @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODELS_MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH + ".update_all")
 @patch(MODULE_PATH + ".messages_plus")
 class TestViewAuthPage(NoSocketsTestCase):
@@ -43,7 +43,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         orig_view = views.view_auth_page.__wrapped__.__wrapped__.__wrapped__
         return orig_view(request, token)
 
-    @patch(MODELS_MODULE_PATH + ".SR_OPERATION_MODE", "corporation")
+    @patch(MODULE_PATH_MANAGERS + ".SR_OPERATION_MODE", "corporation")
     def test_for_corp_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -58,7 +58,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODELS_MODULE_PATH + ".SR_OPERATION_MODE", "corporation")
+    @patch(MODULE_PATH_MANAGERS + ".SR_OPERATION_MODE", "corporation")
     def test_when_not_provided_standingschar_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -75,7 +75,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertTrue(mock_messages.error.called)
         self.assertFalse(mock_update_all.delay.called)
 
-    @patch(MODELS_MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(MODULE_PATH_MANAGERS + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -94,7 +94,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODELS_MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(MODULE_PATH_MANAGERS + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_not_in_alliance_return_error(
         self, mock_messages, mock_update_all
     ):

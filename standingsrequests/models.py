@@ -5,17 +5,28 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
 
+from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 
+from esi.models import Token
+
 from . import __title__
 from .app_settings import (
-    SR_OPERATION_MODE,
-    STANDINGS_API_CHARID,
+    SR_REQUIRED_SCOPES,
     SR_STANDING_TIMEOUT_HOURS,
+    STR_CORP_IDS,
+    STR_ALLIANCE_IDS,
 )
-from .helpers import StandingsRequestManager
-from .managers.eveentity import EveEntityManager
+from .helpers.evecorporation import EveCorporation
+from .helpers.eveentity import EveEntityHelper
+from .managers import (
+    AbstractStandingsRequestManager,
+    CharacterAssociationManager,
+    ContactSetManager,
+    EveNameCacheManager,
+    StandingsRequestManager,
+)
 from .utils import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -28,6 +39,8 @@ class ContactSet(models.Model):
 
     date = models.DateTimeField(auto_now_add=True, db_index=True)
     name = models.CharField(max_length=254)
+
+    objects = ContactSetManager()
 
     class Meta:
         get_latest_by = "date"
@@ -55,54 +68,39 @@ class ContactSet(models.Model):
             return self.alliancestanding_set.get(contact_id=contact_id)
         raise exceptions.ObjectDoesNotExist()
 
-    @staticmethod
-    def required_esi_scope() -> str:
-        """returns the required ESI scopes for syncing"""
-        if SR_OPERATION_MODE == "alliance":
-            return "esi-alliances.read_contacts.v1"
-        elif SR_OPERATION_MODE == "corporation":
-            return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
+    def create_standing(self, contact_type_id, contact_id, name, standing, labels):
+        StandingType = self.get_class_for_contact_type(contact_type_id)
+        standing = StandingType.objects.create(
+            contact_set=self, contact_id=contact_id, name=name, standing=standing,
+        )
+        for label in labels:
+            standing.labels.add(label)
+
+        return standing
 
     @staticmethod
-    def standings_character() -> EveCharacter:
-        """returns the configured standings character"""
-        try:
-            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
-        except EveCharacter.DoesNotExist:
-            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
-            EveNameCache.objects.get_or_create(
-                entity_id=character.character_id,
-                defaults={"name": character.character_name},
-            )
+    def get_class_for_contact_type(contact_type_id):
+        if contact_type_id in PilotStanding.contact_types:
+            return PilotStanding
+        elif contact_type_id in CorpStanding.contact_types:
+            return CorpStanding
+        elif contact_type_id in AllianceStanding.contact_types:
+            return AllianceStanding
+        raise NotImplementedError()
 
-        return character
-
-    @classmethod
-    def standings_source_entity(cls) -> object:
-        """returns the entity that all standings are fetched from
+    @staticmethod
+    def pilot_in_organisation(character_id: int) -> bool:
+        """Check if the Pilot is in the auth instances organisation
         
-        returns None when in alliance mode, but character has no alliance
-        """
-        character = cls.standings_character()
-        if SR_OPERATION_MODE == "alliance":
-            if character.alliance_id:
-                entity, _ = EveNameCache.objects.get_or_create(
-                    entity_id=character.alliance_id,
-                    defaults={"name": character.alliance_name},
-                )
-            else:
-                entity = None
-        elif SR_OPERATION_MODE == "corporation":
-            entity, _ = EveNameCache.objects.get_or_create(
-                entity_id=character.corporation_id,
-                defaults={"name": character.corporation_name},
-            )
-        else:
-            raise NotImplementedError()
+        character_id: EveCharacter character_id
 
-        return entity
+        returns True if the character is in the organisation, False otherwise
+        """
+        pilot = EveCharacter.objects.get_character_by_id(character_id)
+        return pilot and (
+            str(pilot.corporation_id) in STR_CORP_IDS
+            or str(pilot.alliance_id) in STR_ALLIANCE_IDS
+        )
 
 
 class ContactLabel(models.Model):
@@ -251,6 +249,8 @@ class AbstractStandingsRequest(models.Model):
     effective_date = models.DateTimeField(
         null=True, help_text="Datetime when this standing was set active in-game"
     )
+
+    objects = AbstractStandingsRequestManager()
 
     class Meta:
         permissions = (
@@ -448,7 +448,7 @@ class StandingsRequest(AbstractStandingsRequest):
                 self.contact_type_id,
             )
 
-        super(AbstractStandingsRequest, self).delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     @classmethod
     def add_request(cls, user, contact_id, contact_type_id):
@@ -495,6 +495,66 @@ class StandingsRequest(AbstractStandingsRequest):
         requests = cls.objects.filter(contact_id=contact_id)
         logger.debug("%d requests to be removed", len(requests))
         requests.delete()
+
+    @classmethod
+    def all_corp_apis_recorded(cls, corp_id, user):
+        """
+        Checks if a user has all of the required corps APIs recorded for
+         standings to be permitted
+        :param corp_id: corp to check for
+        :param user: User to check for
+        :return: True if they can request standings, False if they cannot
+        """
+        # TODO: Need to figure out how to check if esi keys exists.....
+        keys_recorded = sum(
+            [
+                1
+                for a in EveCharacter.objects.filter(
+                    character_ownership__user=user
+                ).filter(corporation_id=corp_id)
+                if cls.has_required_scopes_for_request(a)
+            ]
+        )
+        corp = EveCorporation.get_corp_by_id(int(corp_id))
+        logger.debug(
+            "Got %d keys recorded for %d total corp members",
+            keys_recorded,
+            corp.member_count or None,
+        )
+        return corp is not None and keys_recorded >= corp.member_count
+
+    @classmethod
+    def has_required_scopes_for_request(cls, character: EveCharacter) -> bool:
+        """returns true if given character has the required scopes 
+        for issueing a standings request else false
+        """
+        try:
+            ownership = CharacterOwnership.objects.get(
+                character__character_id=character.character_id
+            )
+        except CharacterOwnership.DoesNotExist:
+            return False
+
+        else:
+            user = ownership.user
+            state_name = user.profile.state.name
+            scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
+            has_required_scopes = (
+                Token.objects.filter(character_id=character.character_id)
+                .require_scopes(scopes_string)
+                .require_valid()
+                .exists()
+            )
+            return has_required_scopes
+
+    @staticmethod
+    def get_required_scopes_for_state(state_name: str) -> list:
+        state_name = "" if not state_name else state_name
+        return (
+            SR_REQUIRED_SCOPES[state_name]
+            if state_name in SR_REQUIRED_SCOPES
+            else list()
+        )
 
 
 class StandingsRevocation(AbstractStandingsRequest):
@@ -564,13 +624,15 @@ class CharacterAssociation(models.Model):
     main_character_id = models.PositiveIntegerField(null=True)
     updated = models.DateTimeField(auto_now_add=True)
 
+    objects = CharacterAssociationManager()
+
     @property
     def character_name(self):
         """
         Character name property for character_id
         :return: str character name
         """
-        name = EveNameCache.get_name(self.character_id)
+        name = EveNameCache.objects.get_name(self.character_id)
         return name
 
     @property
@@ -580,25 +642,10 @@ class CharacterAssociation(models.Model):
         :return: str character name
         """
         if self.main_character_id:
-            name = EveNameCache.get_name(self.main_character_id)
+            name = EveNameCache.objects.get_name(self.main_character_id)
         else:
             name = None
         return name
-
-    @classmethod
-    def get_api_expired_items(cls, items_in=None):
-        """
-        Get all API timer expired items
-        :param items_in: list optional parameter to limit the results 
-        to character_ids in the list
-        :return: QuerySet of CharacterAssociation items 
-        that have expired their API timer
-        """
-        expired = cls.objects.filter(updated__lt=timezone.now() - cls.API_CACHE_TIMER)
-        if items_in is not None:
-            expired = expired.filter(character_id__in=items_in)
-
-        return expired
 
 
 class EveNameCache(models.Model):
@@ -614,81 +661,10 @@ class EveNameCache(models.Model):
     name = models.CharField(max_length=254)
     updated = models.DateTimeField(auto_now_add=True)
 
-    @classmethod
-    def get_names(cls, entity_ids: list):
-        """
-        Get the names of the given entity ids from catch or other locations
-        :param eve_entity_ids: array of int entity ids who's names to fetch
-        :return: dict with entity_id as key and name as value
-        """
-        # make sure there are no duplicates
-        entity_ids = set(entity_ids)
-        name_info = {}
-        entities_need_update = []
-        entity_ids_not_found = []
-        for entity_id in entity_ids:
-            if cls.objects.filter(entity_id=entity_id).exists():
-                # Cached
-                entity = cls.objects.get(entity_id=entity_id)
-                if entity.cache_timeout():
-                    entities_need_update.append(entity)
-                else:
-                    name_info[entity.entity_id] = entity.name
-            else:
-                entity_ids_not_found.append(entity_id)
+    objects = EveNameCacheManager()
 
-        entities_need_names = [
-            e.entity_id for e in entities_need_update
-        ] + entity_ids_not_found
-
-        names_info_api = EveEntityManager.get_names(entities_need_names)
-
-        # update existing entities
-        for entity in entities_need_update:
-            if entity.entity_id in names_info_api:
-                name = names_info_api[entity.entity_id]
-                entity._set_name(name)
-            else:
-                entity._update_entity()
-
-            name_info[entity.entity_id] = entity.name
-
-        # create new entities
-        for entity_id in entity_ids_not_found:
-            if entity_id in names_info_api:
-                entity = cls()
-                entity.entity_id = entity_id
-                entity._set_name(names_info_api[entity_id])
-                name_info[entity_id] = entity.name
-
-        return name_info
-
-    @classmethod
-    def get_name(cls, entity_id: int) -> str:
-        """
-        Get the name for the given entity
-        :param entity_id: EVE id of the entity
-        :return: str name if it exists or None
-        """
-        if cls.objects.filter(entity_id=entity_id).exists():
-            # Cached
-            entity = cls.objects.get(entity_id=entity_id)
-            if entity.cache_timeout():
-                entity._update_entity()
-        else:
-            # Fetch name/not cached
-            entity = cls()
-            entity.entity_id = entity_id
-            entity._update_entity()
-            # If the name is updated it will be saved,
-            # otherwise this object will be discarded
-            # when it goes out of scope
-        return entity.name or None
-
-    def _update_entity(self, allow_api=True):
-        """
-        Update the entities name. Callers are responsible for checking cache timing.
-        :return: bool
+    def _update_entity(self, allow_api=True) -> bool:
+        """Update the entities name. Callers are responsible for checking cache timing.
         """
         # Try sources in order of preference, API call last
 
@@ -700,27 +676,33 @@ class EveNameCache(models.Model):
             return True
         return False
 
-    def _update_from_contacts(self):
+    def _update_from_contacts(self) -> bool:
+        """Attempt to update the entity from the latest contacts data
+        
+        returns True if successful, False otherwise
         """
-        Attempt to update the entity from the latest contacts data
-        :return: bool True if successful, False otherwise
-        """
-        contact = None
         try:
-            contacts = ContactSet.objects.latest()
-            if contacts.pilotstanding_set.filter(contact_id=self.entity_id).exists():
-                contact = contacts.pilotstanding_set.get(contact_id=self.entity_id)
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            contact = None
 
-            elif contacts.corpstanding_set.filter(contact_id=self.entity_id).exists():
-                contact = contacts.corpstanding_set.get(contact_id=self.entity_id)
+        else:
+            if contact_set.pilotstanding_set.filter(contact_id=self.entity_id).exists():
+                contact = contact_set.pilotstanding_set.get(contact_id=self.entity_id)
 
-            elif contacts.alliancestanding_set.filter(
+            elif contact_set.corpstanding_set.filter(
                 contact_id=self.entity_id
             ).exists():
-                contact = contacts.alliancestanding_set.get(contact_id=self.entity_id)
+                contact = contact_set.corpstanding_set.get(contact_id=self.entity_id)
 
-        except ContactSet.DoesNotExist:
-            pass
+            elif contact_set.alliancestanding_set.filter(
+                contact_id=self.entity_id
+            ).exists():
+                contact = contact_set.alliancestanding_set.get(
+                    contact_id=self.entity_id
+                )
+            else:
+                contact = None
 
         if contact is not None:
             self._set_name(contact.name)
@@ -728,25 +710,25 @@ class EveNameCache(models.Model):
         else:
             return False
 
-    def _update_from_auth(self):
+    def _update_from_auth(self) -> bool:
+        """Attempt to update the entity from the parent auth installation
+        
+        returns True if successful, False otherwise
         """
-        Attempt to update the entity from the parent auth installation
-        :return: bool True if successful, False otherwise
-        """
-        auth_name = EveEntityManager.get_name_from_auth(self.entity_id)
+        auth_name = EveEntityHelper.get_name_from_auth(self.entity_id)
         if auth_name is not None:
             self._set_name(auth_name)
             return True
         else:
             return False
 
-    def _update_from_api(self):
-        """
-        Attempt to update the entity from the EVE API. 
+    def _update_from_api(self) -> bool:
+        """Attempt to update the entity from the EVE API. 
         Should be a last resort (because slow)
-        :return: bool True if successful, False otherwise
+        
+        returns bool True if successful, False otherwise
         """
-        api_name = EveEntityManager.get_name_from_api(self.entity_id)
+        api_name = EveEntityHelper.get_name_from_api(self.entity_id)
         if api_name is not None:
             self._set_name(api_name)
             return True
@@ -769,9 +751,3 @@ class EveNameCache(models.Model):
         :return: bool True if the cache timer has expired, False otherwise
         """
         return timezone.now() > self.updated + self.CACHE_TIME
-
-    @classmethod
-    def update_name(cls, entity_id, name):
-        cls.objects.update_or_create(
-            entity_id=entity_id, defaults={"name": name, "updated": timezone.now(),}
-        )

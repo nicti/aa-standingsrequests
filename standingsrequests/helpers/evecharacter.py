@@ -19,11 +19,11 @@ class EveCharacterHelper:
         try:
             assoc = CharacterAssociation.objects.get(character_id=self.character_id)
             self.corporation_id = assoc.corporation_id
-            self.corporation_name = EveNameCache.get_name(assoc.corporation_id)
+            self.corporation_name = EveNameCache.objects.get_name(assoc.corporation_id)
 
             self.alliance_id = assoc.alliance_id
             if self.alliance_id is not None:
-                self.alliance_name = EveNameCache.get_name(assoc.alliance_id)
+                self.alliance_name = EveNameCache.objects.get_name(assoc.alliance_id)
 
             # Add a main character attribute (deviates from original model)
             if (
@@ -37,4 +37,4 @@ class EveCharacterHelper:
             self.corporation_name = None
             self.alliance_id = None
 
-        self.character_name = EveNameCache.get_name(character_id)
+        self.character_name = EveNameCache.objects.get_name(character_id)

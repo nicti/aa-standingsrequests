@@ -26,11 +26,10 @@ TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
 @patch(
-    "standingsrequests.managers.standings.STR_ALLIANCE_IDS",
-    [str(TEST_STANDINGS_ALLIANCE_ID)],
+    "standingsrequests.models.STR_ALLIANCE_IDS", [str(TEST_STANDINGS_ALLIANCE_ID)],
 )
 @patch(
-    "standingsrequests.managers.standings.SR_REQUIRED_SCOPES",
+    "standingsrequests.models.SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
 @patch(PACKAGE_PATH + ".standingsrequests_sync_blue_alts.get_input")

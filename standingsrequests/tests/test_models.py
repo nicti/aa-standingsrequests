@@ -6,7 +6,8 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils import timezone
 
-from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo
+from allianceauth.tests.auth_utils import AuthUtils
 
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
@@ -27,19 +28,19 @@ from .entity_type_ids import (
     CHARACTER_VHEROKIOR_TYPE_ID,
     CHARACTER_DRIFTER_TYPE_ID,
 )
+from . import add_new_token, _generate_token, _store_as_Token
 from .my_test_data import (
     create_contacts_set,
     get_entity_name,
-    get_entity_names,
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
-    create_standings_char,
+    create_entity,
+    get_my_test_data,
 )
 
 from ..models import (
     AbstractStanding,
     AllianceStanding,
     CharacterAssociation,
+    ContactLabel,
     ContactSet,
     CorpStanding,
     EveNameCache,
@@ -109,27 +110,74 @@ class TestContactSet(NoSocketsTestCase):
         with self.assertRaises(ObjectDoesNotExist):
             my_set.get_standing_for_id(9999, 99)
 
-    @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    def test_standings_character_exists(self):
-        character = create_standings_char()
-        self.assertEqual(ContactSet.standings_character(), character)
+    @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    def test_pilot_in_organisation_matches_corp(self):
+        create_entity(EveCharacter, 1001)
+        self.assertTrue(ContactSet.pilot_in_organisation(1001))
 
-    @patch(MODULE_PATH + ".STANDINGS_API_CHARID", 1002)
-    @patch(MODULE_PATH + ".EveCharacter.objects.create_character")
-    def test_standings_character_not_exists(self, mock_create_character):
-        character, _ = EveCharacter.objects.get_or_create(
-            character_id=TEST_STANDINGS_API_CHARID,
-            defaults={
-                "character_name": TEST_STANDINGS_API_CHARNAME,
-                "corporation_id": 2099,
-                "corporation_name": "Dummy Corp",
-            },
+    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
+    def test_pilot_in_organisation_matches_alliance(self):
+        create_entity(EveCharacter, 1001)
+        self.assertTrue(ContactSet.pilot_in_organisation(1001))
+
+    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    def test_pilot_in_organisation_doest_not_exist(self):
+        self.assertFalse(ContactSet.pilot_in_organisation(1999))
+
+    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    def test_pilot_in_organisation_matches_none(self):
+        create_entity(EveCharacter, 1001)
+        self.assertFalse(ContactSet.pilot_in_organisation(1001))
+
+
+class TestContactSetCreateStanding(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.contact_set = create_contacts_set()
+
+    def test_can_create_pilot_standing(self):
+        obj = self.contact_set.create_standing(
+            contact_type_id=CHARACTER_TYPE_ID,
+            name="Lex Luthor",
+            contact_id=1009,
+            standing=-10,
+            labels=ContactLabel.objects.all(),
         )
-        mock_create_character.return_value = character
-        self.assertEqual(ContactSet.standings_character(), character)
-        self.assertTrue(
-            EveNameCache.objects.filter(entity_id=TEST_STANDINGS_API_CHARID).exists()
+        self.assertIsInstance(obj, PilotStanding)
+        self.assertEqual(obj.name, "Lex Luthor")
+        self.assertEqual(obj.contact_id, 1009)
+        self.assertEqual(obj.standing, -10)
+
+    def test_can_create_corp_standing(self):
+        obj = self.contact_set.create_standing(
+            contact_type_id=CORPORATION_TYPE_ID,
+            name="Lexcorp",
+            contact_id=2102,
+            standing=-10,
+            labels=ContactLabel.objects.all(),
         )
+        self.assertIsInstance(obj, CorpStanding)
+        self.assertEqual(obj.name, "Lexcorp")
+        self.assertEqual(obj.contact_id, 2102)
+        self.assertEqual(obj.standing, -10)
+
+    def test_can_create_alliance_standing(self):
+        obj = self.contact_set.create_standing(
+            contact_type_id=ALLIANCE_TYPE_ID,
+            name="Wayne Enterprises",
+            contact_id=3001,
+            standing=5,
+            labels=ContactLabel.objects.all(),
+        )
+        self.assertIsInstance(obj, AllianceStanding)
+        self.assertEqual(obj.name, "Wayne Enterprises")
+        self.assertEqual(obj.contact_id, 3001)
+        self.assertEqual(obj.standing, 5)
 
 
 class TestAbstractStanding(TestCase):
@@ -525,6 +573,163 @@ class TestStandingsRequest(TestCase):
         )
 
 
+class TestStandingsRequestClassMethods(NoSocketsTestCase):
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    def test_all_corp_apis_recorded_good(self, mock_get_corp_by_id):
+        """user has tokens for all 3 chars of corp"""
+        mock_get_corp_by_id.return_value = EveCorporationInfo(
+            **get_my_test_data()["EveCorporationInfo"]["2001"]
+        )
+        my_user = AuthUtils.create_user("John Doe")
+        for character_id, character in get_my_test_data()["EveCharacter"].items():
+            if character["corporation_id"] == 2001:
+                my_character = EveCharacter.objects.create(**character)
+                _store_as_Token(
+                    _generate_token(
+                        character_id=my_character.character_id,
+                        character_name=my_character.character_name,
+                        scopes=["publicData"],
+                    ),
+                    my_user,
+                )
+
+        self.assertTrue(StandingsRequest.all_corp_apis_recorded(2001, my_user))
+
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    def test_all_corp_apis_recorded_incomplete(self, mock_get_corp_by_id):
+        """user has tokens for only 2 / 3 chars of corp"""
+        mock_get_corp_by_id.return_value = EveCorporationInfo(
+            **get_my_test_data()["EveCorporationInfo"]["2001"]
+        )
+        my_user = AuthUtils.create_user("John Doe")
+        for character_id, character in get_my_test_data()["EveCharacter"].items():
+            if character_id in [1001, 1002]:
+                my_character = EveCharacter.objects.create(**character)
+                _store_as_Token(
+                    _generate_token(
+                        character_id=my_character.character_id,
+                        character_name=my_character.character_name,
+                        scopes=["publicData"],
+                    ),
+                    my_user,
+                )
+
+        self.assertFalse(StandingsRequest.all_corp_apis_recorded(2001, my_user))
+
+    @patch(
+        MODULE_PATH + ".SR_REQUIRED_SCOPES",
+        {"Guest": ["publicData", "esi-mail.read_mail.v1"]},
+    )
+    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    def test_all_corp_apis_recorded_wrong_scope(self, mock_get_corp_by_id):
+        """user has tokens for only 3 / 3 chars of corp, but wrong scopes"""
+        mock_get_corp_by_id.return_value = EveCorporationInfo(
+            **(get_my_test_data()["EveCorporationInfo"]["2001"])
+        )
+        my_user = AuthUtils.create_user("John Doe")
+        for character_id, character in get_my_test_data()["EveCharacter"].items():
+            if character_id in [1001, 1002]:
+                my_character = EveCharacter.objects.create(**character)
+                _store_as_Token(
+                    _generate_token(
+                        character_id=my_character.character_id,
+                        character_name=my_character.character_name,
+                        scopes=["publicData"],
+                    ),
+                    my_user,
+                )
+
+        self.assertFalse(StandingsRequest.all_corp_apis_recorded(2001, my_user))
+
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    def test_all_corp_apis_recorded_good_another_user(self, mock_get_corp_by_id):
+        """there are tokens for all 3 chars of corp, but for another user"""
+        mock_get_corp_by_id.return_value = EveCorporationInfo(
+            **get_my_test_data()["EveCorporationInfo"]["2001"]
+        )
+        user_1 = AuthUtils.create_user("John Doe")
+        user_2 = AuthUtils.create_user("Mike Myers")
+        for character_id, character in get_my_test_data()["EveCharacter"].items():
+            if character["corporation_id"] == 2001:
+                my_character = EveCharacter.objects.create(**character)
+                _store_as_Token(
+                    _generate_token(
+                        character_id=my_character.character_id,
+                        character_name=my_character.character_name,
+                        scopes=["publicData"],
+                    ),
+                    user_1,
+                )
+
+        self.assertFalse(StandingsRequest.all_corp_apis_recorded(2001, user_2))
+
+
+class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    def test_return_scopes_if_defined_for_state(self):
+        expected = ["abc"]
+        self.assertListEqual(
+            StandingsRequest.get_required_scopes_for_state("member"), expected
+        )
+
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    def test_return_empty_list_if_not_defined_for_state(self):
+        expected = []
+        self.assertListEqual(
+            StandingsRequest.get_required_scopes_for_state("guest"), expected
+        )
+
+    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    def test_return_empty_list_if_state_is_note(self):
+        expected = []
+        self.assertListEqual(
+            StandingsRequest.get_required_scopes_for_state(None), expected
+        )
+
+
+@patch(MODULE_PATH + ".StandingsRequest.get_required_scopes_for_state")
+class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
+    def test_true_when_user_has_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ["abc"]
+        user = AuthUtils.create_member("Bruce Wayne")
+        character = AuthUtils.add_main_character_2(
+            user=user,
+            name="Batman",
+            character_id=2099,
+            corp_id=2001,
+            corp_name="Wayne Tech",
+        )
+        add_new_token(user, character, ["abc"])
+        self.assertTrue(StandingsRequest.has_required_scopes_for_request(character))
+
+    def test_false_when_user_does_not_have_required_scopes(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ["xyz"]
+        user = AuthUtils.create_member("Bruce Wayne")
+        character = AuthUtils.add_main_character_2(
+            user=user,
+            name="Batman",
+            character_id=2099,
+            corp_id=2001,
+            corp_name="Wayne Tech",
+        )
+        add_new_token(user, character, ["abc"])
+        self.assertFalse(StandingsRequest.has_required_scopes_for_request(character))
+
+    def test_false_when_user_state_can_not_be_determinded(
+        self, mock_get_required_scopes_for_state
+    ):
+        mock_get_required_scopes_for_state.return_value = ["abc"]
+        character = create_entity(EveCharacter, 1002)
+        self.assertFalse(StandingsRequest.has_required_scopes_for_request(character))
+
+
 class TestStandingsRevocation(TestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
@@ -592,69 +797,33 @@ class TestCharacterAssociation(TestCase):
 
     @patch(MODULE_PATH + ".EveNameCache")
     def test_get_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
     @patch(MODULE_PATH + ".EveNameCache")
     def test_get_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
         self.assertIsNone(my_assoc.character_name)
 
     @patch(MODULE_PATH + ".EveNameCache")
     def test_get_main_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
     @patch(MODULE_PATH + ".EveNameCache")
     def test_get_main_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
         self.assertIsNone(my_assoc.main_character_name)
 
     @patch(MODULE_PATH + ".EveNameCache")
     def test_get_main_character_name_not_defined(self, mock_EveNameCache):
-        mock_EveNameCache.get_name.side_effect = get_entity_name
+        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002)
         self.assertIsNone(my_assoc.main_character_name)
-
-    def test_get_api_expired_items(self):
-        CharacterAssociation.objects.create(character_id=1002, main_character_id=1001)
-        my_assoc_expired_1 = CharacterAssociation.objects.create(
-            character_id=1003, main_character_id=1001
-        )
-        my_assoc_expired_1.updated -= timedelta(days=4)
-        my_assoc_expired_1.save()
-        my_assoc_expired_2 = CharacterAssociation.objects.create(
-            character_id=1004, main_character_id=1001
-        )
-        my_assoc_expired_2.updated -= timedelta(days=5)
-        my_assoc_expired_2.save()
-
-        self.assertSetEqual(
-            set(CharacterAssociation.get_api_expired_items()),
-            {my_assoc_expired_1, my_assoc_expired_2},
-        )
-
-    def test_get_api_expired_items_selected(self):
-        CharacterAssociation.objects.create(character_id=1002, main_character_id=1001)
-        my_assoc_expired_1 = CharacterAssociation.objects.create(
-            character_id=1003, main_character_id=1001
-        )
-        my_assoc_expired_1.updated -= timedelta(days=4)
-        my_assoc_expired_1.save()
-        my_assoc_expired_2 = CharacterAssociation.objects.create(
-            character_id=1004, main_character_id=1001
-        )
-        my_assoc_expired_2.updated -= timedelta(days=5)
-        my_assoc_expired_2.save()
-
-        self.assertSetEqual(
-            set(CharacterAssociation.get_api_expired_items(items_in=[1004])),
-            {my_assoc_expired_2},
-        )
 
 
 class TestEveNameCache(TestCase):
@@ -662,133 +831,10 @@ class TestEveNameCache(TestCase):
         ContactSet.objects.all().delete()
         EveNameCache.objects.all().delete()
 
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_name_from_api_when_table_is_empty(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.return_value = None
-        mock_EveEntityManager.get_name_from_api.return_value = "Bruce Wayne"
-        self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_name_from_auth_when_table_is_empty(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.return_value = "Bruce Wayne"
-        mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
-        self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_name_when_exists_in_cache(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
-
-        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_name_that_not_exists(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.return_value = None
-        mock_EveEntityManager.get_name_from_api.return_value = None
-
-        self.assertEqual(EveNameCache.get_name(1999), None)
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_name_when_cache_outdated(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.return_value = None
-        mock_EveEntityManager.get_name_from_api.return_value = "Bruce Wayne"
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceStanding.objects.create(
-            contact_set=contact_set,
-            contact_id=3001,
-            name="Dummy Alliance 1",
-            standing=0,
-        )
-        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        my_entity.updated = timezone.now() - timedelta(days=31)
-        my_entity.save()
-        self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
-        self.assertEqual(mock_EveEntityManager.get_name_from_api.call_count, 1)
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_pilot_contacts(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        PilotStanding.objects.create(
-            contact_set=contact_set, contact_id=1001, name="Bruce Wayne", standing=0
-        )
-        self.assertEqual(EveNameCache.get_name(1001), "Bruce Wayne")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_corporation_contacts(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        CorpStanding.objects.create(
-            contact_set=contact_set, contact_id=2001, name="Dummy Corp 1", standing=0
-        )
-        self.assertEqual(EveNameCache.get_name(2001), "Dummy Corp 1")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_alliance_contacts(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityManager.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceStanding.objects.create(
-            contact_set=contact_set,
-            contact_id=3001,
-            name="Dummy Alliance 1",
-            standing=0,
-        )
-        self.assertEqual(EveNameCache.get_name(3001), "Dummy Alliance 1")
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_when_table_is_empty(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_names.side_effect = get_entity_names
-
-        entities = EveNameCache.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(
-            mock_EveEntityManager.get_names.call_args[0][0], [1001, 1002]
-        )
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_cache(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_names.side_effect = get_entity_names
-
-        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        EveNameCache.objects.create(entity_id=1002, name="Peter Parker")
-        entities = EveNameCache.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(mock_EveEntityManager.get_names.call_args[0][0], [])
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_cache_and_api(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_names.side_effect = get_entity_names
-
-        EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        entities = EveNameCache.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(mock_EveEntityManager.get_names.call_args[0][0], [1002])
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_from_expired_cache_and_api(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_names.side_effect = get_entity_names
-
-        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        my_entity.updated = timezone.now() - timedelta(days=31)
-        my_entity.save()
-        entities = EveNameCache.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(
-            mock_EveEntityManager.get_names.call_args[0][0], [1001, 1002]
-        )
-
     """
-    @patch(MODULE_PATH + '.EveEntityManager')
-    def test_get_names_from_contacts(self, mock_EveEntityManager):        
-        mock_EveEntityManager.get_names.side_effect = \
+    @patch(MODULE_PATH + '.EveEntityHelper')
+    def test_get_names_from_contacts(self, mock_EveEntityHelper):        
+        mock_EveEntityHelper.get_names.side_effect = \
             get_entity_names
 
         contact_set = ContactSet.objects.create(
@@ -800,7 +846,7 @@ class TestEveNameCache(TestCase):
             name='Bruce Wayne',
             standing=0
         )                
-        entities = EveNameCache.get_names([1001])
+        entities = EveNameCache.objects.get_names([1001])
         self.assertDictEqual(
             entities,
             {
@@ -808,16 +854,10 @@ class TestEveNameCache(TestCase):
             }
         ) 
         self.assertListEqual(
-            mock_EveEntityManager.get_names.call_args[0][0],
+            mock_EveEntityHelper.get_names.call_args[0][0],
             []
         )       
     """
-
-    @patch(MODULE_PATH + ".EveEntityManager")
-    def test_get_names_that_dont_exist(self, mock_EveEntityManager):
-        mock_EveEntityManager.get_names.side_effect = get_entity_names
-
-        self.assertEqual(len(EveNameCache.get_names([1999])), 0)
 
     def test_cache_timeout(self):
         my_entity = EveNameCache(entity_id=1001, name="Bruce Wayne")
@@ -828,9 +868,3 @@ class TestEveNameCache(TestCase):
         # cache timeout for entries older than 30 days
         my_entity.updated = timezone.now() - timedelta(days=31)
         self.assertTrue(my_entity.cache_timeout())
-
-    def test_update_name(self):
-        my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
-        EveNameCache.update_name(1001, "Batman")
-        my_entity.refresh_from_db()
-        self.assertEqual(my_entity.name, "Batman")

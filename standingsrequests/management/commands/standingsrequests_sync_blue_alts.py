@@ -1,7 +1,6 @@
 from django.core.management.base import BaseCommand
 from allianceauth.eveonline.models import EveCharacter
 
-from ...managers.standings import StandingsManager
 from ...models import ContactSet, PilotStanding, StandingsRequest
 
 
@@ -22,7 +21,7 @@ class Command(BaseCommand):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                StandingsManager.has_required_scopes_for_request(alt)
+                StandingsRequest.has_required_scopes_for_request(alt)
                 and not StandingsRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
@@ -36,7 +35,7 @@ class Command(BaseCommand):
 
                 if (
                     contact
-                    and not StandingsManager.pilot_in_organisation(alt.character_id)
+                    and not ContactSet.pilot_in_organisation(alt.character_id)
                     and (
                         StandingsRequest.EXPECT_STANDING_GTEQ
                         <= contact.standing

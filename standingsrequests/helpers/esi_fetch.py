@@ -258,7 +258,7 @@ def _prepare_esi_request(
 
 
 def _execute_esi_request(
-    esi_category: str,
+    esi_category: object,
     esi_method_name: str,
     args: dict,
     has_pages: bool,

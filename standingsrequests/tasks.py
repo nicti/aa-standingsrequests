@@ -11,8 +11,12 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_REVOCATIONS_STALE_DAYS
-from .managers.standings import StandingsManager
-from .models import ContactSet, StandingsRevocation
+from .models import (
+    CharacterAssociation,
+    ContactSet,
+    StandingsRequest,
+    StandingsRevocation,
+)
 from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
 from .utils import LoggerAddTag
 
@@ -43,7 +47,7 @@ def report_result_to_user(user_pk: int = None):
             logger.warning("Can not find a user with pk %d", user_pk)
             return
         else:
-            source_entity = ContactSet.standings_source_entity()
+            source_entity = ContactSet.objects.standings_source_entity()
             notify(
                 user,
                 _("%s: Standings loaded" % __title__),
@@ -60,14 +64,15 @@ def standings_update():
     """Updates standings from ESI"""
     logger.info("Standings API update started")
     try:
-        st = StandingsManager.api_update_standings()
-        if st is None:
+        contact_set = ContactSet.objects.create_new_from_api()
+        if not contact_set:
             logger.warn(
                 "Standings API update returned None (API error probably),"
                 "aborting standings update"
             )
         else:
-            StandingsManager.process_pending_standings()
+            StandingsRequest.objects.process_requests()
+            StandingsRevocation.objects.process_requests()
 
     except Exception as ex:
         logger.exception("Failed to execute standings_update", ex)
@@ -76,7 +81,7 @@ def standings_update():
 @shared_task(name="standings_requests.validate_standings_requests")
 def validate_standings_requests():
     logger.info("Validating standings request running")
-    count = StandingsManager.validate_standings_requests()
+    count = StandingsRequest.objects.validate_standings_requests()
     logger.info("Deleted {0} standings requests".format(count))
 
 
@@ -84,7 +89,7 @@ def validate_standings_requests():
 def update_associations_auth():
     """Update associations from local auth data (Main character, corporations)"""
     logger.info("Associations updating from Auth")
-    StandingsManager.update_character_associations_auth()
+    CharacterAssociation.objects.update_from_auth()
     logger.info("Finished Associations update from Auth")
 
 
@@ -92,7 +97,7 @@ def update_associations_auth():
 def update_associations_api():
     """Update character associations from the EVE API (corporations)"""
     logger.info("Associations updating from EVE API")
-    StandingsManager.update_character_associations_api()
+    CharacterAssociation.objects.update_from_api()
     logger.info("Finished associations update from EVE API")
 
 

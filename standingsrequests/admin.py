@@ -25,7 +25,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveNameCache.get_name(obj.contact_id)
+        return EveNameCache.objects.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
         if obj.contact_type_id in PilotStanding.contact_types:
