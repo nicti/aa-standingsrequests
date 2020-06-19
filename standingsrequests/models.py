@@ -52,6 +52,9 @@ class ContactSet(models.Model):
     def __str__(self):
         return str(self.date)
 
+    def __repr__(self):
+        return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
+
     def get_standing_for_id(self, contact_id, contact_type_id):
         """
         Attempts to fetch the standing for the given ID and type
@@ -110,6 +113,15 @@ class ContactLabel(models.Model):
     label_id = models.BigIntegerField(db_index=True)
     name = models.CharField(max_length=254)
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(pk={self.pk}, "
+            f"label_id={self.label_id}, name='{self.name}')"
+        )
+
 
 class AbstractStanding(models.Model):
     """Base class for a standing"""
@@ -140,6 +152,13 @@ class AbstractStanding(models.Model):
 
     class Meta:
         abstract = True
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(pk={self.pk}, "
+            f"contact_id={self.label_id}, name='{self.name}', "
+            f"standing={self.standing})"
+        )
 
     @classmethod
     def get_contact_type_id(cls, contact_id):

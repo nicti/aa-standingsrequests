@@ -218,6 +218,9 @@ def create_contacts_set(my_set: object = None) -> object:
     if not my_set:
         my_set = ContactSet.objects.create(name="Dummy Set")
 
+    # add labels
+    ContactSet.objects._add_labels_from_api(my_set, get_test_labels())
+
     # create contacts for ContactSet
     for contact in _my_test_data["alliance_contacts"]:
         if contact["contact_type_id"] == "character":
@@ -232,12 +235,14 @@ def create_contacts_set(my_set: object = None) -> object:
         else:
             raise ValueError("Invalid contact type")
 
-        MyStandingClass.objects.create(
+        my_standing = MyStandingClass.objects.create(
             contact_set=my_set,
             contact_id=contact["contact_id"],
             name=get_entity_name(contact["contact_id"]),
             standing=contact["standing"],
         )
+        for label_id in contact["label_ids"]:
+            my_standing.labels.add(my_set.contactlabel_set.get(label_id=label_id))
 
     # update EveNameCache based on characters
     for character_id, character_data in _my_test_data["EveCharacter"].items():
@@ -258,9 +263,6 @@ def create_contacts_set(my_set: object = None) -> object:
     CharacterAssociation.objects.all().delete()
     for assoc in _my_test_data["CharacterAssociation"]:
         CharacterAssociation.objects.create(**assoc)
-
-    # add labels
-    ContactSet.objects._add_labels_from_api(my_set, get_test_labels())
 
     return my_set
 

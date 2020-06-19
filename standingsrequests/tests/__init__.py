@@ -88,19 +88,19 @@ def add_new_token(user: object, character: object, scopes: list) -> object:
 
 
 def add_character_to_user(
-    user: User, character: EveCharacter, is_main: bool = False, scopes: list = None
+    user: User, character: EveCharacter, is_main: bool = False, scopes: list = None,
 ) -> CharacterOwnership:
-    ownership = CharacterOwnership.objects.create(
-        character=character, owner_hash=_get_random_string(28), user=user
-    )
+    if not scopes:
+        scopes = "publicData"
+
+    add_new_token(user, character, scopes)
+
     if is_main:
         user.profile.main_character = character
         user.profile.save()
+        user.save()
 
-    if scopes:
-        add_new_token(user, character, scopes)
-
-    return ownership
+    return CharacterOwnership.objects.get(user=user, character=character)
 
 
 def add_character_to_user_2(

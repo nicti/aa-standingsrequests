@@ -1,3 +1,5 @@
+from timeit import default_timer as timer
+
 from django.http import Http404, JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
@@ -365,8 +367,8 @@ def view_pilots_standings_json(request):
         contacts = ContactSet()
 
     def get_pilots():
+        start = timer()
         pilots = list()
-        # lets catch these in bulk
         pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
         pilot_contact_ids = pilot_standings.values_list("contact_id", flat=True)
         assoc_ids = CharacterAssociation.objects.filter(
@@ -381,46 +383,45 @@ def view_pilots_standings_json(request):
         EveNameCache.objects.get_names(contact_ids)
         for p in pilot_standings:
             char = EveCharacter.objects.get_character_by_id(p.contact_id)
-            if char is None:
-                char = EveCharacterHelper(p.contact_id)
-
-            main = None
-            state = ""
-            try:
-                ownership = CharacterOwnership.objects.get(
-                    character__character_id=char.character_id
-                )
-                user = ownership.user
+            if (
+                char
+                and hasattr(char, "character_ownership")
+                and char.character_ownership is not None
+            ):
+                user = char.character_ownership.user
                 main = user.profile.main_character
-                if user.profile.state:
-                    state = user.profile.state.name
-            except CharacterOwnership.DoesNotExist:
-                pass
-
-            has_required_scopes = StandingsRequest.has_required_scopes_for_request(char)
-            pilot = {
-                "character_id": p.contact_id,
-                "character_name": p.name,
-                "corporation_id": char.corporation_id if char else None,
-                "corporation_name": char.corporation_name if char else None,
-                "corporation_ticker": char.corporation_ticker if char else None,
-                "alliance_id": char.alliance_id if char else None,
-                "alliance_name": char.alliance_name if char else None,
-                "has_required_scopes": has_required_scopes,
-                "state": state,
-                "main_character_ticker": main.corporation_ticker if main else None,
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
-            }
-
-            try:
-                pilot["main_character_name"] = (
-                    main.character_name if main else char.main_character.character_name
+                state = user.profile.state.name if user.profile.state else ""
+                has_required_scopes = StandingsRequest.has_required_scopes_for_request(
+                    char
                 )
-            except AttributeError:
-                pilot["main_character_name"] = None
+                main_character_name = main.character_name if main else None
+            else:
+                char = EveCharacterHelper(p.contact_id)
+                main = None
+                state = ""
+                has_required_scopes = False
+                main_character_name = None
 
-            pilots.append(pilot)
+            pilots.append(
+                {
+                    "character_id": p.contact_id,
+                    "character_name": p.name,
+                    "corporation_id": char.corporation_id if char else None,
+                    "corporation_name": char.corporation_name if char else None,
+                    "corporation_ticker": char.corporation_ticker if char else None,
+                    "alliance_id": char.alliance_id if char else None,
+                    "alliance_name": char.alliance_name if char else None,
+                    "has_required_scopes": has_required_scopes,
+                    "state": state,
+                    "main_character_ticker": main.corporation_ticker if main else None,
+                    "standing": p.standing,
+                    "labels": [label.name for label in p.labels.all()],
+                    "main_character_name": main_character_name,
+                }
+            )
+
+        end = timer()
+        logger.info("view_pilots_standings_json generated in %f seconds", end - start)
         return pilots
 
     # Cache result for 10 minutes,

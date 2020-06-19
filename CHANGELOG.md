@@ -16,15 +16,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - User are notified once their standing request is effective (turned off by default)
 - Standing organization now shown on the request page
 - New management command to automatically create requests from already existing blues
+- Added new tests and improved existing tests
 
 ### Changed
 
 - UI improvements
-- Performance improvements
+- DB performance improvements (missing indices added)
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger
 - App will wait a grace period before resetting previous effective standings
 - Timeout before actioned standings are reset can now be configured via setting
+- Improved maintainability (refactored database and code structure)
+- Reduced load time for view_pilots view
 
 ## [0.4.1] - 2020-05-28
 
