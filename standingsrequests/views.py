@@ -184,7 +184,7 @@ def partial_request_entities(request):
 
 @login_required
 @permission_required("standingsrequests.request_standings")
-def request_pilot_standings(request, character_id):
+def request_pilot_standing(request, character_id):
     """
     For a user to request standings for their own pilots
     """
@@ -212,11 +212,11 @@ def request_pilot_standings(request, character_id):
 
 @login_required
 @permission_required("standingsrequests.request_standings")
-def remove_pilot_standings(request, character_id):
+def remove_pilot_standing(request, character_id):
     """
     Handles both removing requests and removing existing standings
     """
-    logger.debug("remove_pilot_standings called by %s", request.user)
+    logger.debug("remove_pilot_standing called by %s", request.user)
     if EveEntityHelper.is_character_owned_by_user(character_id, request.user):
         if (
             not ContactSet.pilot_in_organisation(character_id)
@@ -262,7 +262,7 @@ def remove_pilot_standings(request, character_id):
 
 @login_required
 @permission_required("standingsrequests.request_standings")
-def request_corp_standings(request, corp_id):
+def request_corp_standing(request, corp_id):
     """
     For a user to request standings for their own corp
     """
@@ -290,11 +290,11 @@ def request_corp_standings(request, corp_id):
 
 @login_required
 @permission_required("standingsrequests.request_standings")
-def remove_corp_standings(request, corp_id):
+def remove_corp_standing(request, corp_id):
     """
     Handles both removing corp requests and removing existing standings
     """
-    logger.debug("remove_corp_standings called by %s", request.user)
+    logger.debug("remove_corp_standing called by %s", request.user)
     # Need all corp APIs recorded to "own" the corp
     st_req = get_object_or_404(StandingsRequest, contact_id=corp_id)
     if st_req.user == request.user:
@@ -468,8 +468,8 @@ def download_pilot_standings(request):
     pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
     EveNameCache.objects.get_names([p.contact_id for p in pilot_standings])
 
-    for p in pilot_standings:
-        char = EveCharacter.objects.get_character_by_id(p.contact_id)
+    for pilot_standing in pilot_standings:
+        char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
         main = ""
         state = ""
         try:
@@ -485,8 +485,8 @@ def download_pilot_standings(request):
             main = None
 
         pilot = [
-            p.contact_id,
-            p.name,
+            pilot_standing.contact_id,
+            pilot_standing.name,
             char.corporation_id if char else "",
             char.corporation_name if char else "",
             char.corporation_ticker if char else "",
@@ -496,8 +496,8 @@ def download_pilot_standings(request):
             state,
             main_character_name,
             main.corporation_ticker if main else "",
-            p.standing,
-            ", ".join([label.name for label in p.labels.all()]),
+            pilot_standing.standing,
+            ", ".join([label.name for label in pilot_standing.labels.all()]),
         ]
 
         writer.writerow([str(v) if v is not None else "" for v in pilot])
