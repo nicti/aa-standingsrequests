@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from allianceauth.eveonline.models import EveCharacter
 
-from ...models import ContactSet, PilotStanding, StandingsRequest
+from ...models import ContactSet, PilotStanding, StandingsRequest, StandingsRevocation
 
 
 def get_input(text):
@@ -25,24 +25,14 @@ class Command(BaseCommand):
                 and not StandingsRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
+                and not StandingsRevocation.objects.filter(
+                    contact_id=alt.character_id
+                ).exists()
             ):
-                try:
-                    contact = contact_set.pilotstanding_set.get(
-                        contact_id=alt.character_id
-                    )
-                except PilotStanding.DoesNotExist:
-                    contact = None
-
-                if (
-                    contact
-                    and not ContactSet.pilot_in_organisation(alt.character_id)
-                    and (
-                        StandingsRequest.EXPECT_STANDING_GTEQ
-                        <= contact.standing
-                        <= StandingsRequest.EXPECT_STANDING_LTEQ
-                    )
-                ):
-                    sr = StandingsRequest.add_request(
+                if not ContactSet.pilot_in_organisation(
+                    alt.character_id
+                ) and contact_set.has_pilot_standing(alt.character_id):
+                    sr = StandingsRequest.objects.add_request(
                         user,
                         alt.character_id,
                         PilotStanding.get_contact_type_id(alt.character_id),

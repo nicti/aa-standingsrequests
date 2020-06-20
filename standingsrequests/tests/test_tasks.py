@@ -165,7 +165,9 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
         purge_stale_revocations()
 
     def test_one_younger_revocation_exists_no_purge(self):
-        revocation_1 = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
+        revocation_1 = StandingsRevocation.objects.add_revocation(
+            1001, CHARACTER_TYPE_ID
+        )
         revocation_1.mark_standing_effective()
         purge_stale_revocations()
         current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
@@ -173,7 +175,9 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
         self.assertSetEqual(current_pks, expected)
 
     def test_one_older_revocation_is_purged(self):
-        revocation_1 = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
+        revocation_1 = StandingsRevocation.objects.add_revocation(
+            1001, CHARACTER_TYPE_ID
+        )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
@@ -183,11 +187,15 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
         self.assertSetEqual(current_pks, expected)
 
     def test_one_younger_one_older_revocation_purge_older_only(self):
-        revocation_1 = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
+        revocation_1 = StandingsRevocation.objects.add_revocation(
+            1001, CHARACTER_TYPE_ID
+        )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
-        revocation_2 = StandingsRevocation.add_revocation(1002, CHARACTER_TYPE_ID)
+        revocation_2 = StandingsRevocation.objects.add_revocation(
+            1002, CHARACTER_TYPE_ID
+        )
         revocation_2.mark_standing_effective()
         purge_stale_revocations()
         current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
@@ -195,11 +203,15 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
         self.assertSetEqual(current_pks, expected)
 
     def test_two_older_revocations_are_both_purged(self):
-        revocation_1 = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
+        revocation_1 = StandingsRevocation.objects.add_revocation(
+            1001, CHARACTER_TYPE_ID
+        )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
-        revocation_2 = StandingsRevocation.add_revocation(1002, CHARACTER_TYPE_ID)
+        revocation_2 = StandingsRevocation.objects.add_revocation(
+            1002, CHARACTER_TYPE_ID
+        )
         revocation_2.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_2.is_effective = True
         revocation_2.save()

@@ -408,55 +408,6 @@ class TestStandingsRequest(TestCase):
         self.assertIsNone(my_request.action_by)
         self.assertIsNone(my_request.action_date)
 
-    def test_pending_request(self):
-        my_request_1 = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        self.assertTrue(my_request_1.pending_request(1001))
-
-        my_request_2 = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=timezone.now(),
-            is_effective=True,
-            effective_date=timezone.now(),
-        )
-        self.assertFalse(my_request_2.pending_request(1002))
-
-    def test_actioned_request(self):
-        my_request_1 = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=timezone.now(),
-            is_effective=False,
-        )
-        self.assertTrue(my_request_1.actioned_request(1001))
-
-        my_request_2 = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=timezone.now(),
-            is_effective=True,
-            effective_date=timezone.now(),
-        )
-        self.assertFalse(my_request_2.actioned_request(1002))
-
-        my_request_3 = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1003,
-            contact_type_id=CHARACTER_TYPE_ID,
-        )
-        self.assertFalse(my_request_3.actioned_request(1003))
-
     def test_delete_for_non_effective_dont_add_revocation(self):
         my_request_effective = StandingsRequest.objects.create(
             user=self.user_requestor,
@@ -529,7 +480,7 @@ class TestStandingsRequest(TestCase):
             is_effective=True,
             effective_date=timezone.now(),
         )
-        StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
+        StandingsRevocation.objects.add_revocation(1001, CHARACTER_TYPE_ID)
         my_request_effective.delete()
         self.assertFalse(
             StandingsRequest.objects.filter(
@@ -541,35 +492,6 @@ class TestStandingsRequest(TestCase):
                 contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).count(),
             1,
-        )
-
-    def test_add_request_new(self):
-        my_request = StandingsRequest.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
-        )
-        self.assertIsInstance(my_request, StandingsRequest)
-
-    def test_add_request_already_exists(self):
-        my_request_1 = StandingsRequest.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
-        )
-        my_request_2 = StandingsRequest.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
-        )
-        self.assertEqual(my_request_1, my_request_2)
-
-    def test_remove_requests(self):
-        StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        StandingsRequest.remove_requests(1001)
-        self.assertFalse(
-            StandingsRequest.objects.filter(
-                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
-            ).exists()
         )
 
 
@@ -728,65 +650,6 @@ class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
         mock_get_required_scopes_for_state.return_value = ["abc"]
         character = create_entity(EveCharacter, 1002)
         self.assertFalse(StandingsRequest.has_required_scopes_for_request(character))
-
-
-class TestStandingsRevocation(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=10
-        )
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1002, name="James Gordon", standing=5
-        )
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1003, name="Alfred Pennyworth", standing=0.01
-        )
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1005, name="Clark Kent", standing=0
-        )
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1008, name="Harvey Dent", standing=-5
-        )
-        PilotStanding.objects.create(
-            contact_set=my_set, contact_id=1009, name="Lex Luthor", standing=-10
-        )
-        self.user_manager = User.objects.create_user(
-            "Mike Manager", "mm@example.com", "password"
-        )
-        self.user_requestor = User.objects.create_user(
-            "Roger Requestor", "rr@example.com", "password"
-        )
-
-    def test_add_revocation_new(self):
-        my_revocation = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
-        self.assertIsInstance(my_revocation, StandingsRevocation)
-
-    def test_add_request_already_exists(self):
-        StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
-        my_revocation_2 = StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
-        self.assertIsNone(my_revocation_2)
-
-    def test_undo_revocation_that_exists(self):
-        StandingsRevocation.add_revocation(1001, CHARACTER_TYPE_ID)
-        my_revocation = StandingsRevocation.undo_revocation(1001, self.user_requestor)
-        self.assertEqual(my_revocation.user, self.user_requestor)
-        self.assertEqual(my_revocation.contact_id, 1001)
-        self.assertEqual(my_revocation.contact_type_id, CHARACTER_TYPE_ID)
-
-    def test_undo_revocation_that_not_exists(self):
-        my_revocation = StandingsRevocation.undo_revocation(1001, self.user_requestor)
-        self.assertFalse(my_revocation)
-
-    def test_check_standing_satisfied_but_deleted_for_neutral_check_only(self):
-        my_revocation = StandingsRevocation.add_revocation(1999, CHARACTER_TYPE_ID)
-        self.assertTrue(my_revocation.process_standing(check_only=True))
-
-    def test_check_standing_satisfied_but_deleted_for_neutral(self):
-        my_revocation = StandingsRevocation.add_revocation(1999, CHARACTER_TYPE_ID)
-        self.assertTrue(my_revocation.process_standing())
-        self.assertTrue(my_revocation.is_effective)
 
 
 class TestCharacterAssociation(TestCase):

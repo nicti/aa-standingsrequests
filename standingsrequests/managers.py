@@ -27,59 +27,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ContactSetManager(models.Manager):
-    @staticmethod
-    def required_esi_scope() -> str:
-        """returns the required ESI scopes for syncing"""
-        if SR_OPERATION_MODE == "alliance":
-            return "esi-alliances.read_contacts.v1"
-        elif SR_OPERATION_MODE == "corporation":
-            return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
-
-    @staticmethod
-    def standings_character() -> EveCharacter:
-        """returns the configured standings character"""
-        from .models import EveNameCache
-
-        try:
-            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
-        except EveCharacter.DoesNotExist:
-            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
-            EveNameCache.objects.get_or_create(
-                entity_id=character.character_id,
-                defaults={"name": character.character_name},
-            )
-
-        return character
-
-    @classmethod
-    def standings_source_entity(cls) -> object:
-        """returns the entity that all standings are fetched from
-        
-        returns None when in alliance mode, but character has no alliance
-        """
-        from .models import EveNameCache
-
-        character = cls.standings_character()
-        if SR_OPERATION_MODE == "alliance":
-            if character.alliance_id:
-                entity, _ = EveNameCache.objects.get_or_create(
-                    entity_id=character.alliance_id,
-                    defaults={"name": character.alliance_name},
-                )
-            else:
-                entity = None
-        elif SR_OPERATION_MODE == "corporation":
-            entity, _ = EveNameCache.objects.get_or_create(
-                entity_id=character.corporation_id,
-                defaults={"name": character.corporation_name},
-            )
-        else:
-            raise NotImplementedError()
-
-        return entity
-
     @transaction.atomic
     def create_new_from_api(self) -> object:
         """fetches contacts with standings for configured alliance 
@@ -89,7 +36,7 @@ class ContactSetManager(models.Manager):
         """
         token = (
             Token.objects.filter(character_id=STANDINGS_API_CHARID)
-            .require_scopes(self.required_esi_scope())
+            .require_scopes(self.model.required_esi_scope())
             .require_valid()
             .first()
         )
@@ -290,7 +237,7 @@ class AbstractStandingsRequestManager(models.Manager):
         if self.model == AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
-        organization = ContactSet.objects.standings_source_entity()
+        organization = ContactSet.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
             character_name = EveNameCache.objects.get_name(standing_request.contact_id)
@@ -385,6 +332,35 @@ class AbstractStandingsRequestManager(models.Manager):
                         # Notify the user
                         notify(user=standing_request.user, title=title, message=message)
 
+    def pending_request(self, contact_id) -> bool:
+        """Checks if a request is pending for the given contact_id
+        
+        contact_id: int contact_id to check the pending request for
+        
+        returns True if a request is already pending, False otherwise
+        """
+        pending = (
+            self.filter(contact_id=contact_id)
+            .filter(action_by=None)
+            .filter(is_effective=False)
+        )
+        return pending.exists()
+
+    def actioned_request(self, contact_id) -> bool:
+        """Checks if an actioned request is pending API confirmation for 
+        the given contact_id
+        
+        contact_id: int contact_id to check the pending request for
+        
+        returns True if a request is pending API confirmation, False otherwise
+        """
+        pending = (
+            self.filter(contact_id=contact_id)
+            .exclude(action_by=None)
+            .filter(is_effective=False)
+        )
+        return pending.exists()
+
 
 class StandingsRequestQuerySet(models.query.QuerySet):
     def delete(self):
@@ -446,6 +422,95 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                 deleted_count += 1
 
         return deleted_count
+
+    def add_request(self, user, contact_id, contact_type_id):
+        """
+        Add a new standings request
+        :param user: User the request and contact_id belongs to
+        :param contact_id: contact_id to request standings on
+        :param contact_type_id: contact_type_id from a AbstractStanding concrete class
+        :return: the created StandingsRequest instance
+        """
+        logger.debug(
+            "Adding new standings request for user %s, contact %d type %s",
+            user,
+            contact_id,
+            contact_type_id,
+        )
+
+        if self.filter(contact_id=contact_id, contact_type_id=contact_type_id).exists():
+            logger.debug(
+                "Standings request already exists, " "returning first existing request"
+            )
+            return self.filter(contact_id=contact_id, contact_type_id=contact_type_id)[
+                0
+            ]
+
+        instance = self.create(
+            user=user, contact_id=contact_id, contact_type_id=contact_type_id
+        )
+        return instance
+
+    def remove_requests(self, contact_id):
+        """
+        Remove the requests for the given contact_id. If any of these requests 
+        have been actioned or are effective
+        a Revocation request will automatically be generated
+        :param contact_id: str contact_id to remove.
+        :return:
+        """
+        logger.debug("Removing requests for contact_id %d", contact_id)
+        requests = self.filter(contact_id=contact_id)
+        logger.debug("%d requests to be removed", len(requests))
+        requests.delete()
+
+
+class StandingsRevocationManager(AbstractStandingsRequestManager):
+    def add_revocation(self, contact_id, contact_type_id):
+        """
+        Add a new standings revocation
+        :param contact_id: contact_id to request standings on
+        :param contact_type_id: contact_type_id from AbstractStanding concrete implementation
+        :return: the created StandingsRevocation instance
+        """
+        logger.debug(
+            "Adding new standings revocation for contact %d type %s",
+            contact_id,
+            contact_type_id,
+        )
+        pending = self.filter(contact_id=contact_id).filter(is_effective=False)
+        if pending.exists():
+            logger.debug(
+                "Cannot add revocation for contact %d %s, " "pending revocation exists",
+                contact_id,
+                contact_type_id,
+            )
+            return None
+
+        instance = self.create(contact_id=contact_id, contact_type_id=contact_type_id)
+        return instance
+
+    def undo_revocation(self, contact_id, owner):
+        """
+        Converts existing revocation into request if it exists
+        :param contact_id: contact_id to request standings on
+        :param owner: user owning the revocation
+        :return: created StandingsRequest pendant 
+            or False if revocation does not exist
+        """
+        from .models import StandingsRequest
+
+        logger.debug("Undoing revocation for contact_id %d", contact_id)
+        revocations = self.filter(contact_id=contact_id)
+
+        if not revocations.exists():
+            return False
+
+        request = StandingsRequest.objects.add_request(
+            owner, contact_id, revocations[0].contact_type_id
+        )
+        revocations.delete()
+        return request
 
 
 class CharacterAssociationManager(models.Manager):

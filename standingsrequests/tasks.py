@@ -47,7 +47,7 @@ def report_result_to_user(user_pk: int = None):
             logger.warning("Can not find a user with pk %d", user_pk)
             return
         else:
-            source_entity = ContactSet.objects.standings_source_entity()
+            source_entity = ContactSet.standings_source_entity()
             notify(
                 user,
                 _("%s: Standings loaded" % __title__),

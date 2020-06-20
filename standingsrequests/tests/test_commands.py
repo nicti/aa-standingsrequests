@@ -76,7 +76,7 @@ class TestSyncRequests(NoSocketsTestCase):
         mock_get_input.return_value = "Y"
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
-        StandingsRequest.add_request(
+        StandingsRequest.objects.add_request(
             self.user,
             alt.character_id,
             PilotStanding.get_contact_type_id(alt.character_id),

@@ -70,7 +70,7 @@
                                             {% elif std.pendingRequest == True %}
                                                 <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
                                             {% elif std.pendingRevocation == True %}
-                                                <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing Revoked' %}"></i>
+                                                <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
                                             {% elif std.standing == None and std.pendingRequest == False %}
                                                 <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
                                             {% else %}
@@ -150,7 +150,7 @@
                                                 {% elif st.pendingRequest == True %}
                                                     <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
                                                 {% elif st.pendingRevocation == True %}
-                                                    <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing Revoked' %}"></i>
+                                                    <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
                                                 {% elif st.standing == None and st.pendingRequest == False %}
                                                     <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
                                                 {% else %}
