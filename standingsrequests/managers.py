@@ -64,11 +64,11 @@ class ContactSetManager(models.Manager):
         """
         from .models import ContactLabel
 
-        for label in labels:
-            contact_label = ContactLabel(
-                label_id=label.id, name=label.name, contact_set=contact_set
-            )
-            contact_label.save()
+        contact_labels = [
+            ContactLabel(label_id=label.id, name=label.name, contact_set=contact_set)
+            for label in labels
+        ]
+        ContactLabel.objects.bulk_create(contact_labels, ignore_conflicts=True)
 
     def _add_contacts_from_api(self, contact_set, contacts):
         """Add all contacts to the given ContactSet
@@ -77,21 +77,14 @@ class ContactSetManager(models.Manager):
         :param contact_set: Django ContactSet to add contacts to
         :param contacts: List of _ContactsWrapper.Contact to add        
         """
-        for c in contacts:
-            # Flatten labels so we can do a simple in comparison
-            flat_labels = [label.id for label in c.labels]
-            # Create a list of applicable django ContactLabel objects
-            # Can be replaced in django 1.9 as .set() is available
-            labels = [
-                label
-                for label in contact_set.contactlabel_set.all()
-                if label.label_id in flat_labels
-            ]
+        for contact in contacts:
+            flat_labels = [label.id for label in contact.labels]
+            labels = contact_set.contactlabel_set.filter(label_id__in=flat_labels)
             contact_set.create_standing(
-                contact_type_id=c.type_id,
-                contact_id=c.id,
-                name=c.name,
-                standing=c.standing,
+                contact_type_id=contact.type_id,
+                contact_id=contact.id,
+                name=contact.name,
+                standing=contact.standing,
                 labels=labels,
             )
 
@@ -154,7 +147,7 @@ class _ContactsWrapper:
                 else []
             )
 
-            self.type_id = self.__class__.get_type_id_from_name(json["contact_type_id"])
+            self.type_id = self.__class__.get_type_id_from_name(json["contact_type"])
             # list of labels
             self.labels = [label for label in labels if label.id in self.label_ids]
 
@@ -221,10 +214,7 @@ class _ContactsWrapper:
 
 class AbstractStandingsRequestManager(models.Manager):
     def process_requests(self) -> None:
-        """
-        Process all the Standing requests/revocation objects
-        :param standing_requests: AbstractStandingsRequest QuerySet        
-        """
+        """Process all the Standing requests/revocation objects"""
         from .models import (
             ContactSet,
             EveNameCache,
@@ -364,8 +354,8 @@ class AbstractStandingsRequestManager(models.Manager):
 
 class StandingsRequestQuerySet(models.query.QuerySet):
     def delete(self):
-        for o in self:
-            o.delete()
+        for obj in self:
+            obj.delete()
 
 
 class StandingsRequestManager(AbstractStandingsRequestManager):
@@ -501,16 +491,17 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
         from .models import StandingsRequest
 
         logger.debug("Undoing revocation for contact_id %d", contact_id)
-        revocations = self.filter(contact_id=contact_id)
 
-        if not revocations.exists():
+        try:
+            revocation = self.get(contact_id=contact_id)
+        except self.model.DoesNotExist:
             return False
-
-        request = StandingsRequest.objects.add_request(
-            owner, contact_id, revocations[0].contact_type_id
-        )
-        revocations.delete()
-        return request
+        else:
+            request = StandingsRequest.objects.add_request(
+                owner, contact_id, revocation.contact_type_id
+            )
+            revocation.delete()
+            return request
 
 
 class CharacterAssociationManager(models.Manager):

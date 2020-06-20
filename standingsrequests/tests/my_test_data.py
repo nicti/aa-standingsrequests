@@ -223,13 +223,13 @@ def create_contacts_set(my_set: object = None) -> object:
 
     # create contacts for ContactSet
     for contact in _my_test_data["alliance_contacts"]:
-        if contact["contact_type_id"] == "character":
+        if contact["contact_type"] == "character":
             MyStandingClass = PilotStanding
 
-        elif contact["contact_type_id"] == "corporation":
+        elif contact["contact_type"] == "corporation":
             MyStandingClass = CorpStanding
 
-        elif contact["contact_type_id"] == "alliance":
+        elif contact["contact_type"] == "alliance":
             MyStandingClass = AllianceStanding
 
         else:

@@ -58,6 +58,7 @@ def token_required_by_state(new=False):
 
                 token_pk = request.POST.get("_token", None)
                 if token_pk:
+                    token_pk = int(token_pk)
                     logger.debug("%s has selected token %d", request.user, token_pk)
                     try:
                         token = Token.objects.get(pk=token_pk)

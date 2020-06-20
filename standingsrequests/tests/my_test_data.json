@@ -20,7 +20,7 @@
     "alliance_contacts": [
         {
             "contact_id": 1001,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 1
             ],
@@ -28,7 +28,7 @@
         },
         {
             "contact_id": 1002,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 1,
                 2
@@ -37,7 +37,7 @@
         },
         {
             "contact_id": 1003,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 3
             ],
@@ -45,7 +45,7 @@
         },
         {
             "contact_id": 1004,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 3
             ],
@@ -53,7 +53,7 @@
         },
         {
             "contact_id": 1005,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 3
             ],
@@ -61,7 +61,7 @@
         },
         {
             "contact_id": 1006,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 3
             ],
@@ -69,7 +69,7 @@
         },
         {
             "contact_id": 1008,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 4
             ],
@@ -77,7 +77,7 @@
         },
         {
             "contact_id": 1009,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 4
             ],
@@ -85,7 +85,7 @@
         },
         {
             "contact_id": 1010,
-            "contact_type_id": "character",
+            "contact_type": "character",
             "label_ids": [
                 4
             ],
@@ -93,13 +93,13 @@
         },
         {
             "contact_id": 2004,
-            "contact_type_id": "corporation",
+            "contact_type": "corporation",
             "label_ids": [],
             "standing": 5
         },
         {
             "contact_id": 2102,
-            "contact_type_id": "corporation",
+            "contact_type": "corporation",
             "label_ids": [],
             "standing": -10
         }

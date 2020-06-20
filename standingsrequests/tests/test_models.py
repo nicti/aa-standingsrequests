@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
 from django.test import TestCase
-from django.utils import timezone
+from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo
 from allianceauth.tests.auth_utils import AuthUtils
@@ -28,12 +28,14 @@ from .entity_type_ids import (
     CHARACTER_VHEROKIOR_TYPE_ID,
     CHARACTER_DRIFTER_TYPE_ID,
 )
-from . import add_new_token, _generate_token, _store_as_Token
+from . import add_new_token, _generate_token, _store_as_Token, add_character_to_user
 from .my_test_data import (
     create_contacts_set,
     get_entity_name,
     create_entity,
     get_my_test_data,
+    create_standings_char,
+    TEST_STANDINGS_ALLIANCE_ID,
 )
 
 from ..models import (
@@ -53,6 +55,9 @@ from ..utils import set_test_logger, NoSocketsTestCase
 
 MODULE_PATH = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
+
+TEST_USER_NAME = "Peter Parker"
+TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
 class TestContactSet(NoSocketsTestCase):
@@ -178,6 +183,80 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         self.assertEqual(obj.name, "Wayne Enterprises")
         self.assertEqual(obj.contact_id, 3001)
         self.assertEqual(obj.standing, 5)
+
+
+@patch(
+    "standingsrequests.models.STR_ALLIANCE_IDS", [str(TEST_STANDINGS_ALLIANCE_ID)],
+)
+@patch(
+    "standingsrequests.models.SR_REQUIRED_SCOPES",
+    {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
+)
+class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user = AuthUtils.create_member(TEST_USER_NAME)
+
+    def setUp(self):
+        create_standings_char()
+        self.contacts_set = create_contacts_set()
+        StandingsRequest.objects.all().delete()
+
+    def test_creates_new_request_for_blue_alt(self):
+        alt = create_entity(EveCharacter, 1010)
+        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 1)
+        request = StandingsRequest.objects.first()
+        self.assertEqual(request.user, self.user)
+        self.assertEqual(request.contact_id, 1010)
+        self.assertEqual(request.is_effective, True)
+        self.assertAlmostEqual((now() - request.request_date).seconds, 0, delta=30)
+        self.assertAlmostEqual((now() - request.action_date).seconds, 0, delta=30)
+        self.assertAlmostEqual((now() - request.effective_date).seconds, 0, delta=30)
+
+    def test_does_not_create_requests_for_blue_alt_if_request_already_exists(self):
+        alt = create_entity(EveCharacter, 1010)
+        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+        StandingsRequest.objects.add_request(
+            self.user,
+            alt.character_id,
+            PilotStanding.get_contact_type_id(alt.character_id),
+        )
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 1)
+
+    def test_does_not_create_requests_for_non_blue_alts(self):
+        alt = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 0)
+
+    def test_does_not_create_requests_for_alts_in_organization(self):
+        main = create_entity(EveCharacter, 1002)
+        add_character_to_user(
+            self.user, main, is_main=True, scopes=[TEST_REQUIRED_SCOPE]
+        )
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 0)
+
+    def test_does_not_create_requests_for_alts_without_matching_scopes(self):
+        user = AuthUtils.create_member("John Doe")
+        alt = create_entity(EveCharacter, 1010)
+        add_character_to_user(user, alt)
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 0)
 
 
 class TestAbstractStanding(TestCase):
@@ -306,7 +385,7 @@ class TestStandingsRequest(TestCase):
         self.assertTrue(my_request.is_effective)
         self.assertIsInstance(my_request.effective_date, datetime)
 
-        my_date = timezone.now() - timedelta(days=5, hours=4)
+        my_date = now() - timedelta(days=5, hours=4)
         my_request.mark_standing_effective(date=my_date)
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
@@ -338,7 +417,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=True,
         )
         self.assertIsNone(my_request.check_standing_actioned_timeout())
@@ -359,7 +438,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=False,
         )
         self.assertIsNone(my_request.check_standing_actioned_timeout())
@@ -370,7 +449,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now() - timedelta(hours=25),
+            action_date=now() - timedelta(hours=25),
             is_effective=False,
         )
         self.assertEqual(
@@ -386,7 +465,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=False,
         )
         self.assertFalse(my_request.check_standing_actioned_timeout())
@@ -397,9 +476,9 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=True,
-            effective_date=timezone.now(),
+            effective_date=now(),
         )
         my_request.reset_to_initial()
         my_request.refresh_from_db()
@@ -433,9 +512,9 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=True,
-            effective_date=timezone.now(),
+            effective_date=now(),
         )
         my_request_effective.delete()
         self.assertFalse(
@@ -455,7 +534,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=False,
         )
         my_request_effective.delete()
@@ -476,9 +555,9 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
-            action_date=timezone.now(),
+            action_date=now(),
             is_effective=True,
-            effective_date=timezone.now(),
+            effective_date=now(),
         )
         StandingsRevocation.objects.add_revocation(1001, CHARACTER_TYPE_ID)
         my_request_effective.delete()
@@ -725,9 +804,9 @@ class TestEveNameCache(TestCase):
     def test_cache_timeout(self):
         my_entity = EveNameCache(entity_id=1001, name="Bruce Wayne")
         # no cache timeout when added recently
-        my_entity.updated = timezone.now()
+        my_entity.updated = now()
         self.assertFalse(my_entity.cache_timeout())
 
         # cache timeout for entries older than 30 days
-        my_entity.updated = timezone.now() - timedelta(days=31)
+        my_entity.updated = now() - timedelta(days=31)
         self.assertTrue(my_entity.cache_timeout())

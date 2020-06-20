@@ -170,6 +170,50 @@ class ContactSet(models.Model):
 
         return entity
 
+    def generate_standing_requests_for_blue_alts(self) -> int:
+        """Automatically create accepted standings requests for
+        alt characters on Auth that already have blue standing in-game.
+
+        return count of generated standings requests
+        """
+        logger.info("Started generating standings request for blue alts.")
+        owned_characters_qs = EveCharacter.objects.filter(
+            character_ownership__isnull=False
+        ).select_related()
+        created_counter = 0
+        for alt in owned_characters_qs:
+            user = alt.character_ownership.user
+            if (
+                not self.pilot_in_organisation(alt.character_id)
+                and not StandingsRequest.objects.filter(
+                    user=user, contact_id=alt.character_id
+                ).exists()
+                and not StandingsRevocation.objects.filter(
+                    contact_id=alt.character_id
+                ).exists()
+                and StandingsRequest.has_required_scopes_for_request(alt)
+                and self.has_pilot_standing(alt.character_id)
+            ):
+                sr = StandingsRequest.objects.add_request(
+                    user,
+                    alt.character_id,
+                    PilotStanding.get_contact_type_id(alt.character_id),
+                )
+                sr.mark_standing_actioned(None)
+                sr.mark_standing_effective()
+                logger.info(
+                    "Generated standings request for blue alt %s "
+                    "belonging to user %s.",
+                    alt,
+                    user,
+                )
+                created_counter += 1
+
+        logger.info(
+            "Completed generating %d standings request for blue alts.", created_counter,
+        )
+        return created_counter
+
 
 class ContactLabel(models.Model):
     """A contact label"""

@@ -10,7 +10,11 @@ from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .app_settings import SR_STANDINGS_STALE_HOURS, SR_REVOCATIONS_STALE_DAYS
+from .app_settings import (
+    SR_STANDINGS_STALE_HOURS,
+    SR_REVOCATIONS_STALE_DAYS,
+    SR_SYNC_BLUE_ALTS_ENABLED,
+)
 from .models import (
     CharacterAssociation,
     ContactSet,
@@ -71,11 +75,13 @@ def standings_update():
                 "aborting standings update"
             )
         else:
+            if SR_SYNC_BLUE_ALTS_ENABLED:
+                contact_set.generate_standing_requests_for_blue_alts()
             StandingsRequest.objects.process_requests()
             StandingsRevocation.objects.process_requests()
 
     except Exception as ex:
-        logger.exception("Failed to execute standings_update", ex)
+        logger.exception("Failed to execute standings_update: %s", ex)
 
 
 @shared_task(name="standings_requests.validate_standings_requests")

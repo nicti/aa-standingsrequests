@@ -11,6 +11,10 @@ SR_ESI_TIMEOUT_ENABLED = clean_setting("SR_ESI_TIMEOUT_ENABLED", True)
 # Send notifications to users about the results of standings requests
 SR_NOTIFICATIONS_ENABLED = clean_setting("SR_NOTIFICATIONS_ENABLED", False)
 
+# Automatically create accepted standings requests for
+# alt characters on Auth that already have blue standing in-game
+SR_SYNC_BLUE_ALTS_ENABLED = clean_setting("SR_SYNC_BLUE_ALTS_ENABLED", True)
+
 # Select the entity type of your standings master
 SR_OPERATION_MODE = clean_setting(
     "SR_OPERATION_MODE", "alliance", choices=["alliance", "corporation"]
