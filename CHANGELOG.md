@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Timeout before actioned standings are reset can now be configured via setting
 - Improved maintainability (refactored database and code structure)
 - Reduced load time for view_pilots view
+- Fix tests for new Auth version
 
 ## [0.4.1] - 2020-05-28
 
