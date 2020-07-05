@@ -86,8 +86,6 @@ class ContactSet(models.Model):
 
     def has_pilot_standing(self, contact_id: int) -> bool:
         """Return True if give pilot has standing, else False"""
-        from .models import StandingsRequest
-
         pilot = self.pilotstanding_set.filter(contact_id=contact_id)
 
         try:
@@ -558,7 +556,6 @@ class StandingsRequest(AbstractStandingsRequest):
         :param user: User to check for
         :return: True if they can request standings, False if they cannot
         """
-        # TODO: Need to figure out how to check if esi keys exists.....
         keys_recorded = sum(
             [
                 1

@@ -47,7 +47,7 @@ def report_result_to_user(user_pk: int = None):
     if user_pk:
         try:
             user = User.objects.get(pk=user_pk)
-        except User.DoesNotExit:
+        except User.DoesNotExist:
             logger.warning("Can not find a user with pk %d", user_pk)
             return
         else:
@@ -88,7 +88,7 @@ def standings_update():
 def validate_standings_requests():
     logger.info("Validating standings request running")
     count = StandingsRequest.objects.validate_standings_requests()
-    logger.info("Deleted {0} standings requests".format(count))
+    logger.info("Deleted %d standings requests", count)
 
 
 @shared_task(name="standings_requests.update_associations_auth")

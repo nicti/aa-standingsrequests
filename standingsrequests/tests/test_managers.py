@@ -495,7 +495,6 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
         self.assertTrue(my_revocation.is_effective)
 
 
-@patch(MODULE_PATH_MODELS + ".EveNameCache")
 class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -506,8 +505,9 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         EveCharacter.objects.all().delete()
         CharacterOwnership.objects.all().delete()
         CharacterAssociation.objects.all().delete()
+        EveNameCache.objects.all().delete()
 
-    def test_can_update_from_one_character(self, mock_EveNameCache):
+    def test_can_update_from_one_character(self):
         my_character = create_entity(EveCharacter, 1001)
         add_character_to_user(self.user, my_character, is_main=True)
 
@@ -518,8 +518,11 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertEqual(assoc.corporation_id, 2001)
         self.assertEqual(assoc.main_character_id, 1001)
         self.assertEqual(assoc.alliance_id, 3001)
+        self.assertEqual(
+            EveNameCache.objects.get(entity_id=1001).name, my_character.character_name
+        )
 
-    def test_can_handle_no_main(self, mock_EveNameCache):
+    def test_can_handle_no_main(self):
         my_character = create_entity(EveCharacter, 1001)
         add_character_to_user(self.user, my_character)
 
@@ -530,8 +533,11 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertEqual(assoc.corporation_id, 2001)
         self.assertIsNone(assoc.main_character_id)
         self.assertEqual(assoc.alliance_id, 3001)
+        self.assertEqual(
+            EveNameCache.objects.get(entity_id=1001).name, my_character.character_name
+        )
 
-    def test_can_handle_no_character_without_alliance(self, mock_EveNameCache):
+    def test_can_handle_no_character_without_alliance(self):
         my_character = create_entity(EveCharacter, 1004)
         add_character_to_user(self.user, my_character)
 
@@ -542,6 +548,9 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertEqual(assoc.corporation_id, 2003)
         self.assertIsNone(assoc.main_character_id)
         self.assertIsNone(assoc.alliance_id)
+        self.assertEqual(
+            EveNameCache.objects.get(entity_id=1004).name, my_character.character_name
+        )
 
 
 @patch("standingsrequests.helpers.esi_fetch._esi_client")

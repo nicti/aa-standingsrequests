@@ -129,24 +129,14 @@ class _ContactsWrapper:
 
         def __init__(self, json, labels, names_info):
             self.id = json["contact_id"]
-            # TODO: remove this and translate id to name when displayed
-
-            self.name = (
-                names_info[self.id]
-                if self.id in names_info
-                else "Could not get name from API"
-            )
-
+            self.name = names_info[self.id] if self.id in names_info else ""
             self.standing = json["standing"]
-
             self.in_watchlist = json["in_watchlist"] if "in_watchlist" in json else None
-
             self.label_ids = (
                 json["label_ids"]
                 if "label_ids" in json and json["label_ids"] is not None
                 else []
             )
-
             self.type_id = self.__class__.get_type_id_from_name(json["contact_type"])
             # list of labels
             self.labels = [label for label in labels if label.id in self.label_ids]
@@ -373,6 +363,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         """Validate all StandingsRequests and check 
         that the user requesting them has permission and has API keys
         associated with the character/corp. 
+
         Invalid standings requests are deleted, which may or may not generate a
         StandingsRevocation depending on their state.
         
@@ -532,7 +523,7 @@ class CharacterAssociationManager(models.Manager):
                     "updated": now(),
                 },
             )
-            EveNameCache.update_name(assoc.character_id, c.character_name)
+            EveNameCache.objects.update_name(assoc.character_id, c.character_name)
 
     def update_from_api(self) -> None:
         """Update all character corp associations we have standings for that 
