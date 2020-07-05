@@ -134,7 +134,16 @@ class BravadoOperationStub:
             return self._data
 
 
-def esi_post_characters_affiliation(characters, *args, **kwargs):
+def esi_post_universe_names(ids, *args, **kwargs) -> object:
+    entities = list()
+    for entity in _my_test_data["esi_post_universe_names"]:
+        if entity["id"] in ids:
+            entities.append(entity)
+
+    return BravadoOperationStub(entities)
+
+
+def esi_post_characters_affiliation(characters, *args, **kwargs) -> object:
     result = []
     for assoc in _my_test_data["CharacterAssociation"]:
         if assoc["character_id"] in characters:
@@ -145,7 +154,7 @@ def esi_post_characters_affiliation(characters, *args, **kwargs):
     return BravadoOperationStub(result)
 
 
-def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs):
+def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs) -> object:
     result = []
     corporation_id = str(corporation_id)
     if corporation_id not in _my_test_data["EveCorporationInfo"]:
@@ -164,11 +173,11 @@ def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs):
     return BravadoOperationStub(result)
 
 
-def esi_get_alliances_alliance_id_contacts_labels(*args, **kwargs):
+def esi_get_alliances_alliance_id_contacts_labels(*args, **kwargs) -> object:
     return BravadoOperationStub(deepcopy(_my_test_data["alliance_labels"]))
 
 
-def esi_get_alliances_alliance_id_contacts(*args, **kwargs):
+def esi_get_alliances_alliance_id_contacts(*args, **kwargs) -> object:
     return BravadoOperationStub(deepcopy(_my_test_data["alliance_contacts"]))
 
 

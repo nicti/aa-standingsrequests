@@ -16,8 +16,6 @@ from ..models import (
     ContactSet,
     CharacterAssociation,
     AbstractStandingsRequest,
-    AllianceStanding,
-    CorpStanding,
     EveNameCache,
     PilotStanding,
     StandingsRequest,
@@ -27,7 +25,7 @@ from .my_test_data import (
     create_entity,
     create_contacts_set,
     create_standings_char,
-    get_entity_names,
+    esi_post_universe_names,
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
     esi_post_characters_affiliation,
@@ -681,134 +679,86 @@ class TestCharacterAssociationManager(NoSocketsTestCase):
         )
 
 
-@patch(MODULE_PATH_MODELS + ".EveEntityHelper")
+@patch("standingsrequests.helpers.esi_fetch._esi_client")
 class TestEveNameCacheManagerGetName(NoSocketsTestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
         EveNameCache.objects.all().delete()
 
-    def test_get_name_from_api_when_table_is_empty(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.return_value = None
-        mock_EveEntityHelper.get_name_from_api.return_value = "Bruce Wayne"
+    def test_get_name_from_api_when_table_is_empty(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         self.assertEqual(EveNameCache.objects.get_name(1001), "Bruce Wayne")
 
-    def test_get_name_from_auth_when_table_is_empty(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.return_value = "Bruce Wayne"
-        mock_EveEntityHelper.get_name_from_api.side_effect = RuntimeError
-        self.assertEqual(EveNameCache.objects.get_name(1001), "Bruce Wayne")
-
-    def test_get_name_when_exists_in_cache(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityHelper.get_name_from_api.side_effect = RuntimeError
-
+    def test_get_name_when_exists_in_cache(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         self.assertEqual(EveNameCache.objects.get_name(1001), "Bruce Wayne")
 
-    def test_get_name_that_not_exists(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.return_value = None
-        mock_EveEntityHelper.get_name_from_api.return_value = None
-
+    def test_get_name_that_not_exists(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         self.assertEqual(EveNameCache.objects.get_name(1999), None)
 
-    def test_get_name_when_cache_outdated(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.return_value = None
-        mock_EveEntityHelper.get_name_from_api.return_value = "Bruce Wayne"
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceStanding.objects.create(
-            contact_set=contact_set,
-            contact_id=3001,
-            name="Dummy Alliance 1",
-            standing=0,
+    def test_get_name_when_cache_outdated(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
         )
         my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         my_entity.updated = now() - timedelta(days=31)
         my_entity.save()
         self.assertEqual(EveNameCache.objects.get_name(1001), "Bruce Wayne")
-        self.assertEqual(mock_EveEntityHelper.get_name_from_api.call_count, 1)
-
-    def test_get_names_from_pilot_contacts(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityHelper.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        PilotStanding.objects.create(
-            contact_set=contact_set, contact_id=1001, name="Bruce Wayne", standing=0
-        )
-        self.assertEqual(EveNameCache.objects.get_name(1001), "Bruce Wayne")
-
-    def test_get_names_from_corporation_contacts(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityHelper.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        CorpStanding.objects.create(
-            contact_set=contact_set, contact_id=2001, name="Dummy Corp 1", standing=0
-        )
-        self.assertEqual(EveNameCache.objects.get_name(2001), "Dummy Corp 1")
-
-    def test_get_names_from_alliance_contacts(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_name_from_auth.side_effect = RuntimeError
-        mock_EveEntityHelper.get_name_from_api.side_effect = RuntimeError
-
-        contact_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceStanding.objects.create(
-            contact_set=contact_set,
-            contact_id=3001,
-            name="Dummy Alliance 1",
-            standing=0,
-        )
-        self.assertEqual(EveNameCache.objects.get_name(3001), "Dummy Alliance 1")
 
 
-@patch(MODULE_PATH + ".EveEntityHelper")
+@patch("standingsrequests.helpers.esi_fetch._esi_client")
 class TestEveNameCacheManagerGetNames(NoSocketsTestCase):
     def setUp(self):
-        ContactSet.objects.all().delete()
         EveNameCache.objects.all().delete()
 
-    def test_get_names_when_table_is_empty(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = get_entity_names
-
+    def test_get_names_when_table_is_empty(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertSetEqual(
-            set(mock_EveEntityHelper.get_names.call_args[0][0]), {1001, 1002}
+
+    def test_get_names_from_cache(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
         )
-
-    def test_get_names_from_cache(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = get_entity_names
-
         EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         EveNameCache.objects.create(entity_id=1002, name="Peter Parker")
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertFalse(mock_EveEntityHelper.get_names.called)
 
-    def test_get_names_from_cache_and_api(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = get_entity_names
-
+    def test_get_names_from_cache_and_api(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(mock_EveEntityHelper.get_names.call_args[0][0], [1002])
 
-    def test_get_names_from_expired_cache_and_api(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = get_entity_names
-
+    def test_get_names_from_expired_cache_and_api(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
         my_entity = EveNameCache.objects.create(entity_id=1001, name="Bruce Wayne")
         my_entity.updated = now() - timedelta(days=31)
         my_entity.save()
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertSetEqual(
-            set(mock_EveEntityHelper.get_names.call_args[0][0]), {1001, 1002}
+
+    def test_get_names_that_dont_exist(self, mock_esi_client):
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
         )
-
-    def test_get_names_that_dont_exist(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = get_entity_names
-
-        self.assertEqual(len(EveNameCache.objects.get_names([1999])), 0)
+        entities = EveNameCache.objects.get_names([1999])
+        self.assertDictEqual(entities, dict())
 
 
 class TestEveNameCacheManager(NoSocketsTestCase):

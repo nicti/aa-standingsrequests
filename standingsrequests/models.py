@@ -21,7 +21,6 @@ from .app_settings import (
     SR_OPERATION_MODE,
 )
 from .helpers.evecorporation import EveCorporation
-from .helpers.eveentity import EveEntityHelper
 from .managers import (
     AbstractStandingsRequestManager,
     CharacterAssociationManager,
@@ -668,78 +667,6 @@ class EveNameCache(models.Model):
     updated = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = EveNameCacheManager()
-
-    def _update_entity(self, allow_api=True) -> bool:
-        """Update the entities name. Callers are responsible for checking cache timing.
-        """
-        # Try sources in order of preference, API call last
-
-        if self._update_from_contacts():
-            return True
-        elif self._update_from_auth():
-            return True
-        elif allow_api and self._update_from_api():
-            return True
-        return False
-
-    def _update_from_contacts(self) -> bool:
-        """Attempt to update the entity from the latest contacts data
-        
-        returns True if successful, False otherwise
-        """
-        try:
-            contact_set = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            contact = None
-
-        else:
-            if contact_set.pilotstanding_set.filter(contact_id=self.entity_id).exists():
-                contact = contact_set.pilotstanding_set.get(contact_id=self.entity_id)
-
-            elif contact_set.corpstanding_set.filter(
-                contact_id=self.entity_id
-            ).exists():
-                contact = contact_set.corpstanding_set.get(contact_id=self.entity_id)
-
-            elif contact_set.alliancestanding_set.filter(
-                contact_id=self.entity_id
-            ).exists():
-                contact = contact_set.alliancestanding_set.get(
-                    contact_id=self.entity_id
-                )
-            else:
-                contact = None
-
-        if contact is not None:
-            self._set_name(contact.name)
-            return True
-        else:
-            return False
-
-    def _update_from_auth(self) -> bool:
-        """Attempt to update the entity from the parent auth installation
-        
-        returns True if successful, False otherwise
-        """
-        auth_name = EveEntityHelper.get_name_from_auth(self.entity_id)
-        if auth_name is not None:
-            self._set_name(auth_name)
-            return True
-        else:
-            return False
-
-    def _update_from_api(self) -> bool:
-        """Attempt to update the entity from the EVE API. 
-        Should be a last resort (because slow)
-        
-        returns bool True if successful, False otherwise
-        """
-        api_name = EveEntityHelper.get_name_from_api(self.entity_id)
-        if api_name is not None:
-            self._set_name(api_name)
-            return True
-        else:
-            return False
 
     def _set_name(self, name):
         """

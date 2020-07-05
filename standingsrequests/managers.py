@@ -1,11 +1,14 @@
 from datetime import timedelta
 
+from bravado.exception import HTTPError
+
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.providers import ObjectNotFound
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
@@ -19,7 +22,6 @@ from .app_settings import (
     SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS,
 )
 from .helpers.esi_fetch import esi_fetch
-from .helpers.eveentity import EveEntityHelper
 from .utils import chunks, LoggerAddTag
 
 
@@ -618,15 +620,13 @@ class EveNameCacheManager(models.Manager):
             entities_expired.values_list("entity_id", flat=True)
         )
         if entity_ids_need_update:
-            names_info_api = EveEntityHelper.get_names(entity_ids_need_update)
+            names_info_api = self._get_names_from_api(entity_ids_need_update)
 
             # update existing entities
             for entity in entities_expired:
                 if entity.entity_id in names_info_api:
                     name = names_info_api[entity.entity_id]
                     entity._set_name(name)
-                else:
-                    entity._update_entity()
 
             # create missing entities
             for entity_id in entity_ids_unknown:
@@ -640,26 +640,56 @@ class EveNameCacheManager(models.Manager):
             for entity in self.filter(entity_id__in=entity_ids)
         }
 
+    @classmethod
+    def _get_names_from_api(cls, eve_entity_ids) -> dict:
+        """
+        Get the names of the given entity ids from the EVE API servers
+        :param eve_entity_ids: array of int entity ids who's names to fetch
+        :return: dict with entity_id as key and name as value
+        """
+        # this is to make sure there are no duplicates
+        eve_entity_ids = list(set(eve_entity_ids))
+
+        names_info = dict()
+        chunk_size = 1000
+        for ids_chunk in chunks(eve_entity_ids, chunk_size):
+            infos = cls._make_api_request(ids_chunk)
+            for info in infos:
+                names_info[info["id"]] = info["name"]
+
+        return names_info
+
+    @classmethod
+    def _make_api_request(cls, eve_entity_ids) -> dict:
+        """
+        Get the names of the given entity ids from the EVE API servers
+        :param eve_entity_ids: array of int entity ids who's names to fetch
+        :return: array of objects with keys id and name or None if unsuccessful
+        """
+        logger.debug(
+            "Attempting to get entity name from API for ids %s", eve_entity_ids
+        )
+        try:
+            infos = esi_fetch(
+                "Universe.post_universe_names", args={"ids": eve_entity_ids}
+            )
+            return infos
+
+        except HTTPError:
+            logger.exception(
+                "Error occurred while trying to query api for entity id=%s",
+                eve_entity_ids,
+            )
+            raise ObjectNotFound(eve_entity_ids, "universe_entities")
+
     def get_name(self, entity_id: int) -> str:
         """
         Get the name for the given entity
         :param entity_id: EVE id of the entity
         :return: str name if it exists or None
         """
-        if self.filter(entity_id=entity_id).exists():
-            # Cached
-            entity = self.get(entity_id=entity_id)
-            if entity.cache_timeout():
-                entity._update_entity()
-        else:
-            # Fetch name/not cached
-            entity = self.model()
-            entity.entity_id = entity_id
-            entity._update_entity()
-            # If the name is updated it will be saved,
-            # otherwise this object will be discarded
-            # when it goes out of scope
-        return entity.name or None
+        names_info = self.get_names([entity_id])
+        return names_info[entity_id] if entity_id in names_info else None
 
     def update_name(self, entity_id, name):
         self.update_or_create(

@@ -1,4 +1,16 @@
 {
+    "esi_post_universe_names": [
+        {
+            "id": 1001,
+            "name": "Bruce Wayne",
+            "category": "character"
+        },
+        {
+            "id": 1002,
+            "name": "Peter Parker",
+            "category": "character"
+        }
+    ],
     "alliance_labels": [
         {
             "label_id": 1,
