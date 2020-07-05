@@ -1,9 +1,9 @@
-import datetime
+from datetime import timedelta
 
 from django.core import exceptions
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
+from django.utils.timezone import now
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
@@ -441,7 +441,7 @@ class AbstractStandingsRequest(models.Model):
         """
         logger.debug("Marking standing for %d as effective", self.contact_id)
         self.is_effective = True
-        self.effective_date = date if date else timezone.now()
+        self.effective_date = date if date else now()
         self.save()
 
     def mark_standing_actioned(self, user, date=None):
@@ -454,7 +454,7 @@ class AbstractStandingsRequest(models.Model):
         """
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
-        self.action_date = date if date else timezone.now()
+        self.action_date = date if date else now()
         self.save()
 
     def check_standing_actioned_timeout(self):
@@ -480,10 +480,7 @@ class AbstractStandingsRequest(models.Model):
             return None
 
         # Reset request that has not become effective after timeout expired
-        if (
-            self.action_date + datetime.timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
-            < latest.date
-        ):
+        if self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS) < latest.date:
             logger.info(
                 "Standing actioned timed out, resetting actioned for contact_id %d",
                 self.contact_id,
@@ -625,7 +622,7 @@ class CharacterAssociation(models.Model):
     Main characters are associated with themselves
     """
 
-    API_CACHE_TIMER = datetime.timedelta(days=3)
+    API_CACHE_TIMER = timedelta(days=3)
 
     character_id = models.PositiveIntegerField(primary_key=True)
     corporation_id = models.PositiveIntegerField(null=True)
@@ -664,7 +661,7 @@ class EveNameCache(models.Model):
     Keeping our own cache because allianceauth deletes characters with no API key
     """
 
-    CACHE_TIME = datetime.timedelta(days=30)
+    CACHE_TIME = timedelta(days=30)
 
     entity_id = models.PositiveIntegerField(primary_key=True)
     name = models.CharField(max_length=254)
@@ -751,7 +748,7 @@ class EveNameCache(models.Model):
         :return:
         """
         self.name = name
-        self.updated = timezone.now()
+        self.updated = now()
         self.save()
 
     def cache_timeout(self):
@@ -759,4 +756,4 @@ class EveNameCache(models.Model):
         Check if the cache timeout has been passed
         :return: bool True if the cache timer has expired, False otherwise
         """
-        return timezone.now() > self.updated + self.CACHE_TIME
+        return now() > self.updated + self.CACHE_TIME

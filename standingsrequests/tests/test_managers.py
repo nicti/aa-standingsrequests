@@ -772,8 +772,8 @@ class TestEveNameCacheManagerGetNames(NoSocketsTestCase):
 
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(
-            mock_EveEntityHelper.get_names.call_args[0][0], [1001, 1002]
+        self.assertSetEqual(
+            set(mock_EveEntityHelper.get_names.call_args[0][0]), {1001, 1002}
         )
 
     def test_get_names_from_cache(self, mock_EveEntityHelper):
@@ -783,7 +783,7 @@ class TestEveNameCacheManagerGetNames(NoSocketsTestCase):
         EveNameCache.objects.create(entity_id=1002, name="Peter Parker")
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(mock_EveEntityHelper.get_names.call_args[0][0], [])
+        self.assertFalse(mock_EveEntityHelper.get_names.called)
 
     def test_get_names_from_cache_and_api(self, mock_EveEntityHelper):
         mock_EveEntityHelper.get_names.side_effect = get_entity_names
@@ -801,8 +801,8 @@ class TestEveNameCacheManagerGetNames(NoSocketsTestCase):
         my_entity.save()
         entities = EveNameCache.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
-        self.assertListEqual(
-            mock_EveEntityHelper.get_names.call_args[0][0], [1001, 1002]
+        self.assertSetEqual(
+            set(mock_EveEntityHelper.get_names.call_args[0][0]), {1001, 1002}
         )
 
     def test_get_names_that_dont_exist(self, mock_EveEntityHelper):

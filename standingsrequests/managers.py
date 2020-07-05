@@ -606,47 +606,39 @@ class EveNameCacheManager(models.Manager):
         
         returns dict with entity_id as key and name as value
         """
-        # make sure there are no duplicates
-        entity_ids = set(entity_ids)
-        name_info = dict()
-        entities_need_update = []
-        entity_ids_not_found = []
-        for entity_id in entity_ids:
-            if self.filter(entity_id=entity_id).exists():
-                # Cached
-                entity = self.get(entity_id=entity_id)
-                if entity.cache_timeout():
-                    entities_need_update.append(entity)
+        entity_ids = set(entity_ids)  # remove duplicates
+        entity_ids_known = set(
+            self.filter(entity_id__in=entity_ids).values_list("entity_id", flat=True)
+        )
+        entity_ids_unknown = entity_ids - entity_ids_known
+        entities_expired = self.filter(
+            entity_id__in=entity_ids, updated__lt=now() - self.model.CACHE_TIME
+        )
+        entity_ids_need_update = list(entity_ids_unknown) + list(
+            entities_expired.values_list("entity_id", flat=True)
+        )
+        if entity_ids_need_update:
+            names_info_api = EveEntityHelper.get_names(entity_ids_need_update)
+
+            # update existing entities
+            for entity in entities_expired:
+                if entity.entity_id in names_info_api:
+                    name = names_info_api[entity.entity_id]
+                    entity._set_name(name)
                 else:
-                    name_info[entity.entity_id] = entity.name
-            else:
-                entity_ids_not_found.append(entity_id)
+                    entity._update_entity()
 
-        entities_need_names = [
-            e.entity_id for e in entities_need_update
-        ] + entity_ids_not_found
+            # create missing entities
+            for entity_id in entity_ids_unknown:
+                if entity_id in names_info_api:
+                    entity = self.model()
+                    entity.entity_id = entity_id
+                    entity._set_name(names_info_api[entity_id])
 
-        names_info_api = EveEntityHelper.get_names(entities_need_names)
-
-        # update existing entities
-        for entity in entities_need_update:
-            if entity.entity_id in names_info_api:
-                name = names_info_api[entity.entity_id]
-                entity._set_name(name)
-            else:
-                entity._update_entity()
-
-            name_info[entity.entity_id] = entity.name
-
-        # create new entities
-        for entity_id in entity_ids_not_found:
-            if entity_id in names_info_api:
-                entity = self.model()
-                entity.entity_id = entity_id
-                entity._set_name(names_info_api[entity_id])
-                name_info[entity_id] = entity.name
-
-        return name_info
+        return {
+            entity.entity_id: entity.name
+            for entity in self.filter(entity_id__in=entity_ids)
+        }
 
     def get_name(self, entity_id: int) -> str:
         """
