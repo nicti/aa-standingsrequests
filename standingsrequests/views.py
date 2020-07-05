@@ -44,7 +44,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def index_view(request):
     logger.debug("Start index_view request")
     context = {
@@ -56,7 +56,7 @@ def index_view(request):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def partial_request_entities(request):
     logger.debug("Start partial_request_entities request")
     try:
@@ -187,7 +187,7 @@ def partial_request_entities(request):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def request_pilot_standing(request, character_id):
     """For a user to request standings for their own pilots"""
     character_id = int(character_id)
@@ -214,7 +214,7 @@ def request_pilot_standing(request, character_id):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def remove_pilot_standing(request, character_id):
     """
     Handles both removing requests and removing existing standings
@@ -268,7 +268,7 @@ def remove_pilot_standing(request, character_id):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def request_corp_standing(request, corporation_id):
     """
     For a user to request standings for their own corp
@@ -303,7 +303,7 @@ def request_corp_standing(request, corporation_id):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 def remove_corp_standing(request, corporation_id):
     """
     Handles both removing corp requests and removing existing standings
@@ -996,7 +996,7 @@ def view_auth_page(request, token):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingsRequest.REQUEST_PERMISSION)
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
     messages_plus.success(

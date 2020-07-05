@@ -38,6 +38,9 @@ class TestSyncRequests(NoSocketsTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = AuthUtils.create_member(TEST_USER_NAME)
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", cls.user
+        )
 
     def setUp(self):
         create_standings_char()

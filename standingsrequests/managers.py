@@ -377,9 +377,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
             logger.debug(
                 "Checking request for contact_id %d", standing_request.contact_id
             )
-            if not standing_request.user.has_perm(
-                "standingsrequests.request_standings"
-            ):
+            if not standing_request.user.has_perm(self.model.REQUEST_PERMISSION):
                 logger.debug("Request is invalid, user does not have permission")
                 is_valid = False
 
@@ -610,7 +608,7 @@ class EveNameCacheManager(models.Manager):
         """
         # make sure there are no duplicates
         entity_ids = set(entity_ids)
-        name_info = {}
+        name_info = dict()
         entities_need_update = []
         entity_ids_not_found = []
         for entity_id in entity_ids:

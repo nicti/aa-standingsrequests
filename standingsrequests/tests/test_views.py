@@ -11,7 +11,6 @@ from esi.models import Token
 
 from . import add_character_to_user
 
-# from .entity_type_ids import CHARACTER_TYPE_ID
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,

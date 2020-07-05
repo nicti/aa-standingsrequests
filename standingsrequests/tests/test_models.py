@@ -204,6 +204,9 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         StandingsRequest.objects.all().delete()
 
     def test_creates_new_request_for_blue_alt(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", self.user
+        )
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
 
@@ -219,6 +222,9 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.assertAlmostEqual((now() - request.effective_date).seconds, 0, delta=30)
 
     def test_does_not_create_requests_for_blue_alt_if_request_already_exists(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", self.user
+        )
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
         StandingsRequest.objects.add_request(
@@ -232,6 +238,9 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.assertEqual(StandingsRequest.objects.count(), 1)
 
     def test_does_not_create_requests_for_non_blue_alts(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", self.user
+        )
         alt = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
 
@@ -240,6 +249,9 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.assertEqual(StandingsRequest.objects.count(), 0)
 
     def test_does_not_create_requests_for_alts_in_organization(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", self.user
+        )
         main = create_entity(EveCharacter, 1002)
         add_character_to_user(
             self.user, main, is_main=True, scopes=[TEST_REQUIRED_SCOPE]
@@ -250,9 +262,20 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.assertEqual(StandingsRequest.objects.count(), 0)
 
     def test_does_not_create_requests_for_alts_without_matching_scopes(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", self.user
+        )
         user = AuthUtils.create_member("John Doe")
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(user, alt)
+
+        self.contacts_set.generate_standing_requests_for_blue_alts()
+
+        self.assertEqual(StandingsRequest.objects.count(), 0)
+
+    def test_does_not_create_requests_for_alts_without_permission(self):
+        alt = create_entity(EveCharacter, 1010)
+        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
 

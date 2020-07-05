@@ -13,7 +13,7 @@ SR_NOTIFICATIONS_ENABLED = clean_setting("SR_NOTIFICATIONS_ENABLED", False)
 
 # Automatically create accepted standings requests for
 # alt characters on Auth that already have blue standing in-game
-SR_SYNC_BLUE_ALTS_ENABLED = clean_setting("SR_SYNC_BLUE_ALTS_ENABLED", True)
+SR_SYNC_BLUE_ALTS_ENABLED = clean_setting("SR_SYNC_BLUE_ALTS_ENABLED", False)
 
 # Select the entity type of your standings master
 SR_OPERATION_MODE = clean_setting(

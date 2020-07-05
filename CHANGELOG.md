@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.5.0] - alpha, tbd
 
+**Automatic standings requests**
+
+This release adds the ability to automatically create standing requests for alts that have standing in game. This hugely reduced the reduced the required manual work both for users and standing managers and helps keep the standings information in sync with the game. This feature is disabled by default since it changes the app's behavior.
+
 ### Added
 
 - Ability to also use corporations as standings source
@@ -16,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - User are notified once their standing request is effective (turned off by default)
 - Standing organization now shown on the request page
 - New management command to automatically create requests from already existing blues
+- Standings requests can be automatically created for existing alts with standing in game (deactivated by default)
 - Added new tests and improved existing tests
 - Added support for django-esi 2.x and backwards compatibility for 1.x
 

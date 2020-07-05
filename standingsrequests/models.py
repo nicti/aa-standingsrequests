@@ -191,6 +191,7 @@ class ContactSet(models.Model):
                 ).exists()
                 and StandingsRequest.has_required_scopes_for_request(alt)
                 and self.has_pilot_standing(alt.character_id)
+                and user.has_perm(StandingsRequest.REQUEST_PERMISSION)
             ):
                 sr = StandingsRequest.objects.add_request(
                     user,
@@ -347,6 +348,9 @@ class AbstractStandingsRequest(models.Model):
 
     # Standing greater than or equal
     EXPECT_STANDING_GTEQ = -10.0
+
+    # permission needed to request standing
+    REQUEST_PERMISSION = "standingsrequests.request_standings"
 
     contact_id = models.PositiveIntegerField(
         db_index=True, help_text="EVE Online ID of contact this standing is for"
