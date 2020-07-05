@@ -114,7 +114,27 @@ def create_entity(EntityClass: type, entity_id: int) -> object:
 # esi emulation
 
 
-def esi_post_characters_affiliation(characters):
+class BravadoOperationStub:
+    """Stub to simulate the operation object return from bravado via django-esi"""
+
+    class RequestConfig:
+        def __init__(self, also_return_response):
+            self.also_return_response = also_return_response
+
+    def __init__(self, data, headers: dict = None, also_return_response: bool = False):
+        self._data = data
+        self._headers = headers if headers else {"x-pages": 1}
+        self.request_config = BravadoOperationStub.RequestConfig(also_return_response)
+
+    def result(self, **kwargs):
+        if self.request_config.also_return_response:
+            mock_response = Mock(**{"headers": self._headers})
+            return [self._data, mock_response]
+        else:
+            return self._data
+
+
+def esi_post_characters_affiliation(characters, *args, **kwargs):
     result = []
     for assoc in _my_test_data["CharacterAssociation"]:
         if assoc["character_id"] in characters:
@@ -122,12 +142,10 @@ def esi_post_characters_affiliation(characters):
             del row["main_character_id"]
             result.append(row)
 
-    mock_operation = Mock()
-    mock_operation.result.return_value = result
-    return mock_operation
+    return BravadoOperationStub(result)
 
 
-def esi_get_corporations_corporation_id(corporation_id):
+def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs):
     result = []
     corporation_id = str(corporation_id)
     if corporation_id not in _my_test_data["EveCorporationInfo"]:
@@ -143,24 +161,15 @@ def esi_get_corporations_corporation_id(corporation_id):
     if row["alliance_id"]:
         result["alliance_id"] = row["alliance_id"]
 
-    mock_operation = Mock()
-    mock_operation.result.return_value = result
-    return mock_operation
+    return BravadoOperationStub(result)
 
 
-def esi_get_alliances_alliance_id_contacts_labels(alliance_id, token):
-    mock_operation = Mock()
-    mock_operation.result.return_value = deepcopy(_my_test_data["alliance_labels"])
-    mock_operation.result
-    return mock_operation
+def esi_get_alliances_alliance_id_contacts_labels(*args, **kwargs):
+    return BravadoOperationStub(deepcopy(_my_test_data["alliance_labels"]))
 
 
-def esi_get_alliances_alliance_id_contacts(alliance_id, page, token):
-    mock_operation = Mock()
-    data = deepcopy(_my_test_data["alliance_contacts"])
-    response = Mock(**{"headers": dict()})
-    mock_operation.result.return_value = data, response
-    return mock_operation
+def esi_get_alliances_alliance_id_contacts(*args, **kwargs):
+    return BravadoOperationStub(deepcopy(_my_test_data["alliance_contacts"]))
 
 
 ##########################

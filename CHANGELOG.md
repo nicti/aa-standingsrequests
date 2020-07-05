@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Standing organization now shown on the request page
 - New management command to automatically create requests from already existing blues
 - Added new tests and improved existing tests
+- Added support for django-esi 2.x and backwards compatibility for 1.x
 
 ### Changed
 
