@@ -35,6 +35,7 @@ from .models import (
     PilotStanding,
     StandingsRequest,
     StandingsRevocation,
+    models,
 )
 from .helpers.eveentity import EveEntityHelper
 from .tasks import update_all
@@ -341,19 +342,21 @@ def remove_corp_standing(request, corporation_id):
     return redirect("standingsrequests:index")
 
 
-####################
-# Management views #
-####################
+###########################
+# Views pilots and groups #
+###########################
 @login_required
 @permission_required("standingsrequests.view")
 def view_pilots_standings(request):
     logger.debug("view_pilot_standings called by %s", request.user)
     try:
-        last_update = ContactSet.objects.latest().date
+        contact_set = ContactSet.objects.latest()
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
-        last_update = None
+        contact_set = None
 
     organization = ContactSet.standings_source_entity()
+    last_update = contact_set.date if contact_set else None
+    pilots_count = contact_set.pilotstanding_set.count() if contact_set else None
     return render(
         request,
         "standingsrequests/view_pilots.html",
@@ -362,6 +365,7 @@ def view_pilots_standings(request):
             "app_title": __title__,
             "operation_mode": SR_OPERATION_MODE,
             "organization": organization,
+            "pilots_count": pilots_count,
         },
     )
 
@@ -522,11 +526,21 @@ def download_pilot_standings(request):
 def view_groups_standings(request):
     logger.debug("view_group_standings called by %s", request.user)
     try:
-        last_update = ContactSet.objects.latest().date
+        contact_set = ContactSet.objects.latest()
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
-        last_update = None
+        contact_set = None
 
     organization = ContactSet.standings_source_entity()
+    last_update = contact_set.date if contact_set else None
+
+    if contact_set:
+        groups_count = (
+            contact_set.corpstanding_set.count()
+            + contact_set.alliancestanding_set.count()
+        )
+    else:
+        groups_count = None
+
     return render(
         request,
         "standingsrequests/view_groups.html",
@@ -535,6 +549,7 @@ def view_groups_standings(request):
             "app_title": __title__,
             "operation_mode": SR_OPERATION_MODE,
             "organization": organization,
+            "groups_count": groups_count,
         },
     )
 
@@ -588,21 +603,21 @@ def view_groups_standings_json(request):
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
     logger.debug("manage_standings called by %s", request.user)
-    return render(
-        request,
-        "standingsrequests/manage.html",
-        {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
-    )
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "organization": ContactSet.standings_source_entity(),
+        "requests_count": _standing_requests_to_manage().count(),
+        "revocations_count": _revocations_to_manage().count(),
+    }
+    return render(request, "standingsrequests/manage.html", context,)
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_get_requests_json(request):
     logger.debug("manage_get_requests_json called by %s", request.user)
-    requests_qs = StandingsRequest.objects.filter(
-        Q(action_by=None) & Q(is_effective=False)
-    ).order_by("request_date")
-
+    requests_qs = _standing_requests_to_manage()
     response = list()
     # precache missing names in bulk
     entity_ids = [r.contact_id for r in requests_qs]
@@ -624,6 +639,7 @@ def manage_get_requests_json(request):
         state = ""
         pilot = None
         corp = None
+        contact_icon_url = None
 
         if PilotStanding.is_pilot(r.contact_type_id):
             contact_icon_url = eveimageserver.character_portrait_url(
@@ -686,6 +702,12 @@ def manage_get_requests_json(request):
     return JsonResponse(response, safe=False)
 
 
+def _standing_requests_to_manage() -> models.QuerySet:
+    return StandingsRequest.objects.filter(
+        Q(action_by=None) & Q(is_effective=False)
+    ).order_by("request_date")
+
+
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_requests_write(request, contact_id):
@@ -713,9 +735,7 @@ def manage_requests_write(request, contact_id):
 @permission_required("standingsrequests.affect_standings")
 def manage_get_revocations_json(request):
     logger.debug("manage_get_revocations_json called by %s", request.user)
-    revocations_qs = StandingsRevocation.objects.filter(
-        Q(action_by=None) & Q(is_effective=False)
-    ).order_by("request_date")
+    revocations_qs = _revocations_to_manage()
 
     response = list()
 
@@ -827,6 +847,12 @@ def manage_get_revocations_json(request):
     return JsonResponse(response, safe=False)
 
 
+def _revocations_to_manage() -> models.QuerySet:
+    return StandingsRevocation.objects.filter(
+        Q(action_by=None) & Q(is_effective=False)
+    ).order_by("request_date")
+
+
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_revocations_write(request, contact_id):
@@ -883,14 +909,21 @@ def manage_revocations_undo(request, contact_id):
     )
 
 
+###################
+# View requests #
+###################
+
+
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def view_active_requests(request):
-    return render(
-        request,
-        "standingsrequests/requests.html",
-        {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
-    )
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "organization": ContactSet.standings_source_entity(),
+        "requests_count": StandingsRequest.objects.count(),
+    }
+    return render(request, "standingsrequests/requests.html", context)
 
 
 @login_required

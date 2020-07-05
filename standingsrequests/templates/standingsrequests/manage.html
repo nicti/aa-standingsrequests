@@ -13,7 +13,10 @@
         
         <!-- Requests -->
         <div class="col-lg-12 container">
-            <h2 style="margin-top:0;">{% trans "Requests" %}</h2>
+            <h2 style="margin-top:0;">
+                {% trans "Requests" %} ({{requests_count|default:"-"}})                
+            </h2>
+            <p>Open standing requests for {{organization.name}}</p>
             <div class="col-lg-12 container">
                 
                 <div id="div_spinner_requests" class="row">                    
@@ -86,7 +89,10 @@
         
         <!-- Revocations -->
         <div class="col-lg-12 container">
-            <h2 style="margin-top:0;">{% trans "Revocations" %}</h2>
+            <h2 style="margin-top:0;">
+                {% trans "Revocations" %} ({{revocations_count|default:"-"}})
+            </h2>
+            <p>Open standing revocations for {{organization.name}}</p>
             <div class="col-lg-12 container">
 
                 <div id="div_spinner_revocations" class="row">                    

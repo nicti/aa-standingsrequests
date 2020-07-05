@@ -12,7 +12,7 @@
         <standings-filter-controls states="true" scopes="true"></standings-filter-controls>
         <div class="col-lg-12 container">
             <h1 class="page-header">
-                {% trans "Pilots" %}
+                {% trans "Pilots" %} ({{pilots_count|default:"-"}})
                 {% if perms.standingstool.download %}
                     <div class="pull-right">
                         <a href="{% url 'standingsrequests:download_pilots' %}" class="btn btn-default">
