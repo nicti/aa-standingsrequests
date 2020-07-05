@@ -11,11 +11,8 @@
     <div ng-app="standingsApp" ng-controller="GroupsListController">
         <standings-filter-controls></standings-filter-controls>
         <div class="col-lg-12 container">
-            <h1 class="page-header">{% trans "Groups" %}</h1>
-            <div class="pull-left">
-                <p>This data is cached for up to 10 minutes.<br/>
-                Last API Update: {{ lastUpdate | date:"SHORT_DATETIME_FORMAT" }}</p>
-            </div>            
+            <h1 class="page-header">{% trans "Groups" %}</h1>            
+            {% include "standingsrequests/partials/_contacts_legend.html" %}            
             <div class="col-lg-12 container">
 
                 <div id="div_spinner" class="row">                    

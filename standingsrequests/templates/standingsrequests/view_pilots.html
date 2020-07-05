@@ -20,11 +20,8 @@
                         </a>
                     </div>
                 {% endif %}
-            </h1>
-            <div class="pull-left">
-                <p>This data is cached for up to 10 minutes.<br/>
-                Last API Update: {{ lastUpdate | date:"SHORT_DATETIME_FORMAT" }}</p>
-            </div>
+            </h1>            
+            {% include "standingsrequests/partials/_contacts_legend.html" %}            
             <div class="pull-right form-inline">
                 <div class="form-group" style="padding-bottom:1.9em;">
                     <label for="userPageSize">Page size</label>

@@ -177,7 +177,7 @@ def partial_request_entities(request):
         "corps": corp_standings_data,
         "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
-        "organization_name": organization.name,
+        "organization": organization,
         "organization_image_url": organization_image_url,
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
@@ -361,6 +361,8 @@ def view_pilots_standings(request):
         last_update = ContactSet.objects.latest().date
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
         last_update = None
+
+    organization = ContactSet.standings_source_entity()
     return render(
         request,
         "standingsrequests/view_pilots.html",
@@ -368,6 +370,7 @@ def view_pilots_standings(request):
             "lastUpdate": last_update,
             "app_title": __title__,
             "operation_mode": SR_OPERATION_MODE,
+            "organization": organization,
         },
     )
 
@@ -527,6 +530,8 @@ def view_groups_standings(request):
         last_update = ContactSet.objects.latest().date
     except (ObjectDoesNotExist, ContactSet.DoesNotExist):
         last_update = None
+
+    organization = ContactSet.standings_source_entity()
     return render(
         request,
         "standingsrequests/view_groups.html",
@@ -534,6 +539,7 @@ def view_groups_standings(request):
             "lastUpdate": last_update,
             "app_title": __title__,
             "operation_mode": SR_OPERATION_MODE,
+            "organization": organization,
         },
     )
 

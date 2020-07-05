@@ -33,7 +33,7 @@
                                 <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1" title="{% trans 'Reject and delete this standings request' %}">{% trans "Reject" %}</th>
-                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Actioned" %}</th>
+                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Accept" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
@@ -107,7 +107,7 @@
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1" title="{% trans 'Delete this standings request. Standing will become unmanaged' %}">{% trans "Delete" %}</th>
                                 <th class="col-md-1" title="{% trans 'Undo this standings revocation and generate a new standings request' %}">{% trans "Undo" %}</th>
-                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Actioned" %}</th>
+                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Accept" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">

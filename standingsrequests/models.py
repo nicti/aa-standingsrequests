@@ -419,7 +419,7 @@ class AbstractStandingsRequest(models.Model):
             logger.debug(
                 "No standing set for %d, checking if neutral is OK", self.contact_id
             )
-            if self.EXPECT_STANDING_LTEQ == 0:
+            if self.EXPECT_STANDING_GTEQ <= 0 <= self.EXPECT_STANDING_LTEQ:
                 # Standing satisfied but deleted (neutral)
                 logger.debug(
                     "Standing satisfied but deleted (neutral) for %d", self.contact_id
@@ -665,7 +665,7 @@ class EveNameCache(models.Model):
 
     entity_id = models.PositiveIntegerField(primary_key=True)
     name = models.CharField(max_length=254)
-    updated = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = EveNameCacheManager()
 
