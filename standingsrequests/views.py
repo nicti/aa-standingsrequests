@@ -921,6 +921,7 @@ def view_active_requests_json(request):
         main = r.user.profile.main_character
         pilot = None
         corp = None
+        contact_icon_url = None
         if PilotStanding.is_pilot(r.contact_type_id):
             contact_icon_url = eveimageserver.character_portrait_url(
                 r.contact_id, size=DEFAULT_ICON_SIZE

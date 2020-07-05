@@ -10,8 +10,10 @@
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">                            
                             <tr>                                
-                                <td><img src="{{ organization_image_url }}" class="img-circle"></td>
-                                <td><strong>{{ organization.name }}</strong></td>
+                                <td>
+                                    <img src="{{ organization_image_url }}" class="img-circle">&nbsp;&nbsp;&nbsp;
+                                    <strong>{{ organization.name }}</strong>
+                                </td>
                             </tr>
                         </table>
                     </div>
@@ -28,28 +30,24 @@
             <div class="row">
                 <div class="table-responsive">
                     <table class="table table-condensed table-hover table-striped">
-                        <tr>
-                            <th class="col-md-1"></th>
+                        <tr>                            
                             <th class="col-md-2">{% trans "Character" %}</th>
                             <th class="col-md-2">{% trans "Corporation" %}</th>
                             <th class="col-md-2">{% trans "Alliance" %}</th>
                             <th class="col-md-1">{% trans "Scopes" %}</th>
                             <th class="col-md-1">{% trans "Standing" %}</th>
-                            <th class="col-md-1">{% trans "Action" %}</th>
+                            <th class="col-md-1">{% trans "Actions" %}</th>
                         </tr>
                         {% for std in characters %}
-                            <tr>
-                                <td>                                    
-                                    <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">
+                            <tr>                                
+                                <td>
+                                    <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">&nbsp;&nbsp;&nbsp;{{ std.character.character_name }}
                                 </td>
                                 <td>
-                                    <p>{{ std.character.character_name }}</p>
+                                    [{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}
                                 </td>
                                 <td>
-                                    <p>[{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}</p>
-                                </td>
-                                <td>
-                                    <p>{{ std.character.alliance_name }}</p>
+                                    {{ std.character.alliance_name|default_if_none:"" }}
                                 </td>
                                 <td>
                                     <span style="font-size:2em;">
@@ -122,23 +120,25 @@
                 <div class="row">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
-                            <tr>
-                                <th class="col-md-1"></th>
-                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                            <tr>                                
+                                <th class="col-md-4">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-1">{% trans "Keys/Req" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
-                                <th class="col-md-1">{% trans "Action" %}</th>
+                                <th class="col-md-1">{% trans "Actions" %}</th>
                             </tr>
                             {% for st in corps %}
-                                <tr>
-                                    <td>                                        
+                                <tr>                                
+                                    <td>
                                         <img src="{{ st.corp.corporation_id|corporation_logo_url:32 }}" class="img-circle">
+                                        &nbsp;&nbsp;&nbsp;
+                                        {{ st.corp.corporation_name }}
                                     </td>
                                     <td>
-                                        <p>{{ st.corp.corporation_name }}</p>
+                                        {{ st.corp.alliance_name|default_if_none:"" }}
                                     </td>
                                     <td>
-                                        <p>{{ st.have_scopes }}/{{ st.corp.member_count }}</p>
+                                        {{ st.have_scopes }}/{{ st.corp.member_count }}
                                     </td>
                                     <td>
                                         <p>

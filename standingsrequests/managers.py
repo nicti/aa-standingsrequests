@@ -240,7 +240,7 @@ class AbstractStandingsRequestManager(models.Manager):
                             ),
                             message=_(
                                 "'%s' now has blue standing with your "
-                                "character '%s' Please also update "
+                                "character '%s'. Please also update "
                                 "the standing of your character accordingly."
                             )
                             % (organization_name, character_name),
@@ -262,8 +262,8 @@ class AbstractStandingsRequestManager(models.Manager):
                                     title="%s: Standing for %s revoked"
                                     % (__title__, character_name),
                                     message=_(
-                                        "'%s' no longer has blue standing with your "
-                                        "character '%s' Please also update "
+                                        "'%s' has no longer blue standing with your "
+                                        "character '%s'. Please also update "
                                         "the standing of your character accordingly."
                                     )
                                     % (organization_name, character_name),
@@ -700,11 +700,15 @@ class EveEntityManager(models.Manager):
             raise ObjectNotFound(eve_entity_ids, "universe_entities")
 
     def get_name(self, entity_id: int) -> str:
+        """ Get the name for the given entity
+        
+        entity_id: EVE id of the entity
+                
+        returns name if it exists or None
         """
-        Get the name for the given entity
-        :param entity_id: EVE id of the entity
-        :return: str name if it exists or None
-        """
+        if not entity_id:
+            return None
+
         names_info = self.get_names([entity_id])
         return names_info[entity_id] if entity_id in names_info else None
 

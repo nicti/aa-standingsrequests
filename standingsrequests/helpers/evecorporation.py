@@ -23,9 +23,22 @@ class EveCorporation:
         self.member_count = kwargs.get("member_count")
         self.ceo_id = kwargs.get("ceo_id")
         self.alliance_id = kwargs.get("alliance_id")
+        self.alliance_name = kwargs.get("alliance_name")
 
     def __str__(self):
         return self.corporation_name
+
+    def __eq__(self, o: object) -> bool:
+        return (
+            isinstance(o, type(self))
+            and self.corporation_id == o.corporation_id
+            and self.corporation_name == o.corporation_name
+            and self.ticker == o.ticker
+            and self.member_count == o.member_count
+            and self.ceo_id == o.ceo_id
+            and self.alliance_id == o.alliance_id
+            and self.alliance_name == o.alliance_name
+        )
 
     @property
     def is_npc(self):
@@ -57,20 +70,26 @@ class EveCorporation:
 
     @classmethod
     def get_corp_esi(cls, corp_id):
+        from ..models import EveEntity
+
         logger.debug("Attempting to get corp from esi with id %s", corp_id)
         try:
             info = esi_fetch(
                 "Corporation.get_corporations_corporation_id",
                 args={"corporation_id": corp_id},
             )
-            return cls(
-                corporation_id=corp_id,
-                corporation_name=info["name"],
-                ticker=info["ticker"],
-                member_count=info["member_count"],
-                ceo_id=info["ceo_id"],
-                alliance_id=info["alliance_id"] if "alliance_id" in info else None,
-            )
+            args = {
+                "corporation_id": corp_id,
+                "corporation_name": info["name"],
+                "ticker": info["ticker"],
+                "member_count": info["member_count"],
+                "ceo_id": info["ceo_id"],
+            }
+            if "alliance_id" in info and info["alliance_id"]:
+                args["alliance_id"] = info["alliance_id"]
+                args["alliance_name"] = EveEntity.objects.get_name(info["alliance_id"])
+
+            return cls(**args)
 
         except HTTPError:
             logger.exception("Failed to get corp from ESI with id %i", corp_id)

@@ -27,15 +27,13 @@
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-1">{% trans "Corporation" %}</th>
-                                <th class="col-md-1">{% trans "Alliance" %}</th>
-                                <th class="col-md-1">{% trans "Type" %}</th>
+                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Alliance" %}</th>                                
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "Scopes" %}</th>
-                                <th class="col-md-1">{% trans "State" %}</th>
+                                <th class="col-md-1">{% trans "State / Scopes" %}</th>                                
                                 <th class="col-md-1">{% trans "Actioned By" %}</th>
                                 <th class="col-md-1">{% trans "Effective" %}</th>
-                                <th class="col-md-1"></th>
+                                <th class="col-md-1">{% trans "Actions" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
@@ -50,22 +48,15 @@
                                 </td>
                                 <td>
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
-                                </td>
-                                <td>
-                                    <span ng-show="contact.is_corp">Corp</span>
-                                    <span ng-show="contact.is_pilot">Pilot</span>
-                                </td>
+                                </td>                                
                                 <td>
                                     <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="contact.main_character_ticker">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
-                                    </span>
-                                </td>
+                                    </span>                                    
+                                </td>                                
                                 <td>
-                                    <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
-                                </td>
-                                <td>
-                                    {{contact.state}}
+                                    {{contact.state}} <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
                                 </td>
                                 <td>
                                     <span ng-bind="contact.action_by" ng-show="contact.actioned"></span>
