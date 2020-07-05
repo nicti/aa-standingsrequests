@@ -664,10 +664,9 @@ class CharacterAssociation(models.Model):
 
 
 class EveEntity(models.Model):
-    """
-    Cache for all entity names (Characters, Corps, Alliances)
-
-    Keeping our own cache because allianceauth deletes characters with no API key
+    """An Eve Online entity like a character or a corporation
+    
+    A main function of this class is to enable name matching for Eve IDs
     """
 
     CACHE_TIME = timedelta(days=30)

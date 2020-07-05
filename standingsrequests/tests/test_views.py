@@ -165,6 +165,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         expected_main_1 = {
             "character_id": 1002,
             "character_name": "Peter Parker",
+            "character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
             "corporation_id": 2001,
             "corporation_name": "Wayne Technologies",
             "corporation_ticker": "WYE",
@@ -176,6 +177,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "standing": 10.0,
             "labels": ["blue", "green"],
             "main_character_name": "Peter Parker",
+            "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
         }
         self.assertDictEqual(data_main_1, expected_main_1)
 
@@ -183,6 +185,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         expected_alt_1 = {
             "character_id": 1004,
             "character_name": "Kara Danvers",
+            "character_icon_url": "https://images.evetech.net/characters/1004/portrait?size=32",
             "corporation_id": 2003,
             "corporation_name": "CatCo Worldwide Media",
             "corporation_ticker": "CC",
@@ -194,6 +197,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "standing": 0.01,
             "labels": ["yellow"],
             "main_character_name": "Peter Parker",
+            "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -201,6 +205,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         expected_character_1009 = {
             "character_id": 1009,
             "character_name": "Lex Luthor",
+            "character_icon_url": "https://images.evetech.net/characters/1009/portrait?size=32",
             "corporation_id": 2102,
             "corporation_name": "Lexcorp",
             "corporation_ticker": None,
@@ -212,6 +217,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "standing": -10.0,
             "labels": ["red"],
             "main_character_name": None,
+            "main_character_icon_url": None,
         }
         self.assertDictEqual(data_character_1009, expected_character_1009)
 

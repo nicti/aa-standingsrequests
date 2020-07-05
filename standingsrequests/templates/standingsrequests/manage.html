@@ -32,12 +32,12 @@
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
                                 <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
-                                <th class="col-md-1" title="{% trans 'Reject and delete this standings request' %}">{% trans "Reject" %}</th>
-                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Accept" %}</th>
+                                <th class="col-md-2"></th>                                
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
+                                    <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
@@ -49,6 +49,7 @@
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
+                                    <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="contact.main_character_ticker">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>
@@ -63,8 +64,7 @@
                                     <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">
                                         <i class="far fa-thumbs-down"></i>
                                     </button>
-                                </td>
-                                <td>                                    
+                                    &nbsp;&nbsp;&nbsp;&nbsp;                                                 
                                     <button class="btn btn-success" ng-click="actionRequest(contact)" title="Accept">
                                         <i class="far fa-thumbs-up"></i>
                                     </button>
@@ -100,18 +100,17 @@
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-1">{% trans "Corporation" %}</th>
-                                <th class="col-md-1">{% trans "Alliance" %}</th>
+                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-2">{% trans "Scopes" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
-                                <th class="col-md-1" title="{% trans 'Delete this standings request. Standing will become unmanaged' %}">{% trans "Delete" %}</th>
-                                <th class="col-md-1" title="{% trans 'Undo this standings revocation and generate a new standings request' %}">{% trans "Undo" %}</th>
-                                <th class="col-md-1" title="{% trans 'Standings change has been made in game' %}">{% trans "Accept" %}</th>
+                                <th class="col-md-2"></th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
                                 <td>
+                                    <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
@@ -123,9 +122,11 @@
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
-                                    <span ng-show="contact.main_character_ticker">
+                                    <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <span ng-show="contact.main_character_name">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>
+                                    
                                 </td>
                                 <td>
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
@@ -137,13 +138,11 @@
                                     <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Delete">
                                         <i class="fas fa-times"></i>
                                     </button>
-                                </td>
-                                <td>                                    
+                                    &nbsp;&nbsp;&nbsp;&nbsp;
                                     <button class="btn btn-warning" ng-click="undoRevocation(contact)" title="Undo">
                                         <i class="fas fa-undo"></i>
                                     </button>
-                                </td>
-                                <td>                                    
+                                    &nbsp;&nbsp;&nbsp;&nbsp;
                                     <button class="btn btn-primary" ng-click="actionRevocation(contact)" title="Standing Removed">
                                         <i class="far fa-thumbs-up"></i>
                                     </button>

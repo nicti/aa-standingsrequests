@@ -32,9 +32,9 @@
                                 <th class="col-md-1">{% trans "Labels" %}</th>
                             </tr>                            
                             {% verbatim %}
-                            <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">
+                            <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">                                
                                 <td>
-                                    <span ng-bind="entity.corporation_name"></span>
+                                    <img src="{{ entity.corporation_icon_url }}" class="img-circle"/>&nbsp;&nbsp;{{ entity.corporation_name }}
                                 </td>
                                 <td>
                                     <span style="font-size:1.5em;">
@@ -64,9 +64,9 @@
                             </tr>                            
                             {% verbatim %}
                             <!-- Should DRY this -->
-                            <tr ng-repeat="entity in alliances | filterStandings as alliancesFiltered">
-                                <td>
-                                    <span ng-bind="entity.alliance_name"></span>
+                            <tr ng-repeat="entity in alliances | filterStandings as alliancesFiltered">                                
+                                 <td>
+                                    <img src="{{ entity.alliance_icon_url }}" class="img-circle"/>&nbsp;&nbsp;{{ entity.alliance_name }}
                                 </td>
                                 <td>
                                     <span style="font-size:1.5em;">

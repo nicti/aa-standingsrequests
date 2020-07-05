@@ -35,11 +35,12 @@
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Actioned By" %}</th>
                                 <th class="col-md-1">{% trans "Effective" %}</th>
-                                <th class="col-md-1" title="{% trans 'Reject and delete this standings request' %}">{% trans "Reject" %}</th>
+                                <th class="col-md-1"></th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
+                                     <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
@@ -55,6 +56,7 @@
                                     <span ng-show="contact.is_pilot">Pilot</span>
                                 </td>
                                 <td>
+                                    <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="contact.main_character_ticker">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>

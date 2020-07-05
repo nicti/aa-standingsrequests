@@ -9,25 +9,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.5.0] - alpha, tbd
 
-**Automatic standings requests**
-
-This release adds the ability to automatically create standing requests for alts that have standing in game. This hugely reduced the reduced the required manual work both for users and standing managers and helps keep the standings information in sync with the game. This feature is disabled by default since it changes the app's behavior.
-
 ### Added
 
-- Ability to also use corporations as standings source
-- First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
-- User are notified once their standing request is effective (turned off by default)
-- Standing organization now shown on the request page
-- New management command to automatically create requests from already existing blues
+- You can also use a corporation as standings source
 - Standings requests can be automatically created for existing alts with standing in game (deactivated by default)
+- User are notified once their standing request is effective (deactivated off by default)
+- Standing organization shown on the request page
+- Added eve entity icons to most views
+- New management command to automatically create requests from already existing blues
+- First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - Added new tests and improved existing tests
 - Added support for django-esi 2.x and backwards compatibility for 1.x
 
 ### Changed
 
 - UI improvements
-- DB performance improvements (missing indices added)
+- Significant performance improvements
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger
 - App will wait a grace period before resetting previous effective standings

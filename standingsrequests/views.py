@@ -11,6 +11,7 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
@@ -40,6 +41,8 @@ from .tasks import update_all
 from .utils import messages_plus, LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+DEFAULT_ICON_SIZE = 32
 
 
 @login_required
@@ -166,7 +169,7 @@ def partial_request_entities(request):
         "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
-        "organization_image_url": organization.icon_url(),
+        "organization_image_url": organization.icon_url(size=DEFAULT_ICON_SIZE),
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
     return render(
@@ -400,18 +403,19 @@ def view_pilots_standings_json(request):
                 has_required_scopes = StandingsRequest.has_required_scopes_for_request(
                     char
                 )
-                main_character_name = main.character_name if main else None
             else:
                 char = EveCharacterHelper(p.contact_id)
                 main = None
                 state = ""
                 has_required_scopes = False
-                main_character_name = None
 
             pilots.append(
                 {
                     "character_id": p.contact_id,
                     "character_name": p.name,
+                    "character_icon_url": eveimageserver.character_portrait_url(
+                        p.contact_id, DEFAULT_ICON_SIZE
+                    ),
                     "corporation_id": char.corporation_id if char else None,
                     "corporation_name": char.corporation_name if char else None,
                     "corporation_ticker": char.corporation_ticker if char else None,
@@ -422,7 +426,10 @@ def view_pilots_standings_json(request):
                     "main_character_ticker": main.corporation_ticker if main else None,
                     "standing": p.standing,
                     "labels": [label.name for label in p.labels.all()],
-                    "main_character_name": main_character_name,
+                    "main_character_name": main.character_name if main else None,
+                    "main_character_icon_url": main.portrait_url(DEFAULT_ICON_SIZE)
+                    if main
+                    else None,
                 }
             )
 
@@ -547,6 +554,9 @@ def view_groups_standings_json(request):
             {
                 "corporation_id": p.contact_id,
                 "corporation_name": p.name,
+                "corporation_icon_url": eveimageserver.corporation_logo_url(
+                    p.contact_id, DEFAULT_ICON_SIZE
+                ),
                 "standing": p.standing,
                 "labels": [label.name for label in p.labels.all()],
             }
@@ -558,6 +568,9 @@ def view_groups_standings_json(request):
             {
                 "alliance_id": p.contact_id,
                 "alliance_name": p.name,
+                "alliance_icon_url": eveimageserver.alliance_logo_url(
+                    p.contact_id, DEFAULT_ICON_SIZE
+                ),
                 "standing": p.standing,
                 "labels": [label.name for label in p.labels.all()],
             }
@@ -613,6 +626,9 @@ def manage_get_requests_json(request):
         corp = None
 
         if PilotStanding.is_pilot(r.contact_type_id):
+            contact_icon_url = eveimageserver.character_portrait_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             pilot = EveCharacter.objects.get_character_by_id(r.contact_id)
             if not pilot:
                 pilot = EveCharacterHelper(r.contact_id)
@@ -622,6 +638,9 @@ def manage_get_requests_json(request):
                 state = state_name
 
         elif CorpStanding.is_corp(r.contact_type_id):
+            contact_icon_url = eveimageserver.corporation_logo_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             corp = EveCorporation.get_corp_by_id(r.contact_id)
 
         contact_name = (
@@ -648,6 +667,7 @@ def manage_get_requests_json(request):
             {
                 "contact_id": r.contact_id,
                 "contact_name": contact_name,
+                "contact_icon_url": contact_icon_url,
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
                 "corporation_ticker": corporation_ticker,
@@ -657,6 +677,9 @@ def manage_get_requests_json(request):
                 "state": state,
                 "main_character_name": main.character_name if main else None,
                 "main_character_ticker": main.corporation_ticker if main else None,
+                "main_character_icon_url": main.portrait_url(DEFAULT_ICON_SIZE)
+                if main
+                else None,
             }
         )
 
@@ -717,16 +740,23 @@ def manage_get_revocations_json(request):
         corp = None
         corp_user = None
         main = None
+        contact_icon_url = None
         if PilotStanding.is_pilot(r.contact_type_id):
+            contact_icon_url = eveimageserver.character_portrait_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             pilot = EveCharacter.objects.get_character_by_id(r.contact_id)
-
             if not pilot:
                 pilot = EveCharacterHelper(r.contact_id)
+
             state_name = EveEntityHelper.get_state_of_character(pilot)
             if state_name is not None:
                 state = state_name
 
         elif CorpStanding.is_corp(r.contact_type_id):
+            contact_icon_url = eveimageserver.corporation_logo_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             corp = EveCorporation.get_corp_by_id(r.contact_id)
             user_election = dict()
             # Figure out which user has the most APIs for this corp, if any
@@ -770,6 +800,7 @@ def manage_get_revocations_json(request):
         revoke = {
             "contact_id": r.contact_id,
             "contact_name": contact_name,
+            "contact_icon_url": contact_icon_url,
             "corporation_id": corporation_id,
             "corporation_name": corporation_name,
             "corporation_ticker": corporation_ticker,
@@ -779,6 +810,9 @@ def manage_get_revocations_json(request):
             "state": state,
             "main_character_name": main.character_name if main else None,
             "main_character_ticker": main.corporation_ticker if main else None,
+            "main_character_icon_url": main.portrait_url(DEFAULT_ICON_SIZE)
+            if main
+            else None,
         }
 
         try:
@@ -888,11 +922,17 @@ def view_active_requests_json(request):
         pilot = None
         corp = None
         if PilotStanding.is_pilot(r.contact_type_id):
+            contact_icon_url = eveimageserver.character_portrait_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             pilot = EveCharacter.objects.get_character_by_id(r.contact_id)
             if not pilot:
                 pilot = EveCharacterHelper(r.contact_id)
 
         elif CorpStanding.is_corp(r.contact_type_id):
+            contact_icon_url = eveimageserver.corporation_logo_url(
+                r.contact_id, size=DEFAULT_ICON_SIZE
+            )
             corp = EveCorporation.get_corp_by_id(r.contact_id)
 
         contact_name = (
@@ -918,6 +958,7 @@ def view_active_requests_json(request):
             {
                 "contact_id": r.contact_id,
                 "contact_name": contact_name,
+                "contact_icon_url": contact_icon_url,
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
                 "corporation_ticker": corporation_ticker,
@@ -927,6 +968,9 @@ def view_active_requests_json(request):
                 "state": state,
                 "main_character_name": main.character_name if main else None,
                 "main_character_ticker": main.corporation_ticker if main else None,
+                "main_character_icon_url": main.portrait_url(DEFAULT_ICON_SIZE)
+                if main
+                else None,
                 "actioned": r.action_by is not None,
                 "is_effective": r.is_effective,
                 "is_corp": CorpStanding.is_corp(r.contact_type_id),
