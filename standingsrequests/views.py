@@ -11,7 +11,6 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
 
 from allianceauth.eveonline.models import EveCharacter
-from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
@@ -31,7 +30,7 @@ from .models import (
     CharacterAssociation,
     ContactSet,
     CorpStanding,
-    EveNameCache,
+    EveEntity,
     PilotStanding,
     StandingsRequest,
     StandingsRevocation,
@@ -160,17 +159,6 @@ def partial_request_entities(request):
                 )
 
     organization = ContactSet.standings_source_entity()
-    if SR_OPERATION_MODE == "alliance":
-        organization_image_url = eveimageserver.alliance_logo_url(
-            organization.entity_id
-        )
-    elif SR_OPERATION_MODE == "corporation":
-        organization_image_url = eveimageserver.corporation_logo_url(
-            organization.entity_id
-        )
-    else:
-        organization_image_url = ""
-
     render_items = {
         "app_title": __title__,
         "characters": char_standings_data,
@@ -178,7 +166,7 @@ def partial_request_entities(request):
         "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
-        "organization_image_url": organization_image_url,
+        "organization_image_url": organization.icon_url(),
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
     return render(
@@ -398,7 +386,7 @@ def view_pilots_standings_json(request):
             + [x["corporation_id"] for x in assoc_ids]
             + [x["alliance_id"] for x in assoc_ids if x["alliance_id"]]
         )
-        EveNameCache.objects.get_names(contact_ids)
+        EveEntity.objects.get_names(contact_ids)
         for p in pilot_standings:
             char = EveCharacter.objects.get_character_by_id(p.contact_id)
             if (
@@ -484,7 +472,7 @@ def download_pilot_standings(request):
 
     # lets request make sure all info is there in bulk
     pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
-    EveNameCache.objects.get_names([p.contact_id for p in pilot_standings])
+    EveEntity.objects.get_names([p.contact_id for p in pilot_standings])
 
     for pilot_standing in pilot_standings:
         char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
@@ -614,7 +602,7 @@ def manage_get_requests_json(request):
                 entity_ids.append(assoc.alliance_id)
         except CharacterAssociation.DoesNotExist:
             pass
-    EveNameCache.objects.get_names(entity_ids)
+    EveEntity.objects.get_names(entity_ids)
 
     for r in requests_qs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots
@@ -719,7 +707,7 @@ def manage_get_revocations_json(request):
                 entity_ids.append(assoc.alliance_id)
         except CharacterAssociation.DoesNotExist:
             pass
-    EveNameCache.objects.get_names(entity_ids)
+    EveEntity.objects.get_names(entity_ids)
     for r in revocations_qs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots
         # (at least can potentially be corps/alliances)
@@ -888,7 +876,7 @@ def view_active_requests_json(request):
                 entity_ids.append(assoc.alliance_id)
         except CharacterAssociation.DoesNotExist:
             pass
-    EveNameCache.objects.get_names(entity_ids)
+    EveEntity.objects.get_names(entity_ids)
     for r in requests_qs:
         # Dont forget that contact requests aren't strictly ALWAYS pilots
         # (at least can potentially be corps/alliances)
@@ -955,7 +943,7 @@ def view_active_requests_json(request):
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
     source_entity = ContactSet.standings_source_entity()
-    char_name = EveNameCache.objects.get_name(STANDINGS_API_CHARID)
+    char_name = EveEntity.objects.get_name(STANDINGS_API_CHARID)
     if not source_entity:
         messages_plus.error(
             request,
@@ -994,7 +982,7 @@ def view_auth_page(request, token):
             % {
                 "char_name": char_name,
                 "standings_api_char_id": STANDINGS_API_CHARID,
-                "token_char_name": EveNameCache.objects.get_name(token.character_id),
+                "token_char_name": EveEntity.objects.get_name(token.character_id),
                 "token_char_id": token.character_id,
             },
         )
@@ -1008,6 +996,6 @@ def view_requester_add_scopes(request, token):
     messages_plus.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
-        % {"char_name": EveNameCache.objects.get_name(token.character_id)},
+        % {"char_name": EveEntity.objects.get_name(token.character_id)},
     )
     return redirect("standingsrequests:index")

@@ -3,7 +3,7 @@ from django.contrib import admin
 from .models import (
     StandingsRequest,
     StandingsRevocation,
-    EveNameCache,
+    EveEntity,
     PilotStanding,
     CorpStanding,
 )
@@ -25,7 +25,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveNameCache.objects.get_name(obj.contact_id)
+        return EveEntity.objects.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
         if obj.contact_type_id in PilotStanding.contact_types:
@@ -60,8 +60,8 @@ class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
     pass
 
 
-@admin.register(EveNameCache)
-class EveNameCacheAdmin(admin.ModelAdmin):
+@admin.register(EveEntity)
+class EveEntityAdmin(admin.ModelAdmin):
     list_display = ("entity_id", "name", "updated")
 
     def has_add_permission(self, request):

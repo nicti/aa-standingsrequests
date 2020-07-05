@@ -18,7 +18,7 @@ from .my_test_data import (
     create_contacts_set,
     create_eve_objects,
 )
-from ..models import EveNameCache, PilotStanding, StandingsRequest, StandingsRevocation
+from ..models import EveEntity, PilotStanding, StandingsRequest, StandingsRevocation
 from ..utils import set_test_logger, NoSocketsTestCase
 from .. import views
 
@@ -36,7 +36,7 @@ TEST_SCOPE = "publicData"
 class TestViewAuthPage(NoSocketsTestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        EveNameCache.objects.create(
+        EveEntity.objects.create(
             entity_id=TEST_STANDINGS_API_CHARID, name=TEST_STANDINGS_API_CHARNAME
         )
 
@@ -73,7 +73,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         create_standings_char()
         user = AuthUtils.create_user("Clark Kent")
         character = AuthUtils.add_main_character_2(user, user.username, 1002)
-        EveNameCache.objects.create(
+        EveEntity.objects.create(
             entity_id=character.character_id, name=character.character_name
         )
         response = self.make_request(user, character)

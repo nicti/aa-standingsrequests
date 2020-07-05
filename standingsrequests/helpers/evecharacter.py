@@ -1,4 +1,4 @@
-from ..models import EveNameCache, CharacterAssociation
+from ..models import EveEntity, CharacterAssociation
 
 
 class EveCharacterHelper:
@@ -39,7 +39,7 @@ class EveCharacterHelper:
             for entity_id in [self.character_id, self.corporation_id, self.alliance_id]
             if entity_id is not None
         ]
-        names = EveNameCache.objects.get_names(entity_ids)
+        names = EveEntity.objects.get_names(entity_ids)
         names_ids = names.keys()
         self.character_name = (
             names[self.character_id]

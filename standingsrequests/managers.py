@@ -150,7 +150,7 @@ class _ContactsWrapper:
             return str(self)
 
     def __init__(self, token, character_id):
-        from .models import EveNameCache
+        from .models import EveEntity
 
         self.alliance = []
         self.allianceLabels = []
@@ -199,7 +199,7 @@ class _ContactsWrapper:
         for contact in contacts:
             entity_ids.append(contact["contact_id"])
 
-        name_info = EveNameCache.objects.get_names(entity_ids)
+        name_info = EveEntity.objects.get_names(entity_ids)
         for contact in contacts:
             self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
 
@@ -209,7 +209,7 @@ class AbstractStandingsRequestManager(models.Manager):
         """Process all the Standing requests/revocation objects"""
         from .models import (
             ContactSet,
-            EveNameCache,
+            EveEntity,
             PilotStanding,
             StandingsRequest,
             StandingsRevocation,
@@ -222,7 +222,7 @@ class AbstractStandingsRequestManager(models.Manager):
         organization = ContactSet.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
-            character_name = EveNameCache.objects.get_name(standing_request.contact_id)
+            character_name = EveEntity.objects.get_name(standing_request.contact_id)
             was_already_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.process_standing()
             if (
@@ -498,7 +498,7 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
 class CharacterAssociationManager(models.Manager):
     def update_from_auth(self) -> None:
         """Update all character associations based on auth relationship data"""
-        from .models import EveNameCache
+        from .models import EveEntity
 
         chars = EveCharacter.objects.all()
         for c in chars:
@@ -523,7 +523,11 @@ class CharacterAssociationManager(models.Manager):
                     "updated": now(),
                 },
             )
-            EveNameCache.objects.update_name(assoc.character_id, c.character_name)
+            EveEntity.objects.update_name(
+                entity_id=assoc.character_id,
+                name=c.character_name,
+                category=EveEntity.CATEGORY_CHARACTER,
+            )
 
     def update_from_api(self) -> None:
         """Update all character corp associations we have standings for that 
@@ -600,7 +604,7 @@ class CharacterAssociationManager(models.Manager):
         return expired
 
 
-class EveNameCacheManager(models.Manager):
+class EveEntityManager(models.Manager):
     def get_names(self, entity_ids: list) -> dict:
         """Get the names of the given entity ids from catch or other locations
         
@@ -620,20 +624,36 @@ class EveNameCacheManager(models.Manager):
             entities_expired.values_list("entity_id", flat=True)
         )
         if entity_ids_need_update:
-            names_info_api = self._get_names_from_api(entity_ids_need_update)
+            entities_api_info = self._get_names_from_api(entity_ids_need_update)
 
             # update existing entities
+            entities_to_update = list()
             for entity in entities_expired:
-                if entity.entity_id in names_info_api:
-                    name = names_info_api[entity.entity_id]
-                    entity._set_name(name)
+                if entity.entity_id in entities_api_info:
+                    entity.name = entities_api_info[entity.entity_id]["name"]
+                    entity.category = entities_api_info[entity.entity_id]["category"]
+                    entities_to_update.append(entity)
+
+            if entities_to_update:
+                self.bulk_update(
+                    entities_to_update, fields=["name", "category"], batch_size=500
+                )
 
             # create missing entities
+            entities_to_create = list()
             for entity_id in entity_ids_unknown:
-                if entity_id in names_info_api:
-                    entity = self.model()
-                    entity.entity_id = entity_id
-                    entity._set_name(names_info_api[entity_id])
+                if entity_id in entities_api_info:
+                    entity = self.model(
+                        entity_id=entity_id,
+                        name=entities_api_info[entity_id]["name"],
+                        category=entities_api_info[entity_id]["category"],
+                    )
+                    entities_to_create.append(entity)
+
+            if entities_to_create:
+                self.bulk_create(
+                    entities_to_create, ignore_conflicts=True, batch_size=500
+                )
 
         return {
             entity.entity_id: entity.name
@@ -650,17 +670,15 @@ class EveNameCacheManager(models.Manager):
         # this is to make sure there are no duplicates
         eve_entity_ids = list(set(eve_entity_ids))
 
-        names_info = dict()
+        entities_list = list()
         chunk_size = 1000
         for ids_chunk in chunks(eve_entity_ids, chunk_size):
-            infos = cls._make_api_request(ids_chunk)
-            for info in infos:
-                names_info[info["id"]] = info["name"]
+            entities_list += cls._make_api_request(ids_chunk)
 
-        return names_info
+        return {entity["id"]: entity for entity in entities_list}
 
     @classmethod
-    def _make_api_request(cls, eve_entity_ids) -> dict:
+    def _make_api_request(cls, eve_entity_ids: list) -> list:
         """
         Get the names of the given entity ids from the EVE API servers
         :param eve_entity_ids: array of int entity ids who's names to fetch
@@ -670,10 +688,9 @@ class EveNameCacheManager(models.Manager):
             "Attempting to get entity name from API for ids %s", eve_entity_ids
         )
         try:
-            infos = esi_fetch(
+            return esi_fetch(
                 "Universe.post_universe_names", args={"ids": eve_entity_ids}
             )
-            return infos
 
         except HTTPError:
             logger.exception(
@@ -691,7 +708,7 @@ class EveNameCacheManager(models.Manager):
         names_info = self.get_names([entity_id])
         return names_info[entity_id] if entity_id in names_info else None
 
-    def update_name(self, entity_id, name):
+    def update_name(self, entity_id, name, category=None):
         self.update_or_create(
-            entity_id=entity_id, defaults={"name": name, "updated": now(),}
+            entity_id=entity_id, defaults={"name": name, "category": category,}
         )

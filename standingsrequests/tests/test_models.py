@@ -45,7 +45,7 @@ from ..models import (
     ContactLabel,
     ContactSet,
     CorpStanding,
-    EveNameCache,
+    EveEntity,
     PilotStanding,
     StandingsRequest,
     StandingsRevocation,
@@ -757,44 +757,44 @@ class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
 class TestCharacterAssociation(TestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
-        EveNameCache.objects.all().delete()
+        EveEntity.objects.all().delete()
         CharacterAssociation.objects.all().delete()
 
-    @patch(MODULE_PATH + ".EveNameCache")
-    def test_get_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
+    @patch(MODULE_PATH + ".EveEntity")
+    def test_get_character_name_exists(self, mock_EveEntity):
+        mock_EveEntity.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
-    @patch(MODULE_PATH + ".EveNameCache")
-    def test_get_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
+    @patch(MODULE_PATH + ".EveEntity")
+    def test_get_character_name_not_exists(self, mock_EveEntity):
+        mock_EveEntity.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
         self.assertIsNone(my_assoc.character_name)
 
-    @patch(MODULE_PATH + ".EveNameCache")
-    def test_get_main_character_name_exists(self, mock_EveNameCache):
-        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
+    @patch(MODULE_PATH + ".EveEntity")
+    def test_get_main_character_name_exists(self, mock_EveEntity):
+        mock_EveEntity.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
-    @patch(MODULE_PATH + ".EveNameCache")
-    def test_get_main_character_name_not_exists(self, mock_EveNameCache):
-        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
+    @patch(MODULE_PATH + ".EveEntity")
+    def test_get_main_character_name_not_exists(self, mock_EveEntity):
+        mock_EveEntity.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
         self.assertIsNone(my_assoc.main_character_name)
 
-    @patch(MODULE_PATH + ".EveNameCache")
-    def test_get_main_character_name_not_defined(self, mock_EveNameCache):
-        mock_EveNameCache.objects.get_name.side_effect = get_entity_name
+    @patch(MODULE_PATH + ".EveEntity")
+    def test_get_main_character_name_not_defined(self, mock_EveEntity):
+        mock_EveEntity.objects.get_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002)
         self.assertIsNone(my_assoc.main_character_name)
 
 
-class TestEveNameCache(TestCase):
+class TestEveEntity(TestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
-        EveNameCache.objects.all().delete()
+        EveEntity.objects.all().delete()
 
     """
     @patch(MODULE_PATH + '.EveEntityHelper')
@@ -811,7 +811,7 @@ class TestEveNameCache(TestCase):
             name='Bruce Wayne',
             standing=0
         )                
-        entities = EveNameCache.objects.get_names([1001])
+        entities = EveEntity.objects.get_names([1001])
         self.assertDictEqual(
             entities,
             {
@@ -823,13 +823,3 @@ class TestEveNameCache(TestCase):
             []
         )       
     """
-
-    def test_cache_timeout(self):
-        my_entity = EveNameCache(entity_id=1001, name="Bruce Wayne")
-        # no cache timeout when added recently
-        my_entity.updated = now()
-        self.assertFalse(my_entity.cache_timeout())
-
-        # cache timeout for entries older than 30 days
-        my_entity.updated = now() - timedelta(days=31)
-        self.assertTrue(my_entity.cache_timeout())
