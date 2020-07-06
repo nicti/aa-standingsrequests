@@ -334,3 +334,47 @@ def create_eve_objects():
         EveCorporationInfo.objects.get_or_create(
             corporation_id=character.corporation_id, defaults=defaults
         )
+
+
+def add_eve_object_to_eve_entities(obj: object):
+    if isinstance(obj, EveCharacter):
+        EveEntity.objects.update_or_create(
+            entity_id=obj.character_id,
+            defaults={
+                "name": obj.character_name,
+                "category": EveEntity.CATEGORY_CHARACTER,
+            },
+        )
+        EveEntity.objects.update_or_create(
+            entity_id=obj.corporation_id,
+            defaults={
+                "name": obj.corporation_name,
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+        if obj.alliance_id:
+            EveEntity.objects.update_or_create(
+                entity_id=obj.alliance_id,
+                defaults={
+                    "name": obj.alliance_name,
+                    "category": EveEntity.CATEGORY_ALLIANCE,
+                },
+            )
+    elif isinstance(obj, EveCorporationInfo):
+        EveEntity.objects.update_or_create(
+            entity_id=obj.corporation_id,
+            defaults={
+                "name": obj.corporation_name,
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+    elif isinstance(obj, EveAllianceInfo):
+        EveEntity.objects.update_or_create(
+            entity_id=obj.alliance_id,
+            defaults={
+                "name": obj.alliance_name,
+                "category": EveEntity.CATEGORY_ALLIANCE,
+            },
+        )
+    else:
+        raise NotImplementedError()

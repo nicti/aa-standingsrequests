@@ -119,8 +119,8 @@ def add_character_to_user_2(
         "corporation_name": str(corporation_name),
     }
     if alliance_id:
-        defaults["alliance_id"]: int(alliance_id)
-        defaults["alliance_name"]: str(alliance_name)
+        defaults["alliance_id"] = int(alliance_id)
+        defaults["alliance_name"] = str(alliance_name)
 
     if disconnect_signals:
         AuthUtils.disconnect_signals()

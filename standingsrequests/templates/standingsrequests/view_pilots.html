@@ -63,7 +63,7 @@
                             {% verbatim %}
                             <tr ng-repeat="character in filteredStandings = (pilots | filterStandings) | limitTo : pageSize : (currentPage-1) * pageSize as pilotsFiltered">
                                 <td>
-                                    <img src="{{ character.character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <img ng-src="{{ character.character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="character.character_name"></clipboard-copy>
                                 </td>
                                 <td>
@@ -78,7 +78,7 @@
                                     <span ng-show="character.alliance_name" ng-bind="character.alliance_name"></span>
                                 </td>
                                 <td>
-                                    <img src="{{ character.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <img ng-src="{{ character.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="character.main_character_ticker">
                                         [{{ character.main_character_ticker }}]
                                     </span>                                    

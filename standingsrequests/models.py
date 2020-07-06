@@ -273,7 +273,7 @@ class AbstractStanding(models.Model):
     def __repr__(self):
         return (
             f"{type(self).__name__}(pk={self.pk}, "
-            f"contact_id={self.label_id}, name='{self.name}', "
+            f"contact_id={self.contact_id}, name='{self.name}', "
             f"standing={self.standing})"
         )
 
@@ -530,7 +530,7 @@ class StandingsRequest(AbstractStandingsRequest):
         """
         if self.action_by is not None or self.is_effective:
             # Check if theres not already a revocation pending
-            if not StandingsRevocation.objects.pending_request(self.contact_id):
+            if not StandingsRevocation.objects.has_pending_request(self.contact_id):
                 logger.debug(
                     "Adding revocation for deleted request "
                     "with contact_id %d type %s",

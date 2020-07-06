@@ -31,7 +31,9 @@ class EveEntityHelper:
     def get_characters_by_user(user):
         return [
             owner_ship.character
-            for owner_ship in CharacterOwnership.objects.filter(user=user)
+            for owner_ship in CharacterOwnership.objects.filter(user=user).order_by(
+                "character__character_name"
+            )
         ]
 
     @staticmethod

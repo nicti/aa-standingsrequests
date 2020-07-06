@@ -277,9 +277,10 @@ class AbstractStandingsRequestManager(models.Manager):
             elif (
                 not is_satisfied_standing
                 and standing_request.is_effective
+                and standing_request.effective_date
                 and (
                     standing_request.effective_date
-                    < now() - timedelta(SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS)
+                    < now() - timedelta(hours=SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS)
                 )
             ):
                 # Standing is not effective, but has previously
@@ -314,7 +315,7 @@ class AbstractStandingsRequestManager(models.Manager):
                         # Notify the user
                         notify(user=standing_request.user, title=title, message=message)
 
-    def pending_request(self, contact_id) -> bool:
+    def has_pending_request(self, contact_id) -> bool:
         """Checks if a request is pending for the given contact_id
         
         contact_id: int contact_id to check the pending request for

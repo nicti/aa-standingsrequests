@@ -62,12 +62,12 @@ local_urlpatterns = [
     url(
         r"^manage/revocations/(?P<contact_id>\d+)/$",
         views.manage_revocations_write,
-        name="manage_get_revocations_write",
+        name="manage_revocations_write",
     ),
     url(
         r"^manage/revocations/(?P<contact_id>\d+)/undo/$",
         views.manage_revocations_undo,
-        name="manage_get_revocations_undo",
+        name="manage_revocations_undo",
     ),
     url(r"^view/requests/$", views.view_active_requests, name="view_requests"),
     url(

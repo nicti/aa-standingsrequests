@@ -29,38 +29,36 @@
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
+                                <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-2">{% trans "Corporation" %}</th>
-                                <th class="col-md-2">{% trans "Alliance" %}</th>
+                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>                                
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "Scopes" %}</th>
-                                <th class="col-md-1">{% trans "State" %}</th>
+                                <th class="col-md-1">{% trans "Scopes / State" %}</th>                                
                                 <th class="col-md-2">{% trans "Actions" %}</th>                                
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
-                                    <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    {{contact.request_date | date}}
+                                </td>
+                                <td>
+                                    <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
                                         [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
-                                    </span>
-                                </td>
-                                <td>
+                                    </span><br>                               
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
-                                    <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <img ng-src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="contact.main_character_ticker">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>
                                 </td>
                                 <td>
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
-                                </td>
-                                <td>
                                     {{contact.state}}
                                 </td>
                                 <td>                                    
@@ -68,7 +66,7 @@
                                         <i class="far fa-thumbs-down"></i>
                                     </button>
                                     &nbsp;&nbsp;&nbsp;&nbsp;                                                 
-                                    <button class="btn btn-success" ng-click="actionRequest(contact)" title="Accept">
+                                    <button class="btn btn-success" ng-click="actionRequest(contact)" title="Standing added in game">
                                         <i class="far fa-thumbs-up"></i>
                                     </button>
                                 </td>
@@ -105,30 +103,30 @@
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
                             <tr>
+                                <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-2">{% trans "Corporation" %}</th>
-                                <th class="col-md-2">{% trans "Alliance" %}</th>
+                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>                                
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "Scopes" %}</th>
-                                <th class="col-md-1">{% trans "State" %}</th>
+                                <th class="col-md-1">{% trans "Scopes / State" %}</th>                                
                                 <th class="col-md-2">{% trans "Actions" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
                                 <td>
-                                    <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    {{contact.request_date | date}}
+                                </td>
+                                <td>
+                                    <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
                                         [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
-                                    </span>
-                                </td>
-                                <td>
+                                    </span><br>                               
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
-                                    <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <img ng-src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="contact.main_character_name">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>
@@ -136,8 +134,6 @@
                                 </td>
                                 <td>
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
-                                </td>
-                                <td>
                                     {{contact.state}}
                                 </td>
                                 <td>                                    
@@ -149,7 +145,7 @@
                                         <i class="fas fa-undo"></i>
                                     </button>
                                     &nbsp;&nbsp;&nbsp;&nbsp;
-                                    <button class="btn btn-primary" ng-click="actionRevocation(contact)" title="Standing Removed">
+                                    <button class="btn btn-primary" ng-click="actionRevocation(contact)" title="Standing removed in game">
                                         <i class="far fa-thumbs-up"></i>
                                     </button>
                                 </td>

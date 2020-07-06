@@ -74,7 +74,9 @@ class TestViewAuthPage(NoSocketsTestCase):
         user = AuthUtils.create_user("Clark Kent")
         character = AuthUtils.add_main_character_2(user, user.username, 1002)
         EveEntity.objects.create(
-            entity_id=character.character_id, name=character.character_name
+            entity_id=character.character_id,
+            name=character.character_name,
+            category=EveEntity.CATEGORY_CHARACTER,
         )
         response = self.make_request(user, character)
         self.assertEqual(response.status_code, 302)

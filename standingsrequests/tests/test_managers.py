@@ -223,7 +223,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
             action_by=self.user_manager,
             action_date=now(),
             is_effective=True,
-            effective_date=now() - timedelta(3),
+            effective_date=now() - timedelta(hours=3),
         )
         StandingsRequest.objects.process_requests()
         my_request.refresh_from_db()
@@ -282,7 +282,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
             contact_type_id=CHARACTER_TYPE_ID,
             is_effective=False,
         )
-        self.assertTrue(AbstractStandingsRequest.objects.pending_request(1001))
+        self.assertTrue(AbstractStandingsRequest.objects.has_pending_request(1001))
 
         StandingsRequest.objects.create(
             user=self.user_requestor,
@@ -293,7 +293,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
             is_effective=True,
             effective_date=now(),
         )
-        self.assertFalse(AbstractStandingsRequest.objects.pending_request(1002))
+        self.assertFalse(AbstractStandingsRequest.objects.has_pending_request(1002))
 
     def test_actioned_request(self, mock_notify):
         StandingsRequest.objects.create(
