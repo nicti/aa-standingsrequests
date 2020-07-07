@@ -8,7 +8,7 @@ from django.utils.timezone import now
 from standingsrequests.models import ContactSet, StandingsRevocation
 from standingsrequests.tasks import (
     standings_update,
-    validate_standings_requests,
+    validate_requests,
     update_associations_api,
     update_associations_auth,
     purge_stale_data,
@@ -66,9 +66,9 @@ class TestStandingsUpdate(NoSocketsTestCase):
 
 
 class TestOtherTasks(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".StandingsRequest.objects.validate_standings_requests")
+    @patch(MODULE_PATH + ".StandingsRequest.objects.validate_requests")
     def test_validate_standings_requests(self, mock_validate_standings_requests):
-        validate_standings_requests()
+        validate_requests()
         self.assertTrue(mock_validate_standings_requests.called)
 
     @patch(MODULE_PATH + ".CharacterAssociation.objects.update_from_auth")

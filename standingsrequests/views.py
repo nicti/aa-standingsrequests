@@ -47,7 +47,7 @@ DEFAULT_ICON_SIZE = 32
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def index_view(request):
     logger.debug("Start index_view request")
     context = {
@@ -59,7 +59,7 @@ def index_view(request):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def partial_request_entities(request):
     logger.debug("Start partial_request_entities request")
     try:
@@ -73,21 +73,13 @@ def partial_request_entities(request):
 
     characters = EveEntityHelper.get_characters_by_user(request.user)
     char_ids = [c.character_id for c in characters]
-    standings = contact_set.pilotstanding_set.filter(contact_id__in=char_ids)
-
+    pilots = contact_set.pilotstanding_set.filter(contact_id__in=char_ids)
     char_standings_data = list()
     for character in characters:
         try:
-            standing = standings.get(contact_id=character.character_id).standing
-        except ObjectDoesNotExist:
+            standing = pilots.get(contact_id=character.character_id).standing
+        except PilotStanding.DoesNotExist:
             standing = None
-
-        try:
-            standing_req = StandingsRequest.objects.get(
-                contact_id=character.character_id
-            )
-        except ObjectDoesNotExist:
-            standing_req = None
 
         char_standings_data.append(
             {
@@ -108,7 +100,11 @@ def partial_request_entities(request):
                 "hasRequiredScopes": StandingsRequest.has_required_scopes_for_request(
                     character
                 ),
-                "standingReqExists": standing_req,
+                "hasStanding": StandingsRequest.objects.filter(
+                    contact_id=character.character_id,
+                    user=request.user,
+                    is_effective=True,
+                ).exists(),
             }
         )
 
@@ -121,7 +117,7 @@ def partial_request_entities(request):
                 if not ContactSet.pilot_in_organisation(character.character_id)
             ]
         )
-        standings = contact_set.corpstanding_set.filter(contact_id__in=list(corp_ids))
+        standings = contact_set.corpstanding_set.filter(contact_id__in=corp_ids)
         for corp_id in corp_ids:
             corporation = EveCorporation.get_corp_by_id(corp_id)
             if corporation and not corporation.is_npc:
@@ -129,11 +125,6 @@ def partial_request_entities(request):
                     standing = standings.get(contact_id=corp_id).standing
                 except ObjectDoesNotExist:
                     standing = None
-
-                try:
-                    standing_req = StandingsRequest.objects.get(contact_id=corp_id)
-                except ObjectDoesNotExist:
-                    standing_req = None
 
                 have_scopes = sum(
                     [
@@ -158,7 +149,9 @@ def partial_request_entities(request):
                         "requestActioned": StandingsRequest.objects.actioned_request(
                             corp_id
                         ),
-                        "standingReqExists": standing_req,
+                        "hasStanding": StandingsRequest.objects.filter(
+                            contact_id=corp_id, is_effective=True,
+                        ).exists(),
                     }
                 )
 
@@ -181,7 +174,7 @@ def partial_request_entities(request):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def request_pilot_standing(request, character_id):
     """For a user to request standings for their own pilots"""
     character_id = int(character_id)
@@ -208,7 +201,7 @@ def request_pilot_standing(request, character_id):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def remove_pilot_standing(request, character_id):
     """
     Handles both removing requests and removing existing standings
@@ -262,7 +255,7 @@ def remove_pilot_standing(request, character_id):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def request_corp_standing(request, corporation_id):
     """
     For a user to request standings for their own corp
@@ -297,7 +290,7 @@ def request_corp_standing(request, corporation_id):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 def remove_corp_standing(request, corporation_id):
     """
     Handles both removing corp requests and removing existing standings
@@ -1074,7 +1067,7 @@ def view_auth_page(request, token):
 
 
 @login_required
-@permission_required(StandingsRequest.REQUEST_PERMISSION)
+@permission_required(StandingsRequest.REQUEST_PERMISSION_NAME)
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
     messages_plus.success(

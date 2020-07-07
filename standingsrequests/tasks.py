@@ -84,11 +84,11 @@ def standings_update():
         logger.exception("Failed to execute standings_update: %s", ex)
 
 
-@shared_task(name="standings_requests.validate_standings_requests")
-def validate_standings_requests():
+@shared_task(name="standings_requests.validate_requests")
+def validate_requests():
     logger.info("Validating standings request running")
-    count = StandingsRequest.objects.validate_standings_requests()
-    logger.info("Deleted %d standings requests", count)
+    count = StandingsRequest.objects.validate_requests()
+    logger.info("Dealt with %d invalid standings requests", count)
 
 
 @shared_task(name="standings_requests.update_associations_auth")

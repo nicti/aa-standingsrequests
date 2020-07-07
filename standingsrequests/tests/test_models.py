@@ -40,6 +40,7 @@ from .my_test_data import (
 
 from ..models import (
     AbstractStanding,
+    AbstractStandingsRequest,
     AllianceStanding,
     CharacterAssociation,
     ContactLabel,
@@ -357,6 +358,17 @@ class TestStandingsRequest(TestCase):
         cls.user_requestor = User.objects.create_user(
             "Roger Requestor", "rr@example.com", "password"
         )
+
+    def test_is_standing_satisfied(self):
+        class MyStandingRequest(AbstractStandingsRequest):
+            EXPECT_STANDING_LTEQ = 5.0
+            EXPECT_STANDING_GTEQ = 0.0
+
+        self.assertTrue(MyStandingRequest.is_standing_satisfied(5))
+        self.assertTrue(MyStandingRequest.is_standing_satisfied(0))
+        self.assertFalse(MyStandingRequest.is_standing_satisfied(-10))
+        self.assertFalse(MyStandingRequest.is_standing_satisfied(10))
+        self.assertFalse(MyStandingRequest.is_standing_satisfied(None))
 
     def test_check_standing_satisfied_check_only(self):
         my_request = StandingsRequest(

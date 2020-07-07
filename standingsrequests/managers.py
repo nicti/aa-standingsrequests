@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from bravado.exception import HTTPError
 
 from django.db import models, transaction
@@ -19,7 +17,6 @@ from .app_settings import (
     STANDINGS_API_CHARID,
     SR_OPERATION_MODE,
     SR_NOTIFICATIONS_ENABLED,
-    SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS,
 )
 from .helpers.esi_fetch import esi_fetch
 from .utils import chunks, LoggerAddTag
@@ -223,13 +220,13 @@ class AbstractStandingsRequestManager(models.Manager):
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
             character_name = EveEntity.objects.get_name(standing_request.contact_id)
-            was_already_effective = standing_request.is_effective
+            is_currently_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.process_standing()
             if (
                 is_satisfied_standing
                 and standing_request.contact_type_id in PilotStanding.contact_types
             ):
-                if SR_NOTIFICATIONS_ENABLED and not was_already_effective:
+                if SR_NOTIFICATIONS_ENABLED and not is_currently_effective:
                     if type(standing_request) == StandingsRequest:
                         # Request, send a notification
                         notify(
@@ -246,7 +243,7 @@ class AbstractStandingsRequestManager(models.Manager):
                             % (organization_name, character_name),
                         )
                     elif type(standing_request) == StandingsRevocation:
-                        # Revocation. Try and send a standing_request
+                        # Revocation. Try and send a notification to use
                         # (user or character may be deleted)
                         try:
                             character = EveCharacter.objects.get(
@@ -255,10 +252,9 @@ class AbstractStandingsRequestManager(models.Manager):
                         except EveCharacter.DoesNotExist:
                             pass
                         else:
-                            if hasattr(character, "userprofile"):
-                                user = character.userprofile.user
+                            try:
                                 notify(
-                                    user=user,
+                                    user=character.character_ownership.user,
                                     title="%s: Standing for %s revoked"
                                     % (__title__, character_name),
                                     message=_(
@@ -268,30 +264,33 @@ class AbstractStandingsRequestManager(models.Manager):
                                     )
                                     % (organization_name, character_name),
                                 )
+                            except AttributeError:
+                                pass
+
+                # if this was a revocation the standing requests need to be remove
+                # to indicate that this character no longer has standing
+                if type(standing_request) == StandingsRevocation:
+                    StandingsRequest.objects.filter(
+                        contact_id=standing_request.contact_id
+                    ).delete()
+                    StandingsRevocation.objects.filter(
+                        contact_id=standing_request.contact_id
+                    ).delete()
 
             elif is_satisfied_standing:
                 # Just catching all other contact types (corps/alliances)
                 # that are set effective
                 pass
 
-            elif (
-                not is_satisfied_standing
-                and standing_request.is_effective
-                and standing_request.effective_date
-                and (
-                    standing_request.effective_date
-                    < now() - timedelta(hours=SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS)
-                )
-            ):
+            elif not is_satisfied_standing and is_currently_effective:
                 # Standing is not effective, but has previously
                 # been marked as effective.
                 # Unset effective
                 logger.info(
                     "Standing for %d is marked as effective but is not "
-                    "satisfied in game. Resetting to initial state"
-                    % standing_request.contact_id
+                    "satisfied in game. Deleting." % standing_request.contact_id
                 )
-                standing_request.reset_to_initial()
+                standing_request.delete()
 
             else:
                 # Check the standing hasn't been set actioned
@@ -362,25 +361,24 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         for d in to_delete:
             d.delete()
 
-    def validate_standings_requests(self) -> int:
+    def validate_requests(self) -> int:
         """Validate all StandingsRequests and check 
         that the user requesting them has permission and has API keys
         associated with the character/corp. 
-
-        Invalid standings requests are deleted, which may or may not generate a
-        StandingsRevocation depending on their state.
         
-        returns the number of deleted requests
+        StandingsRevocation are created for invalid standing requests
+        
+        returns the number of invalid requests
         """
-        from .models import CorpStanding
+        from .models import CorpStanding, StandingsRevocation
 
         logger.debug("Validating standings requests")
-        deleted_count = 0
+        invalid_count = 0
         for standing_request in self.all():
             logger.debug(
                 "Checking request for contact_id %d", standing_request.contact_id
             )
-            if not standing_request.user.has_perm(self.model.REQUEST_PERMISSION):
+            if not standing_request.user.has_perm(self.model.REQUEST_PERMISSION_NAME):
                 logger.debug("Request is invalid, user does not have permission")
                 is_valid = False
 
@@ -397,13 +395,16 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
             if not is_valid:
                 logger.info(
-                    "Deleting invalid standing request for contact_id %d",
+                    "Standing request for contact_id %d no longer valid. "
+                    "Creating revocation",
                     standing_request.contact_id,
                 )
-                standing_request.delete()
-                deleted_count += 1
+                StandingsRevocation.objects.add_revocation(
+                    standing_request.contact_id, standing_request.contact_type_id
+                )
+                invalid_count += 1
 
-        return deleted_count
+        return invalid_count
 
     def add_request(self, user, contact_id, contact_type_id):
         """

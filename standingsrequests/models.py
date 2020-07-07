@@ -200,7 +200,7 @@ class ContactSet(models.Model):
                 ).exists()
                 and StandingsRequest.has_required_scopes_for_request(alt)
                 and self.has_pilot_standing(alt.character_id)
-                and user.has_perm(StandingsRequest.REQUEST_PERMISSION)
+                and user.has_perm(StandingsRequest.REQUEST_PERMISSION_NAME)
             ):
                 sr = StandingsRequest.objects.add_request(
                     user,
@@ -359,7 +359,7 @@ class AbstractStandingsRequest(models.Model):
     EXPECT_STANDING_GTEQ = -10.0
 
     # permission needed to request standing
-    REQUEST_PERMISSION = "standingsrequests.request_standings"
+    REQUEST_PERMISSION_NAME = "standingsrequests.request_standings"
 
     contact_id = models.PositiveIntegerField(
         db_index=True, help_text="EVE Online ID of contact this standing is for"
@@ -404,6 +404,15 @@ class AbstractStandingsRequest(models.Model):
             f"{user_str}, is_effective={self.is_effective})"
         )
 
+    @classmethod
+    def is_standing_satisfied(cls, standing: float) -> bool:
+        if standing is not None:
+            return (
+                cls.EXPECT_STANDING_GTEQ <= float(standing) <= cls.EXPECT_STANDING_LTEQ
+            )
+        else:
+            return False
+
     def process_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
@@ -413,11 +422,7 @@ class AbstractStandingsRequest(models.Model):
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
             contact = latest.get_standing_for_id(self.contact_id, self.contact_type_id)
-            if (
-                self.EXPECT_STANDING_GTEQ
-                <= contact.standing
-                <= self.EXPECT_STANDING_LTEQ
-            ):
+            if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)
                 if not check_only:
@@ -428,7 +433,7 @@ class AbstractStandingsRequest(models.Model):
             logger.debug(
                 "No standing set for %d, checking if neutral is OK", self.contact_id
             )
-            if self.EXPECT_STANDING_GTEQ <= 0 <= self.EXPECT_STANDING_LTEQ:
+            if self.is_standing_satisfied(0):
                 # Standing satisfied but deleted (neutral)
                 logger.debug(
                     "Standing satisfied but deleted (neutral) for %d", self.contact_id
@@ -515,7 +520,9 @@ class AbstractStandingsRequest(models.Model):
 
 
 class StandingsRequest(AbstractStandingsRequest):
-    """A standing request"""
+    """A request to get standing (when not effective) 
+    or state representing that a character currently has standing (when effective)
+    """
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     EXPECT_STANDING_GTEQ = 0.01

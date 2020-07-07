@@ -125,7 +125,6 @@ class TestContactSetManager(NoSocketsTestCase):
 
 
 @patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MODULE_PATH + ".SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS", 2)
 @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH_MODELS + ".SR_STANDING_TIMEOUT_HOURS", 24)
@@ -193,44 +192,6 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
         self.assertFalse(mock_notify.called)
-
-    def test_dont_reset_standing_previously_marked_effective_during_grace_period(
-        self, mock_notify
-    ):
-        my_request = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1008,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=True,
-            effective_date=now(),
-        )
-        StandingsRequest.objects.process_requests()
-        my_request.refresh_from_db()
-        self.assertTrue(my_request.is_effective)
-        self.assertIsNotNone(my_request.effective_date)
-        self.assertIsNotNone(my_request.action_by)
-        self.assertIsNotNone(my_request.action_date)
-
-    def test_reset_standing_previously_marked_effective_after_grace_period(
-        self, mock_notify
-    ):
-        my_request = StandingsRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1008,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=True,
-            effective_date=now() - timedelta(hours=3),
-        )
-        StandingsRequest.objects.process_requests()
-        my_request.refresh_from_db()
-        self.assertFalse(my_request.is_effective)
-        self.assertIsNone(my_request.effective_date)
-        self.assertIsNone(my_request.action_by)
-        self.assertIsNone(my_request.action_date)
 
     def test_notify_about_requests_that_are_reset_and_timed_out(self, mock_notify):
         StandingsRequest.objects.create(
@@ -326,7 +287,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
 
 
 @patch(MODULE_PATH_MODELS + ".StandingsRequest.all_corp_apis_recorded")
-class TestStandingsRequestValidateStandingRequest(NoSocketsTestCase):
+class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -344,32 +305,27 @@ class TestStandingsRequestValidateStandingRequest(NoSocketsTestCase):
             self.user, 1002, CHARACTER_TYPE_ID
         )
 
-        StandingsRequest.objects.validate_standings_requests()
+        StandingsRequest.objects.validate_requests()
         self.assertTrue(StandingsRequest.objects.filter(pk=request.pk).exists())
 
-    def test_remove_character_standing_request_if_user_has_no_permission(
+    def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_all_corp_apis_recorded
     ):
-        request = StandingsRequest.objects.add_request(
-            self.user, 1002, CHARACTER_TYPE_ID
-        )
+        StandingsRequest.objects.add_request(self.user, 1002, CHARACTER_TYPE_ID)
+        StandingsRequest.objects.validate_requests()
+        self.assertTrue(StandingsRevocation.objects.filter(contact_id=1002).exists())
 
-        StandingsRequest.objects.validate_standings_requests()
-        self.assertFalse(StandingsRequest.objects.filter(pk=request.pk).exists())
-
-    def test_remove_corp_standing_request_if_not_all_apis_recorded(
+    def test_create_revocation_if_users_corporation_is_missing_apis(
         self, mock_all_corp_apis_recorded
     ):
         mock_all_corp_apis_recorded.return_value = False
         AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.request_standings", self.user
         )
-        request = StandingsRequest.objects.add_request(
-            self.user, 2001, CORPORATION_TYPE_ID
-        )
+        StandingsRequest.objects.add_request(self.user, 2001, CORPORATION_TYPE_ID)
 
-        StandingsRequest.objects.validate_standings_requests()
-        self.assertFalse(StandingsRequest.objects.filter(pk=request.pk).exists())
+        StandingsRequest.objects.validate_requests()
+        self.assertTrue(StandingsRevocation.objects.filter(contact_id=2001).exists())
 
     def test_keep_corp_standing_request_if_all_apis_recorded(
         self, mock_all_corp_apis_recorded
@@ -382,7 +338,7 @@ class TestStandingsRequestValidateStandingRequest(NoSocketsTestCase):
             self.user, 2001, CORPORATION_TYPE_ID
         )
 
-        StandingsRequest.objects.validate_standings_requests()
+        StandingsRequest.objects.validate_requests()
         self.assertTrue(StandingsRequest.objects.filter(pk=request.pk).exists())
 
 

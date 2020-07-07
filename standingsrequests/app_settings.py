@@ -20,12 +20,6 @@ SR_OPERATION_MODE = clean_setting(
     "SR_OPERATION_MODE", "alliance", choices=["alliance", "corporation"]
 )
 
-# Grace period before a standing previously marked effective,
-# but that is no longer effective, will be reset
-SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS = clean_setting(
-    "SR_RESET_PREVIOUSLY_EFFECTIVE_MIN_HOURS", 2
-)
-
 # This is a map, where the key is the State the user is in
 # and the value is a list of required scopes to check
 SR_REQUIRED_SCOPES = getattr(

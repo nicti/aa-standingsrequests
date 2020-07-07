@@ -16,7 +16,7 @@ class StandingsRequestService(ServicesHook):
         ServicesHook.__init__(self)
         self.name = "standingsrequests"
         self.urlpatterns = urlpatterns
-        self.access_perm = StandingsRequest.REQUEST_PERMISSION
+        self.access_perm = StandingsRequest.REQUEST_PERMISSION_NAME
 
     def delete_user(self, user, notify_user=False):
         logger.debug("Deleting user %s standings", user)
@@ -46,7 +46,7 @@ class StandingsRequestMenuItem(MenuItemHook):
         )
 
     def render(self, request):
-        if request.user.has_perm(StandingsRequest.REQUEST_PERMISSION):
+        if request.user.has_perm(StandingsRequest.REQUEST_PERMISSION_NAME):
             return MenuItemHook.render(self, request)
         return ""
 

@@ -88,7 +88,7 @@
                                                 </a>
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
-                                            {% elif std.standing == None or std.standing == 0  or std.standingReqExists == None%}
+                                            {% elif not std.hasStanding %}
                                                 <a class="btn btn-primary" role="button" href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fas fa-plus fa-fw" title="Request standing"></i>
                                                 </a>
@@ -168,7 +168,7 @@
                                                     </a>
                                                 {% elif st.pendingRevocation == True %}
                                                     <!-- Revoked, No actions -->
-                                                {% elif st.standing == None or st.standing == 0 or st.standingReqExists == None%}
+                                                {% elif not st.hasStanding %}
                                                     {% if st.have_keys >= st.corp.member_count %}
                                                         <a class="btn btn-priamry" role="button" href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
                                                             <i class="fa-plus" title="Request standing"></i>
