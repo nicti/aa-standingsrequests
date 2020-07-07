@@ -15,12 +15,12 @@ from allianceauth.eveonline.models import (
 from ..managers import _ContactsWrapper
 
 from ..models import (
-    AllianceStanding,
+    AllianceContact,
     CharacterAssociation,
     ContactSet,
-    CorpStanding,
+    CorporationContact,
     EveEntity,
-    PilotStanding,
+    CharacterContact,
 )
 
 
@@ -253,13 +253,13 @@ def create_contacts_set(my_set: object = None) -> object:
     # create contacts for ContactSet
     for contact in _my_test_data["alliance_contacts"]:
         if contact["contact_type"] == "character":
-            MyStandingClass = PilotStanding
+            MyStandingClass = CharacterContact
 
         elif contact["contact_type"] == "corporation":
-            MyStandingClass = CorpStanding
+            MyStandingClass = CorporationContact
 
         elif contact["contact_type"] == "alliance":
-            MyStandingClass = AllianceStanding
+            MyStandingClass = AllianceContact
 
         else:
             raise ValueError("Invalid contact type")

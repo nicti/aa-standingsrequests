@@ -2,11 +2,11 @@ from django.contrib import admin
 
 from .models import (
     ContactSet,
-    StandingsRequest,
-    StandingsRevocation,
+    StandingRequest,
+    StandingRevocation,
     EveEntity,
-    PilotStanding,
-    CorpStanding,
+    CharacterContact,
+    CorporationContact,
 )
 from .tasks import standings_update
 
@@ -30,9 +30,9 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return EveEntity.objects.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contact_type_id in PilotStanding.contact_types:
+        if obj.contact_type_id in CharacterContact.contact_types:
             return "Character"
-        elif obj.contact_type_id in CorpStanding.contact_types:
+        elif obj.contact_type_id in CorporationContact.contact_types:
             return "Corporation"
         else:
             return "(undefined)"
@@ -52,12 +52,12 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(StandingsRequest)
+@admin.register(StandingRequest)
 class StandingsRequestAdmin(AbstractStandingsRequestAdmin):
     pass
 
 
-@admin.register(StandingsRevocation)
+@admin.register(StandingRevocation)
 class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
     pass
 

@@ -5,7 +5,7 @@ from celery import Celery
 
 from django.utils.timezone import now
 
-from standingsrequests.models import ContactSet, StandingsRevocation
+from standingsrequests.models import ContactSet, StandingRevocation
 from standingsrequests.tasks import (
     standings_update,
     validate_requests,
@@ -25,8 +25,8 @@ logger = set_test_logger(MODULE_PATH, __file__)
 app = Celery("myauth")
 
 
-@patch(MODULE_PATH + ".StandingsRequest.objects.process_requests")
-@patch(MODULE_PATH + ".StandingsRevocation.objects.process_requests")
+@patch(MODULE_PATH + ".StandingRequest.objects.process_requests")
+@patch(MODULE_PATH + ".StandingRevocation.objects.process_requests")
 @patch(MODULE_PATH + ".ContactSet.objects.create_new_from_api")
 class TestStandingsUpdate(NoSocketsTestCase):
     def test_can_update_standings(
@@ -66,7 +66,7 @@ class TestStandingsUpdate(NoSocketsTestCase):
 
 
 class TestOtherTasks(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".StandingsRequest.objects.validate_requests")
+    @patch(MODULE_PATH + ".StandingRequest.objects.validate_requests")
     def test_validate_standings_requests(self, mock_validate_standings_requests):
         validate_requests()
         self.assertTrue(mock_validate_standings_requests.called)
@@ -159,63 +159,63 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
         create_contacts_set
 
     def setUp(self):
-        StandingsRevocation.objects.all().delete()
+        StandingRevocation.objects.all().delete()
 
     def test_no_revocation_exists_no_purge(self):
         purge_stale_revocations()
 
     def test_one_younger_revocation_exists_no_purge(self):
-        revocation_1 = StandingsRevocation.objects.add_revocation(
+        revocation_1 = StandingRevocation.objects.add_revocation(
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.mark_standing_effective()
         purge_stale_revocations()
-        current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
+        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
         expected = {revocation_1.pk}
         self.assertSetEqual(current_pks, expected)
 
     def test_one_older_revocation_is_purged(self):
-        revocation_1 = StandingsRevocation.objects.add_revocation(
+        revocation_1 = StandingRevocation.objects.add_revocation(
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
         purge_stale_revocations()
-        current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
+        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
         expected = set()
         self.assertSetEqual(current_pks, expected)
 
     def test_one_younger_one_older_revocation_purge_older_only(self):
-        revocation_1 = StandingsRevocation.objects.add_revocation(
+        revocation_1 = StandingRevocation.objects.add_revocation(
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
-        revocation_2 = StandingsRevocation.objects.add_revocation(
+        revocation_2 = StandingRevocation.objects.add_revocation(
             1002, CHARACTER_TYPE_ID
         )
         revocation_2.mark_standing_effective()
         purge_stale_revocations()
-        current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
+        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
         expected = {revocation_2.pk}
         self.assertSetEqual(current_pks, expected)
 
     def test_two_older_revocations_are_both_purged(self):
-        revocation_1 = StandingsRevocation.objects.add_revocation(
+        revocation_1 = StandingRevocation.objects.add_revocation(
             1001, CHARACTER_TYPE_ID
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
-        revocation_2 = StandingsRevocation.objects.add_revocation(
+        revocation_2 = StandingRevocation.objects.add_revocation(
             1002, CHARACTER_TYPE_ID
         )
         revocation_2.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_2.is_effective = True
         revocation_2.save()
         purge_stale_revocations()
-        current_pks = set(StandingsRevocation.objects.values_list("pk", flat=True))
+        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
         expected = set()
         self.assertSetEqual(current_pks, expected)

@@ -20,9 +20,9 @@ from .my_test_data import (
 )
 from ..models import (
     ContactSet,
-    StandingsRequest,
-    StandingsRevocation,
-    PilotStanding,
+    StandingRequest,
+    StandingRevocation,
+    CharacterContact,
 )
 from .. import views
 from .. import tasks
@@ -37,8 +37,8 @@ TEST_SCOPE = "publicData"
 
 
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 class TestMainUseCases(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -50,9 +50,7 @@ class TestMainUseCases(NoSocketsTestCase):
 
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
-        perm = AuthUtils.get_permission_by_name(
-            StandingsRequest.REQUEST_PERMISSION_NAME
-        )
+        perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
         cls.member_state.permissions.add(perm)
 
         # Requesting user
@@ -81,8 +79,8 @@ class TestMainUseCases(NoSocketsTestCase):
     def setUp(self) -> None:
         ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
-        StandingsRequest.objects.all().delete()
-        StandingsRevocation.objects.all().delete()
+        StandingRequest.objects.all().delete()
+        StandingRevocation.objects.all().delete()
         Notification.objects.all().delete()
         self.member_state.member_characters.add(self.main_1)
         self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
@@ -93,7 +91,7 @@ class TestMainUseCases(NoSocketsTestCase):
         tasks.standings_update()
 
     def _set_standing_for_alt_in_game(self):
-        PilotStanding.objects.create(
+        CharacterContact.objects.create(
             contact_set=self.contact_set,
             contact_id=self.alt_1.character_id,
             name=self.alt_1.character_name,
@@ -102,13 +100,13 @@ class TestMainUseCases(NoSocketsTestCase):
         self.contact_set.refresh_from_db()
 
     def _remove_standing_for_alt_in_game(self):
-        PilotStanding.objects.get(
+        CharacterContact.objects.get(
             contact_set=self.contact_set, contact_id=self.alt_1.character_id
         ).delete()
         self.contact_set.refresh_from_db()
 
-    def _create_standing_for_alt(self) -> StandingsRequest:
-        return StandingsRequest.objects.create(
+    def _create_standing_for_alt(self) -> StandingRequest:
+        return StandingRequest.objects.create(
             user=self.user_requestor,
             contact_id=self.alt_1.character_id,
             contact_type_id=CHARACTER_TYPE_ID,
@@ -131,7 +129,7 @@ class TestMainUseCases(NoSocketsTestCase):
         request.user = self.user_requestor
         response = views.request_pilot_standing(request, alt_id)
         self.assertEqual(response.status_code, 302)
-        my_request = StandingsRequest.objects.get(contact_id=alt_id)
+        my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
@@ -176,7 +174,7 @@ class TestMainUseCases(NoSocketsTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
-        my_revocation = StandingsRevocation.objects.get(contact_id=alt_id)
+        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
 
         self._remove_standing_for_alt_in_game()
@@ -196,8 +194,8 @@ class TestMainUseCases(NoSocketsTestCase):
         self._process_standing_requests()
 
         # validate results
-        self.assertFalse(StandingsRequest.objects.filter(contact_id=alt_id).exists())
-        self.assertFalse(StandingsRevocation.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
     def test_automatic_standing_revocation_when_standing_is_reset_in_game(self):
@@ -213,11 +211,11 @@ class TestMainUseCases(NoSocketsTestCase):
         self._process_standing_requests()
 
         # validate
-        self.assertFalse(StandingsRequest.objects.filter(contact_id=alt_id).exists())
-        self.assertFalse(StandingsRevocation.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    def test_create_standing_revocation_for_alts_when_user_has_lost_permission(self):
+    def test_automatically_create_standing_revocation_for_invalid_alts(self):
         # given user's alt has standing
         # when user has lost permission
         # then standing revocation is automatically created
@@ -231,7 +229,7 @@ class TestMainUseCases(NoSocketsTestCase):
         self.member_state.member_characters.remove(self.main_1)
         self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
         self.assertFalse(
-            self.user_requestor.has_perm(StandingsRequest.REQUEST_PERMISSION_NAME)
+            self.user_requestor.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
         )
 
         # run task
@@ -240,5 +238,22 @@ class TestMainUseCases(NoSocketsTestCase):
         # validate
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
-        my_revocation = StandingsRevocation.objects.get(contact_id=alt_id)
+        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+
+    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    def test_automatically_create_standing_requests_for_valid_alts(self):
+        # given user's alt has no standing record
+        # when regular standing update is run
+        # then standing record is automatically created for this alt
+
+        # setup
+        self._set_standing_for_alt_in_game()
+
+        # run task
+        self._process_standing_requests()
+
+        # validate
+        my_request = StandingRequest.objects.get(contact_id=self.alt_1.character_id)
+        self.assertTrue(my_request.is_effective)
+        self.assertIsNotNone(my_request.effective_date)

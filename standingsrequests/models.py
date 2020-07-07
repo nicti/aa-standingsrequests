@@ -66,12 +66,12 @@ class ContactSet(models.Model):
         in concrete models
         :return: concrete contact Object or ObjectDoesNotExist exception
         """
-        if contact_type_id in PilotStanding.contact_types:
-            return self.pilotstanding_set.get(contact_id=contact_id)
-        elif contact_type_id in CorpStanding.contact_types:
-            return self.corpstanding_set.get(contact_id=contact_id)
-        elif contact_type_id in AllianceStanding.contact_types:
-            return self.alliancestanding_set.get(contact_id=contact_id)
+        if contact_type_id in CharacterContact.contact_types:
+            return self.charactercontact_set.get(contact_id=contact_id)
+        elif contact_type_id in CorporationContact.contact_types:
+            return self.corporationcontact_set.get(contact_id=contact_id)
+        elif contact_type_id in AllianceContact.contact_types:
+            return self.alliancecontact_set.get(contact_id=contact_id)
         raise exceptions.ObjectDoesNotExist()
 
     def create_standing(self, contact_type_id, contact_id, name, standing, labels):
@@ -84,29 +84,27 @@ class ContactSet(models.Model):
 
         return standing
 
-    def has_pilot_standing(self, contact_id: int) -> bool:
-        """Return True if give pilot has standing, else False"""
-        pilot = self.pilotstanding_set.filter(contact_id=contact_id)
-
+    def has_character_standing(self, contact_id: int) -> bool:
+        """Return True if give character has standing, else False"""
         try:
-            pilot = self.pilotstanding_set.get(contact_id=contact_id)
-        except PilotStanding.DoesNotExist:
+            pilot = self.charactercontact_set.get(contact_id=contact_id)
+        except CharacterContact.DoesNotExist:
             return False
         else:
-            return pilot.standing >= StandingsRequest.EXPECT_STANDING_GTEQ
+            return pilot.standing >= StandingRequest.EXPECT_STANDING_GTEQ
 
     @staticmethod
     def get_class_for_contact_type(contact_type_id):
-        if contact_type_id in PilotStanding.contact_types:
-            return PilotStanding
-        elif contact_type_id in CorpStanding.contact_types:
-            return CorpStanding
-        elif contact_type_id in AllianceStanding.contact_types:
-            return AllianceStanding
+        if contact_type_id in CharacterContact.contact_types:
+            return CharacterContact
+        elif contact_type_id in CorporationContact.contact_types:
+            return CorporationContact
+        elif contact_type_id in AllianceContact.contact_types:
+            return AllianceContact
         raise NotImplementedError()
 
     @staticmethod
-    def pilot_in_organisation(character_id: int) -> bool:
+    def is_character_in_organisation(character_id: int) -> bool:
         """Check if the Pilot is in the auth instances organisation
         
         character_id: EveCharacter character_id
@@ -191,21 +189,21 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not self.pilot_in_organisation(alt.character_id)
-                and not StandingsRequest.objects.filter(
+                not self.is_character_in_organisation(alt.character_id)
+                and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
-                and not StandingsRevocation.objects.filter(
+                and not StandingRevocation.objects.filter(
                     contact_id=alt.character_id
                 ).exists()
-                and StandingsRequest.has_required_scopes_for_request(alt)
-                and self.has_pilot_standing(alt.character_id)
-                and user.has_perm(StandingsRequest.REQUEST_PERMISSION_NAME)
+                and StandingRequest.has_required_scopes_for_request(alt)
+                and self.has_character_standing(alt.character_id)
+                and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
-                sr = StandingsRequest.objects.add_request(
+                sr = StandingRequest.objects.add_request(
                     user,
                     alt.character_id,
-                    PilotStanding.get_contact_type_id(alt.character_id),
+                    CharacterContact.get_contact_type_id(alt.character_id),
                 )
                 sr.mark_standing_actioned(None)
                 sr.mark_standing_effective()
@@ -240,8 +238,8 @@ class ContactLabel(models.Model):
         )
 
 
-class AbstractStanding(models.Model):
-    """Base class for a standing"""
+class AbstractContact(models.Model):
+    """Base class for a contact"""
 
     CHARACTER_AMARR_TYPE_ID = 1373
     CHARACTER_NI_KUNNI_TYPE_ID = 1374
@@ -282,23 +280,25 @@ class AbstractStanding(models.Model):
         raise NotImplementedError()
 
 
-class PilotStanding(AbstractStanding):
+class CharacterContact(AbstractContact):
+    """A character contact"""
+
     contact_types = [
-        AbstractStanding.CHARACTER_AMARR_TYPE_ID,
-        AbstractStanding.CHARACTER_NI_KUNNI_TYPE_ID,
-        AbstractStanding.CHARACTER_CIVRE_TYPE_ID,
-        AbstractStanding.CHARACTER_DETEIS_TYPE_ID,
-        AbstractStanding.CHARACTER_GALLENTE_TYPE_ID,
-        AbstractStanding.CHARACTER_INTAKI_TYPE_ID,
-        AbstractStanding.CHARACTER_SEBIESTOR_TYPE_ID,
-        AbstractStanding.CHARACTER_BRUTOR_TYPE_ID,
-        AbstractStanding.CHARACTER_STATIC_TYPE_ID,
-        AbstractStanding.CHARACTER_MODIFIER_TYPE_ID,
-        AbstractStanding.CHARACTER_ACHURA_TYPE_ID,
-        AbstractStanding.CHARACTER_JIN_MEI_TYPE_ID,
-        AbstractStanding.CHARACTER_KHANID_TYPE_ID,
-        AbstractStanding.CHARACTER_VHEROKIOR_TYPE_ID,
-        AbstractStanding.CHARACTER_DRIFTER_TYPE_ID,
+        AbstractContact.CHARACTER_AMARR_TYPE_ID,
+        AbstractContact.CHARACTER_NI_KUNNI_TYPE_ID,
+        AbstractContact.CHARACTER_CIVRE_TYPE_ID,
+        AbstractContact.CHARACTER_DETEIS_TYPE_ID,
+        AbstractContact.CHARACTER_GALLENTE_TYPE_ID,
+        AbstractContact.CHARACTER_INTAKI_TYPE_ID,
+        AbstractContact.CHARACTER_SEBIESTOR_TYPE_ID,
+        AbstractContact.CHARACTER_BRUTOR_TYPE_ID,
+        AbstractContact.CHARACTER_STATIC_TYPE_ID,
+        AbstractContact.CHARACTER_MODIFIER_TYPE_ID,
+        AbstractContact.CHARACTER_ACHURA_TYPE_ID,
+        AbstractContact.CHARACTER_JIN_MEI_TYPE_ID,
+        AbstractContact.CHARACTER_KHANID_TYPE_ID,
+        AbstractContact.CHARACTER_VHEROKIOR_TYPE_ID,
+        AbstractContact.CHARACTER_DRIFTER_TYPE_ID,
     ]
     is_watched = models.BooleanField(default=False)
 
@@ -313,12 +313,14 @@ class PilotStanding(AbstractStanding):
         return cls.contact_types[0]
 
     @classmethod
-    def is_pilot(cls, type_id):
+    def is_character(cls, type_id):
         return type_id in cls.contact_types
 
 
-class CorpStanding(AbstractStanding):
-    contact_types = [AbstractStanding.CORPORATION_TYPE_ID]
+class CorporationContact(AbstractContact):
+    """A corporation contact"""
+
+    contact_types = [AbstractContact.CORPORATION_TYPE_ID]
 
     @classmethod
     def get_contact_type_id(cls, contact_id):
@@ -329,12 +331,14 @@ class CorpStanding(AbstractStanding):
         return cls.contact_types[0]
 
     @classmethod
-    def is_corp(cls, type_id):
+    def is_corporation(cls, type_id):
         return type_id in cls.contact_types
 
 
-class AllianceStanding(AbstractStanding):
-    contact_types = [AbstractStanding.ALLIANCE_TYPE_ID]
+class AllianceContact(AbstractContact):
+    """An alliance contact"""
+
+    contact_types = [AbstractContact.ALLIANCE_TYPE_ID]
 
     @classmethod
     def get_contact_type_id(cls, contact_id):
@@ -519,9 +523,11 @@ class AbstractStandingsRequest(models.Model):
         self.save()
 
 
-class StandingsRequest(AbstractStandingsRequest):
-    """A request to get standing (when not effective) 
-    or state representing that a character currently has standing (when effective)
+class StandingRequest(AbstractStandingsRequest):
+    """when not effective: A change request to get standing for an alt or corporation
+    
+    when effective: record representing that a character or corporation currently 
+    has standing     
     """
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -537,14 +543,14 @@ class StandingsRequest(AbstractStandingsRequest):
         """
         if self.action_by is not None or self.is_effective:
             # Check if theres not already a revocation pending
-            if not StandingsRevocation.objects.has_pending_request(self.contact_id):
+            if not StandingRevocation.objects.has_pending_request(self.contact_id):
                 logger.debug(
                     "Adding revocation for deleted request "
                     "with contact_id %d type %s",
                     self.contact_id,
                     self.contact_type_id,
                 )
-                StandingsRevocation.objects.add_revocation(
+                StandingRevocation.objects.add_revocation(
                     self.contact_id, self.contact_type_id
                 )
             else:
@@ -624,7 +630,7 @@ class StandingsRequest(AbstractStandingsRequest):
         )
 
 
-class StandingsRevocation(AbstractStandingsRequest):
+class StandingRevocation(AbstractStandingsRequest):
     """A standing revocation"""
 
     EXPECT_STANDING_LTEQ = 0.0

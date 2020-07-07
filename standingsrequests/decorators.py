@@ -8,7 +8,7 @@ from esi.models import Token
 from esi.views import select_token, sso_redirect
 
 from . import __title__
-from .models import StandingsRequest
+from .models import StandingRequest
 from .utils import LoggerAddTag
 
 
@@ -31,7 +31,7 @@ def token_required_by_state(new=False):
             scopes = ""
             if request.user.profile.state is not None:
                 scopes = " ".join(
-                    StandingsRequest.get_required_scopes_for_state(
+                    StandingRequest.get_required_scopes_for_state(
                         request.user.profile.state.name
                     )
                 )

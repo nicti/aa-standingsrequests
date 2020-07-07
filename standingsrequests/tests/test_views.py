@@ -18,7 +18,7 @@ from .my_test_data import (
     create_contacts_set,
     create_eve_objects,
 )
-from ..models import EveEntity, PilotStanding, StandingsRequest, StandingsRevocation
+from ..models import EveEntity, CharacterContact, StandingRequest, StandingRevocation
 from ..utils import set_test_logger, NoSocketsTestCase
 from .. import views
 
@@ -238,7 +238,7 @@ class TestRequestStanding(NoSocketsTestCase):
         # State is alliance, all members can add standings
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
-        perm = AuthUtils.get_permission_by_name("standingsrequests.request_standings")
+        perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
         member_state.permissions.add(perm)
 
         # Requesting user
@@ -263,8 +263,8 @@ class TestRequestStanding(NoSocketsTestCase):
         )
 
     def setUp(self):
-        StandingsRequest.objects.all().delete()
-        StandingsRevocation.objects.all().delete()
+        StandingRequest.objects.all().delete()
+        StandingRevocation.objects.all().delete()
 
     def make_request(self, character_id):
         request = self.factory.get(
@@ -282,7 +282,7 @@ class TestRequestStanding(NoSocketsTestCase):
         character_id = self.alt_1.character_id
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 1
+            StandingRequest.objects.filter(contact_id=character_id).count(), 1
         )
 
     def test_when_pending_request_for_character_dont_create_new_request(
@@ -290,14 +290,14 @@ class TestRequestStanding(NoSocketsTestCase):
     ):
         character_id = self.alt_1.character_id
 
-        StandingsRequest.objects.add_request(
+        StandingRequest.objects.add_request(
             self.user_requestor,
             character_id,
-            PilotStanding.get_contact_type_id(character_id),
+            CharacterContact.get_contact_type_id(character_id),
         )
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 1
+            StandingRequest.objects.filter(contact_id=character_id).count(), 1
         )
 
     def test_when_pending_revocation_for_character_dont_create_new_request(
@@ -305,12 +305,12 @@ class TestRequestStanding(NoSocketsTestCase):
     ):
         character_id = self.alt_1.character_id
 
-        StandingsRevocation.objects.add_revocation(
-            character_id, PilotStanding.get_contact_type_id(character_id),
+        StandingRevocation.objects.add_revocation(
+            character_id, CharacterContact.get_contact_type_id(character_id),
         )
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 0
+            StandingRequest.objects.filter(contact_id=character_id).count(), 0
         )
 
 
@@ -326,7 +326,7 @@ class TestRemovePilotStanding(NoSocketsTestCase):
         # State is alliance, all members can add standings
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
-        perm = AuthUtils.get_permission_by_name("standingsrequests.request_standings")
+        perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
         member_state.permissions.add(perm)
 
         # Requesting user
@@ -351,8 +351,8 @@ class TestRemovePilotStanding(NoSocketsTestCase):
         )
 
     def setUp(self):
-        StandingsRequest.objects.all().delete()
-        StandingsRevocation.objects.all().delete()
+        StandingRequest.objects.all().delete()
+        StandingRevocation.objects.all().delete()
 
     def make_request(self, character_id):
         request = self.factory.get(
@@ -368,20 +368,20 @@ class TestRemovePilotStanding(NoSocketsTestCase):
         self, mock_messages
     ):
         character_id = self.alt_1.character_id
-        sr = StandingsRequest.objects.add_request(
+        sr = StandingRequest.objects.add_request(
             self.user_requestor,
             character_id,
-            PilotStanding.get_contact_type_id(character_id),
+            CharacterContact.get_contact_type_id(character_id),
         )
         sr.mark_standing_actioned(self.user_manager)
         sr.mark_standing_effective()
 
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 1
+            StandingRequest.objects.filter(contact_id=character_id).count(), 1
         )
         self.assertEqual(
-            StandingsRevocation.objects.filter(contact_id=character_id).count(), 1
+            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
         )
 
     def test_when_none_effective_standing_request_exists_remove_standing_request(
@@ -390,25 +390,25 @@ class TestRemovePilotStanding(NoSocketsTestCase):
         character_id = self.alt_1.character_id
 
         # default standing request
-        StandingsRequest.objects.add_request(
+        StandingRequest.objects.add_request(
             self.user_requestor,
             character_id,
-            PilotStanding.get_contact_type_id(character_id),
+            CharacterContact.get_contact_type_id(character_id),
         )
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 0
+            StandingRequest.objects.filter(contact_id=character_id).count(), 0
         )
         # actioned standing request
-        sr = StandingsRequest.objects.add_request(
+        sr = StandingRequest.objects.add_request(
             self.user_requestor,
             character_id,
-            PilotStanding.get_contact_type_id(character_id),
+            CharacterContact.get_contact_type_id(character_id),
         )
         sr.mark_standing_actioned(self.user_manager)
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 0
+            StandingRequest.objects.filter(contact_id=character_id).count(), 0
         )
 
     def test_when_effective_standing_request_exists_and_standing_revocation_exists(
@@ -416,21 +416,21 @@ class TestRemovePilotStanding(NoSocketsTestCase):
     ):
         character_id = self.alt_1.character_id
 
-        sr = StandingsRequest.objects.add_request(
+        sr = StandingRequest.objects.add_request(
             self.user_requestor,
             character_id,
-            PilotStanding.get_contact_type_id(character_id),
+            CharacterContact.get_contact_type_id(character_id),
         )
         sr.mark_standing_actioned(self.user_manager)
         sr.mark_standing_effective()
-        StandingsRevocation.objects.add_revocation(
-            character_id, PilotStanding.get_contact_type_id(character_id),
+        StandingRevocation.objects.add_revocation(
+            character_id, CharacterContact.get_contact_type_id(character_id),
         )
 
         self.make_request(character_id)
         self.assertEqual(
-            StandingsRequest.objects.filter(contact_id=character_id).count(), 1
+            StandingRequest.objects.filter(contact_id=character_id).count(), 1
         )
         self.assertEqual(
-            StandingsRevocation.objects.filter(contact_id=character_id).count(), 1
+            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
         )

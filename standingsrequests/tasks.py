@@ -1,9 +1,9 @@
-import datetime
+from datetime import timedelta
 
 from celery import shared_task, chain
 
 from django.contrib.auth.models import User
-from django.utils import timezone
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
 from allianceauth.notifications import notify
@@ -18,10 +18,10 @@ from .app_settings import (
 from .models import (
     CharacterAssociation,
     ContactSet,
-    StandingsRequest,
-    StandingsRevocation,
+    StandingRequest,
+    StandingRevocation,
 )
-from .models import PilotStanding, CorpStanding, AllianceStanding, ContactLabel
+from .models import CharacterContact, CorporationContact, AllianceContact, ContactLabel
 from .utils import LoggerAddTag
 
 
@@ -77,8 +77,8 @@ def standings_update():
         else:
             if SR_SYNC_BLUE_ALTS_ENABLED:
                 contact_set.generate_standing_requests_for_blue_alts()
-            StandingsRequest.objects.process_requests()
-            StandingsRevocation.objects.process_requests()
+            StandingRequest.objects.process_requests()
+            StandingRevocation.objects.process_requests()
 
     except Exception as ex:
         logger.exception("Failed to execute standings_update: %s", ex)
@@ -87,7 +87,7 @@ def standings_update():
 @shared_task(name="standings_requests.validate_requests")
 def validate_requests():
     logger.info("Validating standings request running")
-    count = StandingsRequest.objects.validate_requests()
+    count = StandingRequest.objects.validate_requests()
     logger.info("Dealt with %d invalid standings requests", count)
 
 
@@ -122,24 +122,24 @@ def purge_stale_standings_data():
     except the last remaining contact set
     """
     logger.info("Purging stale standings data")
-    cutoff_date = timezone.now() - datetime.timedelta(hours=SR_STANDINGS_STALE_HOURS)
+    cutoff_date = now() - timedelta(hours=SR_STANDINGS_STALE_HOURS)
     try:
         latest_standings = ContactSet.objects.latest()
-        standings_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
+        stale_contacts_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
             id=latest_standings.id
         )
-        if standings_qs.exists():
+        if stale_contacts_qs.exists():
             logger.debug("Deleting old ContactSets")
             # we can't just do standigs.delete()
             # because with lots of them it uses lots of memory
             # lets go over them one by one and delete
-            for contact_set in standings_qs:
-                PilotStanding.objects.filter(contact_set=contact_set).delete()
-                CorpStanding.objects.filter(contact_set=contact_set).delete()
-                AllianceStanding.objects.filter(contact_set=contact_set).delete()
+            for contact_set in stale_contacts_qs:
+                CharacterContact.objects.filter(contact_set=contact_set).delete()
+                CorporationContact.objects.filter(contact_set=contact_set).delete()
+                AllianceContact.objects.filter(contact_set=contact_set).delete()
                 ContactLabel.objects.filter(contact_set=contact_set).delete()
 
-            standings_qs.delete()
+            stale_contacts_qs.delete()
         else:
             logger.debug("No ContactSets to delete")
 
@@ -151,8 +151,8 @@ def purge_stale_standings_data():
 def purge_stale_revocations():
     """removes revocations older than threshold"""
     logger.info("Purging stale revocations data")
-    cutoff_date = timezone.now() - datetime.timedelta(days=SR_REVOCATIONS_STALE_DAYS)
-    revocations_qs = StandingsRevocation.objects.exclude(is_effective=False).filter(
+    cutoff_date = now() - timedelta(days=SR_REVOCATIONS_STALE_DAYS)
+    revocations_qs = StandingRevocation.objects.exclude(is_effective=False).filter(
         effective_date__lt=cutoff_date
     )
     count = revocations_qs.count()

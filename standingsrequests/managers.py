@@ -1,5 +1,6 @@
 from bravado.exception import HTTPError
 
+from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
@@ -207,9 +208,9 @@ class AbstractStandingsRequestManager(models.Manager):
         from .models import (
             ContactSet,
             EveEntity,
-            PilotStanding,
-            StandingsRequest,
-            StandingsRevocation,
+            CharacterContact,
+            StandingRequest,
+            StandingRevocation,
             AbstractStandingsRequest,
         )
 
@@ -224,10 +225,10 @@ class AbstractStandingsRequestManager(models.Manager):
             is_satisfied_standing = standing_request.process_standing()
             if (
                 is_satisfied_standing
-                and standing_request.contact_type_id in PilotStanding.contact_types
+                and standing_request.contact_type_id in CharacterContact.contact_types
             ):
                 if SR_NOTIFICATIONS_ENABLED and not is_currently_effective:
-                    if type(standing_request) == StandingsRequest:
+                    if type(standing_request) == StandingRequest:
                         # Request, send a notification
                         notify(
                             user=standing_request.user,
@@ -242,7 +243,7 @@ class AbstractStandingsRequestManager(models.Manager):
                             )
                             % (organization_name, character_name),
                         )
-                    elif type(standing_request) == StandingsRevocation:
+                    elif type(standing_request) == StandingRevocation:
                         # Revocation. Try and send a notification to use
                         # (user or character may be deleted)
                         try:
@@ -269,11 +270,11 @@ class AbstractStandingsRequestManager(models.Manager):
 
                 # if this was a revocation the standing requests need to be remove
                 # to indicate that this character no longer has standing
-                if type(standing_request) == StandingsRevocation:
-                    StandingsRequest.objects.filter(
+                if type(standing_request) == StandingRevocation:
+                    StandingRequest.objects.filter(
                         contact_id=standing_request.contact_id
                     ).delete()
-                    StandingsRevocation.objects.filter(
+                    StandingRevocation.objects.filter(
                         contact_id=standing_request.contact_id
                     ).delete()
 
@@ -328,7 +329,7 @@ class AbstractStandingsRequestManager(models.Manager):
         )
         return pending.exists()
 
-    def actioned_request(self, contact_id) -> bool:
+    def has_actioned_request(self, contact_id) -> bool:
         """Checks if an actioned request is pending API confirmation for 
         the given contact_id
         
@@ -344,33 +345,20 @@ class AbstractStandingsRequestManager(models.Manager):
         return pending.exists()
 
 
-class StandingsRequestQuerySet(models.query.QuerySet):
-    def delete(self):
-        for obj in self:
-            obj.delete()
-
-
 class StandingsRequestManager(AbstractStandingsRequestManager):
-    def get_queryset(self):
-        return StandingsRequestQuerySet(self.model, using=self._db)
-
     def delete_for_user(self, user):
-        to_delete = self.filter(user=user)
-
-        # We have to delete each one manually in order to trigger the logic
-        for d in to_delete:
-            d.delete()
+        self.filter(user=user).delete()
 
     def validate_requests(self) -> int:
         """Validate all StandingsRequests and check 
         that the user requesting them has permission and has API keys
         associated with the character/corp. 
         
-        StandingsRevocation are created for invalid standing requests
+        StandingRevocation are created for invalid standing requests
         
         returns the number of invalid requests
         """
-        from .models import CorpStanding, StandingsRevocation
+        from .models import CorporationContact, StandingRevocation
 
         logger.debug("Validating standings requests")
         invalid_count = 0
@@ -382,7 +370,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                 logger.debug("Request is invalid, user does not have permission")
                 is_valid = False
 
-            elif CorpStanding.is_corp(
+            elif CorporationContact.is_corporation(
                 standing_request.contact_type_id
             ) and not self.model.all_corp_apis_recorded(
                 standing_request.contact_id, standing_request.user
@@ -399,7 +387,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                     "Creating revocation",
                     standing_request.contact_id,
                 )
-                StandingsRevocation.objects.add_revocation(
+                StandingRevocation.objects.add_revocation(
                     standing_request.contact_id, standing_request.contact_type_id
                 )
                 invalid_count += 1
@@ -411,8 +399,8 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         Add a new standings request
         :param user: User the request and contact_id belongs to
         :param contact_id: contact_id to request standings on
-        :param contact_type_id: contact_type_id from a AbstractStanding concrete class
-        :return: the created StandingsRequest instance
+        :param contact_type_id: contact_type_id from a AbstractContact concrete class
+        :return: the created StandingRequest instance
         """
         logger.debug(
             "Adding new standings request for user %s, contact %d type %s",
@@ -434,18 +422,35 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         )
         return instance
 
-    def remove_requests(self, contact_id):
+    def remove_requests(self, contact_id: int, user_responsible: User = None):
         """
         Remove the requests for the given contact_id. If any of these requests 
         have been actioned or are effective
         a Revocation request will automatically be generated
-        :param contact_id: str contact_id to remove.
-        :return:
+        
+        Params:
+        - contact_id: contact_id to remove
+        - user_responsible: User responsible for removing. 
+        When provided will sent notification to requestor.
         """
+        from .models import EveEntity
+
         logger.debug("Removing requests for contact_id %d", contact_id)
-        requests = self.filter(contact_id=contact_id)
-        logger.debug("%d requests to be removed", len(requests))
-        requests.delete()
+        standing_requests = self.filter(contact_id=contact_id)
+        if standing_requests:
+            if user_responsible and SR_NOTIFICATIONS_ENABLED:
+                for standing_request in standing_requests:
+                    entity_name = EveEntity.objects.get_name(
+                        standing_request.contact_id
+                    )
+                    title = _("Standing request for %s rejected" % entity_name)
+                    message = _(
+                        "Your standing request for '%s' "
+                        "has been rejected by %s." % (entity_name, user_responsible)
+                    )
+                    notify(user=standing_request.user, title=title, message=message)
+            logger.debug("%d requests to be removed", len(standing_requests))
+            standing_requests.delete()
 
 
 class StandingsRevocationManager(AbstractStandingsRequestManager):
@@ -453,8 +458,8 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
         """
         Add a new standings revocation
         :param contact_id: contact_id to request standings on
-        :param contact_type_id: contact_type_id from AbstractStanding concrete implementation
-        :return: the created StandingsRevocation instance
+        :param contact_type_id: contact_type_id from AbstractContact concrete implementation
+        :return: the created StandingRevocation instance
         """
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
@@ -478,10 +483,10 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
         Converts existing revocation into request if it exists
         :param contact_id: contact_id to request standings on
         :param owner: user owning the revocation
-        :return: created StandingsRequest pendant 
+        :return: created StandingRequest pendant 
             or False if revocation does not exist
         """
-        from .models import StandingsRequest
+        from .models import StandingRequest
 
         logger.debug("Undoing revocation for contact_id %d", contact_id)
 
@@ -490,7 +495,7 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
         except self.model.DoesNotExist:
             return False
         else:
-            request = StandingsRequest.objects.add_request(
+            request = StandingRequest.objects.add_request(
                 owner, contact_id, revocation.contact_type_id
             )
             revocation.delete()
@@ -546,7 +551,7 @@ class CharacterAssociationManager(models.Manager):
         except ContactSet.DoesNotExist:
             logger.warning("Could not find a contact set")
         else:
-            all_pilots = contact_set.pilotstanding_set.values_list(
+            all_pilots = contact_set.charactercontact_set.values_list(
                 "contact_id", flat=True
             )
             expired_character_associations = self.get_api_expired_items(
