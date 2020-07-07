@@ -40,9 +40,9 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     _contact_type_str.short_description = "contact type"
 
     def _user(self, obj):
-        if hasattr(obj, "user"):
+        try:
             return obj.user
-        else:
+        except AttributeError:
             return None
 
     def has_add_permission(self, request):

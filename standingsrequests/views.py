@@ -71,11 +71,12 @@ def partial_request_entities(request):
             {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
         )
 
-    characters = EveEntityHelper.get_characters_by_user(request.user)
-    char_ids = [c.character_id for c in characters]
-    pilots = contact_set.charactercontact_set.filter(contact_id__in=char_ids)
+    characters_qs = EveEntityHelper.get_characters_by_user(request.user)
+    pilots = contact_set.charactercontact_set.filter(
+        contact_id__in=characters_qs.values_list("character_id", flat=True)
+    )
     char_standings_data = list()
-    for character in characters:
+    for character in characters_qs:
         try:
             standing = pilots.get(contact_id=character.character_id).standing
         except CharacterContact.DoesNotExist:
@@ -113,7 +114,7 @@ def partial_request_entities(request):
         corp_ids = set(
             [
                 int(character.corporation_id)
-                for character in characters
+                for character in characters_qs
                 if not ContactSet.is_character_in_organisation(character.character_id)
             ]
         )
@@ -380,36 +381,23 @@ def view_pilots_standings_json(request):
     def get_pilots():
         start = timer()
         pilots = list()
-        pilot_standings = contacts.charactercontact_set.all().order_by("name")
-        pilot_contact_ids = pilot_standings.values_list("contact_id", flat=True)
-        assoc_ids = CharacterAssociation.objects.filter(
-            character_id__in=pilot_contact_ids
-        ).values("character_id", "corporation_id", "alliance_id")
-        contact_ids = (
-            list(pilot_contact_ids)
-            + [x["character_id"] for x in assoc_ids]
-            + [x["corporation_id"] for x in assoc_ids]
-            + [x["alliance_id"] for x in assoc_ids if x["alliance_id"]]
-        )
-        EveEntity.objects.get_names(contact_ids)
-        for p in pilot_standings:
+        character_contacts = contacts.charactercontact_set.all().order_by("name")
+        for p in character_contacts:
             char = EveCharacter.objects.get_character_by_id(p.contact_id)
-            if (
-                char
-                and hasattr(char, "character_ownership")
-                and char.character_ownership is not None
-            ):
+            try:
+                user = char.character_ownership.user
+            except AttributeError:
+                char = EveCharacterHelper(p.contact_id)
+                main = None
+                state = ""
+                has_required_scopes = False
+            else:
                 user = char.character_ownership.user
                 main = user.profile.main_character
                 state = user.profile.state.name if user.profile.state else ""
                 has_required_scopes = StandingRequest.has_required_scopes_for_request(
                     char
                 )
-            else:
-                char = EveCharacterHelper(p.contact_id)
-                main = None
-                state = ""
-                has_required_scopes = False
 
             pilots.append(
                 {
@@ -442,7 +430,7 @@ def view_pilots_standings_json(request):
     # Cache result for 10 minutes,
     # with a large number of standings this view can be very CPU intensive
     pilots = cache.get_or_set(
-        "standings_requests_view_pilots_standings_json", get_pilots, timeout=60 * 10
+        "standings_requests_view_pilots_standings_json", get_pilots, timeout=1
     )
     return JsonResponse(pilots, safe=False)
 
@@ -453,9 +441,7 @@ def download_pilot_standings(request):
     logger.info("download_pilot_standings called by %s", request.user)
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="standings.csv"'
-
     writer = UnicodeWriter(response)
-
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -480,10 +466,10 @@ def download_pilot_standings(request):
     )
 
     # lets request make sure all info is there in bulk
-    pilot_standings = contacts.charactercontact_set.all().order_by("name")
-    EveEntity.objects.get_names([p.contact_id for p in pilot_standings])
+    character_contacts = contacts.charactercontact_set.all().order_by("name")
+    EveEntity.objects.get_names([p.contact_id for p in character_contacts])
 
-    for pilot_standing in pilot_standings:
+    for pilot_standing in character_contacts:
         char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
         main = ""
         state = ""

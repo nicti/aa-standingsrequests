@@ -402,7 +402,11 @@ class AbstractStandingsRequest(models.Model):
         )
 
     def __repr__(self) -> str:
-        user_str = f", user='{self.user}'" if hasattr(self, "user") else ""
+        try:
+            user_str = f", user='{self.user}'"
+        except AttributeError:
+            user_str = ""
+
         return (
             f"{type(self).__name__}(pk={self.pk}, contact_id={self.contact_id}"
             f"{user_str}, is_effective={self.is_effective})"

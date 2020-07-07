@@ -29,12 +29,9 @@ class EveEntityHelper:
 
     @staticmethod
     def get_characters_by_user(user):
-        return [
-            owner_ship.character
-            for owner_ship in CharacterOwnership.objects.filter(user=user).order_by(
-                "character__character_name"
-            )
-        ]
+        return EveCharacter.objects.filter(
+            character_ownership__user=user
+        ).select_related("character_ownership__user")
 
     @staticmethod
     def is_character_owned_by_user(character_id, user):
