@@ -226,7 +226,7 @@ class ContactLabel(models.Model):
 
     contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     label_id = models.BigIntegerField(db_index=True)
-    name = models.CharField(max_length=254)
+    name = models.CharField(max_length=254, db_index=True)
 
     def __str__(self):
         return self.name
@@ -261,7 +261,7 @@ class AbstractContact(models.Model):
 
     contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
     contact_id = models.PositiveIntegerField(db_index=True)
-    name = models.CharField(max_length=254)
+    name = models.CharField(max_length=254, db_index=True)
     standing = models.FloatField(db_index=True)
     labels = models.ManyToManyField(ContactLabel)
 
@@ -383,10 +383,11 @@ class AbstractStandingsRequest(models.Model):
         help_text="standing manager that accepted or rejected this requests",
     )
     action_date = models.DateTimeField(
-        null=True, help_text="datetime of action by standing manager"
+        null=True, db_index=True, help_text="datetime of action by standing manager"
     )
     is_effective = models.BooleanField(
         default=False,
+        db_index=True,
         help_text="True, when this standing is also set in-game, else False",
     )
     effective_date = models.DateTimeField(

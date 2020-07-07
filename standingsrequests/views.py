@@ -430,7 +430,7 @@ def view_pilots_standings_json(request):
     # Cache result for 10 minutes,
     # with a large number of standings this view can be very CPU intensive
     pilots = cache.get_or_set(
-        "standings_requests_view_pilots_standings_json", get_pilots, timeout=1
+        "standings_requests_view_pilots_standings_json", get_pilots, timeout=600
     )
     return JsonResponse(pilots, safe=False)
 
