@@ -385,6 +385,7 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         )
         self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
     def test_remove_requests_2(self):
         StandingRequest.objects.create(
             user=self.user_requestor,
