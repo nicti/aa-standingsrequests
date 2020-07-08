@@ -388,7 +388,9 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                     standing_request.contact_id,
                 )
                 StandingRevocation.objects.add_revocation(
-                    standing_request.contact_id, standing_request.contact_type_id
+                    standing_request.contact_id,
+                    standing_request.contact_type_id,
+                    user=standing_request.user,
                 )
                 invalid_count += 1
 
@@ -454,12 +456,17 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
 
 class StandingsRevocationManager(AbstractStandingsRequestManager):
-    def add_revocation(self, contact_id, contact_type_id):
-        """
-        Add a new standings revocation
-        :param contact_id: contact_id to request standings on
-        :param contact_type_id: contact_type_id from AbstractContact concrete implementation
-        :return: the created StandingRevocation instance
+    def add_revocation(
+        self, contact_id: int, contact_type_id: int, user: User = None
+    ) -> object:
+        """Add a new standings revocation
+        
+        Params:
+        - contact_id: contact_id to request standings on
+        - contact_type_id: contact_type_id from AbstractContact concrete implementation
+        - user: user making the request
+        
+        Returns the created StandingRevocation instance
         """
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
@@ -475,7 +482,9 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
             )
             return None
 
-        instance = self.create(contact_id=contact_id, contact_type_id=contact_type_id)
+        instance = self.create(
+            contact_id=contact_id, contact_type_id=contact_type_id, user=user
+        )
         return instance
 
     def undo_revocation(self, contact_id, owner):
@@ -507,11 +516,12 @@ class CharacterAssociationManager(models.Manager):
         """Update all character associations based on auth relationship data"""
         from .models import EveEntity
 
-        chars = EveCharacter.objects.all()
-        for c in chars:
-            logger.debug("Updating Association from Auth for %s", c.character_name)
+        for character in EveCharacter.objects.all():
+            logger.debug(
+                "Updating Association from Auth for %s", character.character_name
+            )
             try:
-                ownership = CharacterOwnership.objects.get(character=c)
+                ownership = CharacterOwnership.objects.get(character=character)
             except CharacterOwnership.DoesNotExist:
                 main = None
             else:
@@ -522,19 +532,15 @@ class CharacterAssociationManager(models.Manager):
                 )
 
             assoc, _ = self.update_or_create(
-                character_id=c.character_id,
+                character_id=character.character_id,
                 defaults={
-                    "corporation_id": c.corporation_id,
+                    "corporation_id": character.corporation_id,
                     "main_character_id": main,
-                    "alliance_id": c.alliance_id,
+                    "alliance_id": character.alliance_id,
                     "updated": now(),
                 },
             )
-            EveEntity.objects.update_name(
-                entity_id=assoc.character_id,
-                name=c.character_name,
-                category=EveEntity.CATEGORY_CHARACTER,
-            )
+            EveEntity.objects.update_or_create_from_evecharacter(character)
 
     def update_from_api(self) -> None:
         """Update all character corp associations we have standings for that 
@@ -544,7 +550,7 @@ class CharacterAssociationManager(models.Manager):
         prevent unnecessarily updating characters we already have local data for.        
         """
         # gather character associations of pilots which meed to be updated
-        from .models import ContactSet
+        from .models import ContactSet, EveEntity
 
         try:
             contact_set = ContactSet.objects.latest()
@@ -574,6 +580,12 @@ class CharacterAssociationManager(models.Manager):
                         "Character.post_characters_affiliation",
                         args={"characters": pilots_chunk},
                     )
+                except HTTPError:
+                    logger.exception(
+                        "Could not fetch associations pilots_chunk from ESI"
+                    )
+                else:
+                    entity_ids = []
                     for association in esi_response:
                         corporation_id = association["corporation_id"]
                         alliance_id = (
@@ -590,11 +602,13 @@ class CharacterAssociationManager(models.Manager):
                                 "updated": now(),
                             },
                         )
+                        entity_ids.append(character_id)
+                        entity_ids.append(corporation_id)
+                        if alliance_id:
+                            entity_ids.append(alliance_id)
 
-                except Exception:
-                    logger.exception(
-                        "Could not fetch associations pilots_chunk from ESI"
-                    )
+                    # make sure we have all names resolved
+                    EveEntity.objects.get_names(entity_ids)
 
     def get_api_expired_items(self, items_in=None) -> models.QuerySet:
         """Get all API timer expired items
@@ -723,3 +737,27 @@ class EveEntityManager(models.Manager):
         self.update_or_create(
             entity_id=entity_id, defaults={"name": name, "category": category,}
         )
+
+    def update_or_create_from_evecharacter(self, character: EveCharacter) -> None:
+        self.update_or_create(
+            entity_id=character.character_id,
+            defaults={
+                "name": character.character_name,
+                "category": self.model.CATEGORY_CHARACTER,
+            },
+        )
+        self.update_or_create(
+            entity_id=character.corporation_id,
+            defaults={
+                "name": character.corporation_name,
+                "category": self.model.CATEGORY_CORPORATION,
+            },
+        )
+        if character.alliance_id:
+            self.update_or_create(
+                entity_id=character.alliance_id,
+                defaults={
+                    "name": character.alliance_name,
+                    "category": self.model.CATEGORY_ALLIANCE,
+                },
+            )

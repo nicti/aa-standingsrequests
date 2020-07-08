@@ -70,11 +70,7 @@ local_urlpatterns = [
         name="manage_revocations_undo",
     ),
     url(r"^view/requests/$", views.view_active_requests, name="view_requests"),
-    url(
-        r"^view/requests/json/$",
-        views.view_active_requests_json,
-        name="view_requests_json",
-    ),
+    url(r"^view/requests/json/$", views.view_requests_json, name="view_requests_json",),
     url(r"^manage/setuptoken/$", views.view_auth_page, name="view_auth_page"),
     url(
         r"^requester_add_scopes/$",

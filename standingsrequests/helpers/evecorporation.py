@@ -41,45 +41,56 @@ class EveCorporation:
         )
 
     @property
-    def is_npc(self):
+    def is_npc(self) -> bool:
         """returns true if this corporation is an NPC, else false"""
-        return 1000000 <= self.corporation_id <= 2000000
+        return self.corporation_is_npc(self.corporation_id)
+
+    @staticmethod
+    def corporation_is_npc(corporation_id) -> bool:
+        return 1000000 <= corporation_id <= 2000000
 
     @classmethod
-    def get_corp_by_id(cls, corp_id):
+    def get_by_id(cls, corporation_id: int) -> object:
         """
-        Get a corp from the cache or ESI if not cached
+        Get a corporation from the cache or ESI if not cached
         Corps are cached for 3 hours
-        :param corp_id: int corp ID to get
+        :param corporation_id: int corporation ID to get
         :return: corporation object or None
         """
-        logger.debug("Getting corp by id %d", corp_id)
-        corp = cache.get(cls.__get_cache_key(corp_id))
-        if corp is None:
+        logger.debug("Getting corporation by id %d", corporation_id)
+        corporation = cache.get(cls._get_cache_key(corporation_id))
+        if corporation is None:
             logger.debug("Corp not in cache, fetching")
-            corp = cls.get_corp_esi(corp_id)
-            if corp is not None:
-                cache.set(cls.__get_cache_key(corp_id), corp, cls.CACHE_TIME)
+            corporation = cls.fetch_corporation_from_api(corporation_id)
+            if corporation is not None:
+                cache.set(
+                    cls._get_cache_key(corporation_id), corporation, cls.CACHE_TIME
+                )
         else:
             logger.debug("Corp in cache")
-        return corp
+        return corporation
 
     @classmethod
-    def __get_cache_key(cls, corp_id):
-        return cls.CACHE_PREFIX + str(corp_id)
+    def _get_cache_key(cls, corporation_id):
+        return cls.CACHE_PREFIX + str(corporation_id)
 
     @classmethod
-    def get_corp_esi(cls, corp_id):
+    def fetch_corporation_from_api(cls, corporation_id):
         from ..models import EveEntity
 
-        logger.debug("Attempting to get corp from esi with id %s", corp_id)
+        logger.debug("Attempting to get corp from esi with id %s", corporation_id)
         try:
             info = esi_fetch(
                 "Corporation.get_corporations_corporation_id",
-                args={"corporation_id": corp_id},
+                args={"corporation_id": corporation_id},
             )
+        except HTTPError:
+            logger.exception("Failed to get corp from ESI with id %i", corporation_id)
+            return None
+
+        else:
             args = {
-                "corporation_id": corp_id,
+                "corporation_id": corporation_id,
                 "corporation_name": info["name"],
                 "ticker": info["ticker"],
                 "member_count": info["member_count"],
@@ -90,7 +101,3 @@ class EveCorporation:
                 args["alliance_name"] = EveEntity.objects.get_name(info["alliance_id"])
 
             return cls(**args)
-
-        except HTTPError:
-            logger.exception("Failed to get corp from ESI with id %i", corp_id)
-            return None

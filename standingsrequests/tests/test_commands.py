@@ -80,9 +80,7 @@ class TestSyncRequests(NoSocketsTestCase):
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
         StandingRequest.objects.add_request(
-            self.user,
-            alt.character_id,
-            CharacterContact.get_contact_type_id(alt.character_id),
+            self.user, alt.character_id, CharacterContact.get_contact_type_id(),
         )
 
         call_command("standingsrequests_sync_blue_alts", stdout=self.out)

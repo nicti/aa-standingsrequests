@@ -50,7 +50,7 @@ class TestEveCorporation(NoSocketsTestCase):
         expected = self.corporation
         mock_cache.get.return_value = None
 
-        obj = EveCorporation.get_corp_by_id(2001)
+        obj = EveCorporation.get_by_id(2001)
         self.assertEqual(obj, expected)
         self.assertTrue(mock_cache.set.called)
 
@@ -63,14 +63,14 @@ class TestEveCorporation(NoSocketsTestCase):
         )
         mock_cache.get.return_value = None
 
-        obj = EveCorporation.get_corp_by_id(9876)
+        obj = EveCorporation.get_by_id(9876)
         self.assertIsNone(obj)
 
     def test_get_corp_by_id_in_cache(self, mock_esi_client, mock_cache):
         expected = self.corporation
         mock_cache.get.return_value = expected
 
-        obj = EveCorporation.get_corp_by_id(2001)
+        obj = EveCorporation.get_by_id(2001)
         self.assertEqual(obj, expected)
 
     def test_get_corp_esi(self, mock_esi_client, mock_cache):
@@ -78,7 +78,7 @@ class TestEveCorporation(NoSocketsTestCase):
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        obj = EveCorporation.get_corp_esi(2102)
+        obj = EveCorporation.fetch_corporation_from_api(2102)
         self.assertEqual(obj.corporation_id, 2102)
         self.assertEqual(obj.corporation_name, "Lexcorp")
         self.assertEqual(obj.ticker, "LEX")

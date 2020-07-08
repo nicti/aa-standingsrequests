@@ -87,11 +87,11 @@ class ContactSet(models.Model):
     def has_character_standing(self, contact_id: int) -> bool:
         """Return True if give character has standing, else False"""
         try:
-            pilot = self.charactercontact_set.get(contact_id=contact_id)
+            character = self.charactercontact_set.get(contact_id=contact_id)
         except CharacterContact.DoesNotExist:
             return False
         else:
-            return pilot.standing >= StandingRequest.EXPECT_STANDING_GTEQ
+            return character.standing >= StandingRequest.EXPECT_STANDING_GTEQ
 
     @staticmethod
     def get_class_for_contact_type(contact_type_id):
@@ -103,19 +103,27 @@ class ContactSet(models.Model):
             return AllianceContact
         raise NotImplementedError()
 
-    @staticmethod
-    def is_character_in_organisation(character_id: int) -> bool:
+    @classmethod
+    def is_character_in_organisation(cls, character_id: int) -> bool:
         """Check if the Pilot is in the auth instances organisation
         
         character_id: EveCharacter character_id
 
         returns True if the character is in the organisation, False otherwise
         """
-        pilot = EveCharacter.objects.get_character_by_id(character_id)
-        return pilot and (
-            str(pilot.corporation_id) in STR_CORP_IDS
-            or str(pilot.alliance_id) in STR_ALLIANCE_IDS
+        character = EveCharacter.objects.get_character_by_id(character_id)
+        return character and (
+            character.corporation_id in cls.corporation_ids_in_organization()
+            or character.alliance_id in cls.alliance_ids_in_organization()
         )
+
+    @staticmethod
+    def corporation_ids_in_organization() -> list:
+        return [int(corporation_id) for corporation_id in list(STR_CORP_IDS)]
+
+    @staticmethod
+    def alliance_ids_in_organization() -> list:
+        return [int(corporation_id) for corporation_id in list(STR_ALLIANCE_IDS)]
 
     @staticmethod
     def required_esi_scope() -> str:
@@ -201,9 +209,7 @@ class ContactSet(models.Model):
                 and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
                 sr = StandingRequest.objects.add_request(
-                    user,
-                    alt.character_id,
-                    CharacterContact.get_contact_type_id(alt.character_id),
+                    user, alt.character_id, CharacterContact.get_contact_type_id(),
                 )
                 sr.mark_standing_actioned(None)
                 sr.mark_standing_effective()
@@ -276,8 +282,24 @@ class AbstractContact(models.Model):
         )
 
     @classmethod
-    def get_contact_type_id(cls, contact_id):
-        raise NotImplementedError()
+    def get_contact_type_id(cls) -> int:
+        """returns the contact type ID for this type of contact"""
+        try:
+            return cls.contact_types[0]
+        except AttributeError:
+            raise NotImplementedError() from None
+
+    @staticmethod
+    def is_character(type_id):
+        return type_id in CharacterContact.contact_types
+
+    @staticmethod
+    def is_corporation(type_id):
+        return type_id in CorporationContact.contact_types
+
+    @staticmethod
+    def is_alliance(type_id):
+        return type_id in AllianceContact.contact_types
 
 
 class CharacterContact(AbstractContact):
@@ -302,55 +324,17 @@ class CharacterContact(AbstractContact):
     ]
     is_watched = models.BooleanField(default=False)
 
-    @classmethod
-    def get_contact_type_id(cls, contact_id):
-        """
-        Get the type ID for the contact_id
-
-        Just spoofs it at the moment, not actually the correct race ID
-        :return: contact_type_id
-        """
-        return cls.contact_types[0]
-
-    @classmethod
-    def is_character(cls, type_id):
-        return type_id in cls.contact_types
-
 
 class CorporationContact(AbstractContact):
     """A corporation contact"""
 
     contact_types = [AbstractContact.CORPORATION_TYPE_ID]
 
-    @classmethod
-    def get_contact_type_id(cls, contact_id):
-        """
-        Get the type ID for the contact_id
-        :return: contact_type_id
-        """
-        return cls.contact_types[0]
-
-    @classmethod
-    def is_corporation(cls, type_id):
-        return type_id in cls.contact_types
-
 
 class AllianceContact(AbstractContact):
     """An alliance contact"""
 
     contact_types = [AbstractContact.ALLIANCE_TYPE_ID]
-
-    @classmethod
-    def get_contact_type_id(cls, contact_id):
-        """
-        Get the type ID for the contact
-        :return: contact_type_id
-        """
-        return cls.contact_types[0]
-
-    @classmethod
-    def is_alliance(cls, type_id):
-        return type_id in cls.contact_types
 
 
 class AbstractStandingsRequest(models.Model):
@@ -412,6 +396,18 @@ class AbstractStandingsRequest(models.Model):
             f"{type(self).__name__}(pk={self.pk}, contact_id={self.contact_id}"
             f"{user_str}, is_effective={self.is_effective})"
         )
+
+    @property
+    def is_character(self) -> bool:
+        return AbstractContact.is_character(self.contact_type_id)
+
+    @property
+    def is_corporation(self) -> bool:
+        return AbstractContact.is_corporation(self.contact_type_id)
+
+    @property
+    def is_actioned(self) -> bool:
+        return self.action_date is not None
 
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
@@ -556,7 +552,7 @@ class StandingRequest(AbstractStandingsRequest):
                     self.contact_type_id,
                 )
                 StandingRevocation.objects.add_revocation(
-                    self.contact_id, self.contact_type_id
+                    self.contact_id, self.contact_type_id, user=self.user
                 )
             else:
                 logger.debug(
@@ -576,30 +572,36 @@ class StandingRequest(AbstractStandingsRequest):
         super().delete(using, keep_parents)
 
     @classmethod
-    def all_corp_apis_recorded(cls, corp_id, user):
+    def all_corp_apis_recorded(cls, corporation_id: int, user: User) -> bool:
         """
         Checks if a user has all of the required corps APIs recorded for
          standings to be permitted
-        :param corp_id: corp to check for
+        :param corporation_id: corp to check for
         :param user: User to check for
         :return: True if they can request standings, False if they cannot
         """
-        keys_recorded = sum(
-            [
-                1
-                for a in EveCharacter.objects.filter(
-                    character_ownership__user=user
-                ).filter(corporation_id=corp_id)
-                if cls.has_required_scopes_for_request(a)
-            ]
-        )
-        corp = EveCorporation.get_corp_by_id(int(corp_id))
-        logger.debug(
-            "Got %d keys recorded for %d total corp members",
-            keys_recorded,
-            corp.member_count or None,
-        )
-        return corp is not None and keys_recorded >= corp.member_count
+        corporation = EveCorporation.get_by_id(int(corporation_id))
+        if corporation is not None and not EveCorporation.corporation_is_npc(
+            corporation.corporation_id
+        ):
+            keys_recorded = sum(
+                [
+                    1
+                    for a in EveCharacter.objects.filter(
+                        character_ownership__user=user
+                    ).filter(corporation_id=corporation_id)
+                    if cls.has_required_scopes_for_request(a)
+                ]
+            )
+            logger.debug(
+                "Got %d keys recorded for %d total corp members",
+                keys_recorded,
+                corporation.member_count,
+            )
+        else:
+            keys_recorded = 0
+
+        return corporation is not None and keys_recorded >= corporation.member_count
 
     @classmethod
     def has_required_scopes_for_request(cls, character: EveCharacter) -> bool:
@@ -607,9 +609,9 @@ class StandingRequest(AbstractStandingsRequest):
         for issueing a standings request else false
         """
         try:
-            ownership = CharacterOwnership.objects.get(
-                character__character_id=character.character_id
-            )
+            ownership = CharacterOwnership.objects.select_related(
+                "user__profile__state"
+            ).get(character__character_id=character.character_id)
         except CharacterOwnership.DoesNotExist:
             return False
 
@@ -639,6 +641,10 @@ class StandingRevocation(AbstractStandingsRequest):
     """A standing revocation"""
 
     EXPECT_STANDING_LTEQ = 0.0
+
+    user = models.ForeignKey(
+        User, on_delete=models.SET_DEFAULT, default=None, null=True
+    )
 
     objects = StandingsRevocationManager()
 

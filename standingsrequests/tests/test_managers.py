@@ -1,6 +1,7 @@
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from allianceauth.notifications.models import Notification
+from bravado.exception import HTTPError
 
 from django.utils.timezone import now
 
@@ -429,7 +430,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
     def test_add_revocation_new(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, CHARACTER_TYPE_ID, user=self.user_requestor
         )
         self.assertIsInstance(my_revocation, StandingRevocation)
 
@@ -601,8 +602,8 @@ class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
         )
 
     def test_handle_exception_from_api(self, mock_esi_client):
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = (
-            RuntimeError
+        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = HTTPError(
+            Mock()
         )
 
         create_contacts_set()

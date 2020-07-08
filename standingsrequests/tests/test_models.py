@@ -229,9 +229,7 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
         StandingRequest.objects.add_request(
-            self.user,
-            alt.character_id,
-            CharacterContact.get_contact_type_id(alt.character_id),
+            self.user, alt.character_id, CharacterContact.get_contact_type_id(),
         )
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
@@ -286,12 +284,12 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
 class TestAbstractStanding(TestCase):
     def test_get_contact_type(self):
         with self.assertRaises(NotImplementedError):
-            AbstractContact.get_contact_type_id(42)
+            AbstractContact.get_contact_type_id()
 
 
 class TestPilotStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(CharacterContact.get_contact_type_id(1001), CHARACTER_TYPE_ID)
+        self.assertEqual(CharacterContact.get_contact_type_id(), CHARACTER_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(CharacterContact.is_character(CHARACTER_TYPE_ID))
@@ -320,9 +318,7 @@ class TestPilotStanding(TestCase):
 
 class TestCorpStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(
-            CorporationContact.get_contact_type_id(2001), CORPORATION_TYPE_ID
-        )
+        self.assertEqual(CorporationContact.get_contact_type_id(), CORPORATION_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(CorporationContact.is_corporation(CORPORATION_TYPE_ID))
@@ -336,7 +332,7 @@ class TestCorpStanding(TestCase):
 
 class TestAllianceStanding(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(AllianceContact.get_contact_type_id(3001), ALLIANCE_TYPE_ID)
+        self.assertEqual(AllianceContact.get_contact_type_id(), ALLIANCE_TYPE_ID)
 
     def test_is_pilot(self):
         self.assertTrue(AllianceContact.is_alliance(ALLIANCE_TYPE_ID))
@@ -613,7 +609,7 @@ class TestStandingsRequest(TestCase):
 
 class TestStandingsRequestClassMethods(NoSocketsTestCase):
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
     def test_all_corp_apis_recorded_good(self, mock_get_corp_by_id):
         """user has tokens for all 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporationInfo(
@@ -635,7 +631,7 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         self.assertTrue(StandingRequest.all_corp_apis_recorded(2001, my_user))
 
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
     def test_all_corp_apis_recorded_incomplete(self, mock_get_corp_by_id):
         """user has tokens for only 2 / 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporationInfo(
@@ -660,7 +656,7 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         MODULE_PATH + ".SR_REQUIRED_SCOPES",
         {"Guest": ["publicData", "esi-mail.read_mail.v1"]},
     )
-    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
     def test_all_corp_apis_recorded_wrong_scope(self, mock_get_corp_by_id):
         """user has tokens for only 3 / 3 chars of corp, but wrong scopes"""
         mock_get_corp_by_id.return_value = EveCorporationInfo(
@@ -682,7 +678,7 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         self.assertFalse(StandingRequest.all_corp_apis_recorded(2001, my_user))
 
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_corp_by_id")
+    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
     def test_all_corp_apis_recorded_good_another_user(self, mock_get_corp_by_id):
         """there are tokens for all 3 chars of corp, but for another user"""
         mock_get_corp_by_id.return_value = EveCorporationInfo(
