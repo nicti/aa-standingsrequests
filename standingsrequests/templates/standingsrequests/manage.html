@@ -14,9 +14,9 @@
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
-                {% trans "Requests" %} ({{requests_count|default:"-"}})                
+                {% trans "Pending Requests" %} ({{requests_count|default:"-"}})                
             </h2>
-            <p>Open standing requests for {{organization.name}}</p>
+            <p>Standing requests pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
                 
                 <div id="div_spinner_requests" class="row">                    
@@ -39,7 +39,7 @@
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
-                                    {{contact.request_date | date}}
+                                    {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
@@ -62,13 +62,14 @@
                                     {{contact.state}}
                                 </td>
                                 <td>                                    
-                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">
-                                        <i class="far fa-thumbs-down"></i>
-                                    </button>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;                                                 
                                     <button class="btn btn-success" ng-click="actionRequest(contact)" title="Standing added in game">
                                         <i class="far fa-thumbs-up"></i>
                                     </button>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;                                                 
+                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject standing request">
+                                        <i class="far fa-thumbs-down"></i>
+                                    </button>
+                                    
                                 </td>
                             </tr>
 
@@ -88,9 +89,9 @@
         <!-- Revocations -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
-                {% trans "Revocations" %} ({{revocations_count|default:"-"}})
+                {% trans "Pending Revocations" %} ({{revocations_count|default:"-"}})
             </h2>
-            <p>Open standing revocations for {{organization.name}}</p>
+            <p>Standing revocations pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
 
                 <div id="div_spinner_revocations" class="row">                    
@@ -113,7 +114,7 @@
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
                                 <td>
-                                    {{contact.request_date | date}}
+                                    {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
@@ -136,17 +137,13 @@
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
                                     {{contact.state}}
                                 </td>
-                                <td>                                    
-                                    <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Delete">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;
-                                    <button class="btn btn-warning" ng-click="undoRevocation(contact)" title="Undo">
-                                        <i class="fas fa-undo"></i>
-                                    </button>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;
-                                    <button class="btn btn-primary" ng-click="actionRevocation(contact)" title="Standing removed in game">
+                                <td>                                                                        
+                                    <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Standing removed in game">
                                         <i class="far fa-thumbs-up"></i>
+                                    </button>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;                                    
+                                    <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Reject revocation request">
+                                        <i class="far fa-thumbs-down"></i>
                                     </button>
                                 </td>
                             </tr>

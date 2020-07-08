@@ -62,15 +62,15 @@ class ContactSet(models.Model):
         """
         Attempts to fetch the standing for the given ID and type
         :param contact_id: Integer contact ID
-        :param contact_type_id: Integer contact type from the contact_types attribute 
+        :param contact_type_id: Integer contact type from the contact_type_ids attribute 
         in concrete models
         :return: concrete contact Object or ObjectDoesNotExist exception
         """
-        if contact_type_id in CharacterContact.contact_types:
+        if contact_type_id in CharacterContact.contact_type_ids:
             return self.charactercontact_set.get(contact_id=contact_id)
-        elif contact_type_id in CorporationContact.contact_types:
+        elif contact_type_id in CorporationContact.contact_type_ids:
             return self.corporationcontact_set.get(contact_id=contact_id)
-        elif contact_type_id in AllianceContact.contact_types:
+        elif contact_type_id in AllianceContact.contact_type_ids:
             return self.alliancecontact_set.get(contact_id=contact_id)
         raise exceptions.ObjectDoesNotExist()
 
@@ -95,11 +95,11 @@ class ContactSet(models.Model):
 
     @staticmethod
     def get_class_for_contact_type(contact_type_id):
-        if contact_type_id in CharacterContact.contact_types:
+        if contact_type_id in CharacterContact.contact_type_ids:
             return CharacterContact
-        elif contact_type_id in CorporationContact.contact_types:
+        elif contact_type_id in CorporationContact.contact_type_ids:
             return CorporationContact
-        elif contact_type_id in AllianceContact.contact_types:
+        elif contact_type_id in AllianceContact.contact_type_ids:
             return AllianceContact
         raise NotImplementedError()
 
@@ -209,7 +209,9 @@ class ContactSet(models.Model):
                 and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
                 sr = StandingRequest.objects.add_request(
-                    user, alt.character_id, CharacterContact.get_contact_type_id(),
+                    user=user,
+                    contact_id=alt.character_id,
+                    contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
                 )
                 sr.mark_standing_actioned(None)
                 sr.mark_standing_effective()
@@ -285,27 +287,35 @@ class AbstractContact(models.Model):
     def get_contact_type_id(cls) -> int:
         """returns the contact type ID for this type of contact"""
         try:
-            return cls.contact_types[0]
+            return cls.contact_type_ids[0]
+        except AttributeError:
+            raise NotImplementedError() from None
+
+    @classmethod
+    def get_contact_type_ids(cls) -> int:
+        """returns the list of valid contact type IDs for this type of contact"""
+        try:
+            return cls.contact_type_ids
         except AttributeError:
             raise NotImplementedError() from None
 
     @staticmethod
     def is_character(type_id):
-        return type_id in CharacterContact.contact_types
+        return type_id in CharacterContact.contact_type_ids
 
     @staticmethod
     def is_corporation(type_id):
-        return type_id in CorporationContact.contact_types
+        return type_id in CorporationContact.contact_type_ids
 
     @staticmethod
     def is_alliance(type_id):
-        return type_id in AllianceContact.contact_types
+        return type_id in AllianceContact.contact_type_ids
 
 
 class CharacterContact(AbstractContact):
     """A character contact"""
 
-    contact_types = [
+    contact_type_ids = [
         AbstractContact.CHARACTER_AMARR_TYPE_ID,
         AbstractContact.CHARACTER_NI_KUNNI_TYPE_ID,
         AbstractContact.CHARACTER_CIVRE_TYPE_ID,
@@ -328,17 +338,21 @@ class CharacterContact(AbstractContact):
 class CorporationContact(AbstractContact):
     """A corporation contact"""
 
-    contact_types = [AbstractContact.CORPORATION_TYPE_ID]
+    contact_type_ids = [AbstractContact.CORPORATION_TYPE_ID]
 
 
 class AllianceContact(AbstractContact):
     """An alliance contact"""
 
-    contact_types = [AbstractContact.ALLIANCE_TYPE_ID]
+    contact_type_ids = [AbstractContact.ALLIANCE_TYPE_ID]
 
 
 class AbstractStandingsRequest(models.Model):
     """Base class for a standing request"""
+
+    # possible contact types to make a request for
+    CHARACTER_CONTACT_TYPE = "character"
+    CORPORATION_CONTACT_TYPE = "corporation"
 
     # Standing less than or equal
     EXPECT_STANDING_LTEQ = 10.0
@@ -417,6 +431,24 @@ class AbstractStandingsRequest(models.Model):
             )
         else:
             return False
+
+    @classmethod
+    def contact_type_2_id(cls, contact_type) -> int:
+        if contact_type == cls.CHARACTER_CONTACT_TYPE:
+            return CharacterContact.get_contact_type_id()
+        elif contact_type == cls.CORPORATION_CONTACT_TYPE:
+            return CorporationContact.get_contact_type_id()
+        else:
+            raise ValueError("Invalid contact type")
+
+    @classmethod
+    def contact_id_2_type(cls, contact_type_id) -> str:
+        if contact_type_id in CharacterContact.get_contact_type_ids():
+            return cls.CHARACTER_CONTACT_TYPE
+        elif contact_type_id in CorporationContact.get_contact_type_ids():
+            return cls.CORPORATION_CONTACT_TYPE
+        else:
+            raise ValueError("Invalid contact type")
 
     def process_standing(self, check_only: bool = False) -> bool:
         """
@@ -552,7 +584,9 @@ class StandingRequest(AbstractStandingsRequest):
                     self.contact_type_id,
                 )
                 StandingRevocation.objects.add_revocation(
-                    self.contact_id, self.contact_type_id, user=self.user
+                    contact_id=self.contact_id,
+                    contact_type=self.contact_id_2_type(self.contact_type_id),
+                    user=self.user,
                 )
             else:
                 logger.debug(

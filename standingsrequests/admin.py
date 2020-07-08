@@ -30,9 +30,9 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return EveEntity.objects.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contact_type_id in CharacterContact.contact_types:
+        if obj.contact_type_id in CharacterContact.contact_type_ids:
             return "Character"
-        elif obj.contact_type_id in CorporationContact.contact_types:
+        elif obj.contact_type_id in CorporationContact.contact_type_ids:
             return "Corporation"
         else:
             return "(undefined)"

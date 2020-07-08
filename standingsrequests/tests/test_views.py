@@ -324,7 +324,7 @@ class TestRequestStanding(TestViewStandingRequestsBase):
         character_id = self.alt_1.character_id
 
         StandingRequest.objects.add_request(
-            self.user_requestor, character_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         self.make_request(character_id)
         self.assertEqual(
@@ -337,7 +337,9 @@ class TestRequestStanding(TestViewStandingRequestsBase):
         character_id = self.alt_1.character_id
 
         StandingRevocation.objects.add_revocation(
-            character_id, CharacterContact.get_contact_type_id(),
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
         )
         self.make_request(character_id)
         self.assertEqual(
@@ -362,7 +364,7 @@ class TestRemovePilotStanding(TestViewStandingRequestsBase):
     ):
         character_id = self.alt_1.character_id
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_standing_actioned(self.user_manager)
         sr.mark_standing_effective()
@@ -382,7 +384,7 @@ class TestRemovePilotStanding(TestViewStandingRequestsBase):
 
         # default standing request
         StandingRequest.objects.add_request(
-            self.user_requestor, character_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         self.make_request(character_id)
         self.assertEqual(
@@ -390,7 +392,7 @@ class TestRemovePilotStanding(TestViewStandingRequestsBase):
         )
         # actioned standing request
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_standing_actioned(self.user_manager)
         self.make_request(character_id)
@@ -404,12 +406,14 @@ class TestRemovePilotStanding(TestViewStandingRequestsBase):
         character_id = self.alt_1.character_id
 
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_standing_actioned(self.user_manager)
         sr.mark_standing_effective()
         StandingRevocation.objects.add_revocation(
-            character_id, CharacterContact.get_contact_type_id(),
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
         )
 
         self.make_request(character_id)
@@ -426,7 +430,7 @@ class TestViewManageRequestsJson(TestViewStandingRequestsBase):
         # setup
         alt_id = self.alt_1.character_id
         standing_request = StandingRequest.objects.add_request(
-            self.user_requestor, alt_id, CharacterContact.get_contact_type_id(),
+            self.user_requestor, alt_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
 
         # make request
@@ -485,7 +489,7 @@ class TestViewManageRequestsJson(TestViewStandingRequestsBase):
         mock_cache.get.return_value = None
         alt_id = self.alt_1.corporation_id
         standing_request = StandingRequest.objects.add_request(
-            self.user_requestor, alt_id, CorporationContact.get_contact_type_id(),
+            self.user_requestor, alt_id, StandingRequest.CORPORATION_CONTACT_TYPE,
         )
 
         # make request
@@ -536,7 +540,7 @@ class TestViewManageRevocationsJson(TestViewStandingRequestsBase):
         alt_id = self.alt_1.character_id
         self._create_standing_for_alt(alt_id, CHARACTER_TYPE_ID)
         standing_request = StandingRevocation.objects.add_revocation(
-            alt_id, CharacterContact.get_contact_type_id(), user=self.user_requestor
+            alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
         )
 
         # make request
@@ -596,7 +600,9 @@ class TestViewManageRevocationsJson(TestViewStandingRequestsBase):
         alt_id = self.alt_1.corporation_id
         self._create_standing_for_alt(alt_id, CORPORATION_TYPE_ID)
         standing_request = StandingRevocation.objects.add_revocation(
-            alt_id, CorporationContact.get_contact_type_id(), user=self.user_requestor
+            alt_id,
+            StandingRevocation.CORPORATION_CONTACT_TYPE,
+            user=self.user_requestor,
         )
 
         # make request
@@ -740,3 +746,30 @@ class TestViewActiveRequestsJson(TestViewStandingRequestsBase):
             "action_by": self.user_manager.username,
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
+
+    def test_only_wanted_requests_shown(self):
+        # setup
+        alt_id = self.alt_1.character_id
+        self._create_standing_for_alt(alt_id, CHARACTER_TYPE_ID)
+        """
+        StandingRequest.objects.add_request(
+            1002, StandingRequest.CHARACTER_CONTACT_TYPE
+        )
+        StandingRequest.objects.add_request(
+            1002, CharacterContact.get_contact_type_id()
+        )
+        """
+
+        # make request
+        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
+        request.user = self.user_manager
+        response = views.view_requests_json(request)
+
+        # validate
+        self.assertEqual(response.status_code, 200)
+        data = {
+            x["contact_id"]: x
+            for x in json.loads(response.content.decode(response.charset))
+        }
+        expected = {alt_id}
+        self.assertSetEqual(set(data.keys()), expected)

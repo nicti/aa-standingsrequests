@@ -304,7 +304,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
         request = StandingRequest.objects.add_request(
-            self.user, 1002, CHARACTER_TYPE_ID
+            self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
 
         StandingRequest.objects.validate_requests()
@@ -313,7 +313,9 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_all_corp_apis_recorded
     ):
-        StandingRequest.objects.add_request(self.user, 1002, CHARACTER_TYPE_ID)
+        StandingRequest.objects.add_request(
+            self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
+        )
         StandingRequest.objects.validate_requests()
         self.assertTrue(StandingRevocation.objects.filter(contact_id=1002).exists())
 
@@ -324,7 +326,9 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        StandingRequest.objects.add_request(self.user, 2001, CORPORATION_TYPE_ID)
+        StandingRequest.objects.add_request(
+            self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
+        )
 
         StandingRequest.objects.validate_requests()
         self.assertTrue(StandingRevocation.objects.filter(contact_id=2001).exists())
@@ -337,7 +341,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
         request = StandingRequest.objects.add_request(
-            self.user, 2001, CORPORATION_TYPE_ID
+            self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
         )
 
         StandingRequest.objects.validate_requests()
@@ -358,16 +362,16 @@ class TestStandingsRequestManager(NoSocketsTestCase):
 
     def test_add_request_new(self):
         my_request = StandingRequest.objects.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
+            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         self.assertIsInstance(my_request, StandingRequest)
 
     def test_add_request_already_exists(self):
         my_request_1 = StandingRequest.objects.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
+            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         my_request_2 = StandingRequest.objects.add_request(
-            self.user_requestor, 1001, CHARACTER_TYPE_ID
+            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         self.assertEqual(my_request_1, my_request_2)
 
@@ -430,41 +434,28 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
     def test_add_revocation_new(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID, user=self.user_requestor
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
         )
         self.assertIsInstance(my_revocation, StandingRevocation)
 
     def test_add_request_already_exists(self):
-        StandingRevocation.objects.add_revocation(1001, CHARACTER_TYPE_ID)
+        StandingRevocation.objects.add_revocation(
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
+        )
         my_revocation_2 = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         self.assertIsNone(my_revocation_2)
 
-    def test_undo_revocation_that_exists(self):
-        StandingRevocation.objects.add_revocation(1001, CHARACTER_TYPE_ID)
-        my_revocation = StandingRevocation.objects.undo_revocation(
-            1001, self.user_requestor
-        )
-        self.assertEqual(my_revocation.user, self.user_requestor)
-        self.assertEqual(my_revocation.contact_id, 1001)
-        self.assertEqual(my_revocation.contact_type_id, CHARACTER_TYPE_ID)
-
-    def test_undo_revocation_that_not_exists(self):
-        my_revocation = StandingRevocation.objects.undo_revocation(
-            1001, self.user_requestor
-        )
-        self.assertFalse(my_revocation)
-
     def test_check_standing_satisfied_but_deleted_for_neutral_check_only(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1999, CHARACTER_TYPE_ID
+            1999, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         self.assertTrue(my_revocation.process_standing(check_only=True))
 
     def test_check_standing_satisfied_but_deleted_for_neutral(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1999, CHARACTER_TYPE_ID
+            1999, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         self.assertTrue(my_revocation.process_standing())
         self.assertTrue(my_revocation.is_effective)
@@ -724,9 +715,10 @@ class TestEveEntityManagerGetNames(NoSocketsTestCase):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
-        my_entity = EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        my_entity.updated = now() - timedelta(days=31)
-        my_entity.save()
+        EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
+        EveEntity.objects.filter(entity_id=1001).update(
+            updated=now() - timedelta(days=31)
+        )
         entities = EveEntity.objects.get_names([1001, 1002])
         self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
 

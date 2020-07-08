@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - Added new tests and improved existing tests
 - Added support for django-esi 2.x and backwards compatibility for 1.x
+- Corporations on groups page now also show to which alliance they belong
 
 ### Changed
 
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Improved maintainability (refactored database and code structure)
 - Reduced load time for view_pilots view
 - Fix tests for new Auth version
+- Removed undo feature for revocation
+- IDs in settings can not also be integers
 
 ## [0.4.1] - 2020-05-28
 

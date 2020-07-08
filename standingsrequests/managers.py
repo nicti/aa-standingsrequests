@@ -225,7 +225,8 @@ class AbstractStandingsRequestManager(models.Manager):
             is_satisfied_standing = standing_request.process_standing()
             if (
                 is_satisfied_standing
-                and standing_request.contact_type_id in CharacterContact.contact_types
+                and standing_request.contact_type_id
+                in CharacterContact.contact_type_ids
             ):
                 if SR_NOTIFICATIONS_ENABLED and not is_currently_effective:
                     if type(standing_request) == StandingRequest:
@@ -388,29 +389,33 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                     standing_request.contact_id,
                 )
                 StandingRevocation.objects.add_revocation(
-                    standing_request.contact_id,
-                    standing_request.contact_type_id,
+                    contact_id=standing_request.contact_id,
+                    contact_type=self.model.contact_id_2_type(
+                        standing_request.contact_type_id
+                    ),
                     user=standing_request.user,
                 )
                 invalid_count += 1
 
         return invalid_count
 
-    def add_request(self, user, contact_id, contact_type_id):
-        """
-        Add a new standings request
-        :param user: User the request and contact_id belongs to
-        :param contact_id: contact_id to request standings on
-        :param contact_type_id: contact_type_id from a AbstractContact concrete class
-        :return: the created StandingRequest instance
+    def add_request(self, user: User, contact_id: int, contact_type: str) -> object:
+        """Add a new standings request
+        
+        Params:
+        - user: User the request and contact_id belongs to
+        - contact_id: contact_id to request standings on
+        - contact_type: type of this contact
+        
+        Restuns the created StandingRequest instance
         """
         logger.debug(
             "Adding new standings request for user %s, contact %d type %s",
             user,
             contact_id,
-            contact_type_id,
+            contact_type,
         )
-
+        contact_type_id = self.model.contact_type_2_id(contact_type)
         if self.filter(contact_id=contact_id, contact_type_id=contact_type_id).exists():
             logger.debug(
                 "Standings request already exists, " "returning first existing request"
@@ -457,7 +462,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
 class StandingsRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
-        self, contact_id: int, contact_type_id: int, user: User = None
+        self, contact_id: int, contact_type: str, user: User = None
     ) -> object:
         """Add a new standings revocation
         
@@ -471,8 +476,9 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
             contact_id,
-            contact_type_id,
+            contact_type,
         )
+        contact_type_id = self.model.contact_type_2_id(contact_type)
         pending = self.filter(contact_id=contact_id).filter(is_effective=False)
         if pending.exists():
             logger.debug(
@@ -486,29 +492,6 @@ class StandingsRevocationManager(AbstractStandingsRequestManager):
             contact_id=contact_id, contact_type_id=contact_type_id, user=user
         )
         return instance
-
-    def undo_revocation(self, contact_id, owner):
-        """
-        Converts existing revocation into request if it exists
-        :param contact_id: contact_id to request standings on
-        :param owner: user owning the revocation
-        :return: created StandingRequest pendant 
-            or False if revocation does not exist
-        """
-        from .models import StandingRequest
-
-        logger.debug("Undoing revocation for contact_id %d", contact_id)
-
-        try:
-            revocation = self.get(contact_id=contact_id)
-        except self.model.DoesNotExist:
-            return False
-        else:
-            request = StandingRequest.objects.add_request(
-                owner, contact_id, revocation.contact_type_id
-            )
-            revocation.delete()
-            return request
 
 
 class CharacterAssociationManager(models.Manager):

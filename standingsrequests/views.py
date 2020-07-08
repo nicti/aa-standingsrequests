@@ -7,7 +7,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from django.db.models import Q
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import eveimageserver
@@ -28,9 +27,7 @@ from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
 from .models import (
     ContactSet,
-    CorporationContact,
     EveEntity,
-    AbstractContact,
     CharacterContact,
     StandingRequest,
     StandingRevocation,
@@ -195,7 +192,9 @@ def request_pilot_standing(request, character_id):
         logger.warning("Contact ID %d already has a pending request", character_id)
     else:
         sr = StandingRequest.objects.add_request(
-            request.user, character_id, CharacterContact.get_contact_type_id(),
+            user=request.user,
+            contact_id=character_id,
+            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         if ContactSet.objects.latest().has_character_standing(character_id):
             sr.mark_standing_actioned(user=None)
@@ -244,8 +243,8 @@ def remove_pilot_standing(request, character_id):
                     request.user,
                 )
                 StandingRevocation.objects.add_revocation(
-                    character_id,
-                    CharacterContact.get_contact_type_id(),
+                    contact_id=character_id,
+                    contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
                     user=request.user,
                 )
             else:
@@ -277,7 +276,9 @@ def request_corp_standing(request, corporation_id):
             corporation_id
         ) and not StandingRevocation.objects.has_pending_request(corporation_id):
             StandingRequest.objects.add_request(
-                request.user, corporation_id, CorporationContact.get_contact_type_id(),
+                user=request.user,
+                contact_id=corporation_id,
+                contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
             )
         else:
             # Pending request, not allowed
@@ -326,8 +327,8 @@ def remove_corp_standing(request, corporation_id):
                     request.user,
                 )
                 StandingRevocation.objects.add_revocation(
-                    corporation_id,
-                    CorporationContact.get_contact_type_id(),
+                    contact_id=corporation_id,
+                    contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
                     user=request.user,
                 )
             else:
@@ -550,30 +551,39 @@ def view_groups_standings_json(request):
         contacts = ContactSet()
 
     corps = list()
-    for p in contacts.corporationcontact_set.all().order_by("name"):
+    for contact in contacts.corporationcontact_set.all().order_by("name"):
+        corporation = EveCorporation.get_by_id(contact.contact_id)
+        if corporation:
+            alliance_id = corporation.alliance_id
+            alliance_name = corporation.alliance_name
+        else:
+            alliance_id = None
+            alliance_name = ""
         corps.append(
             {
-                "corporation_id": p.contact_id,
-                "corporation_name": p.name,
+                "corporation_id": contact.contact_id,
+                "corporation_name": contact.name,
                 "corporation_icon_url": eveimageserver.corporation_logo_url(
-                    p.contact_id, DEFAULT_ICON_SIZE
+                    contact.contact_id, DEFAULT_ICON_SIZE
                 ),
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
+                "alliance_id": alliance_id,
+                "alliance_name": alliance_name,
+                "standing": contact.standing,
+                "labels": [label.name for label in contact.labels.all()],
             }
         )
 
     alliances = list()
-    for p in contacts.alliancecontact_set.all().order_by("name"):
+    for contact in contacts.alliancecontact_set.all().order_by("name"):
         alliances.append(
             {
-                "alliance_id": p.contact_id,
-                "alliance_name": p.name,
+                "alliance_id": contact.contact_id,
+                "alliance_name": contact.name,
                 "alliance_icon_url": eveimageserver.alliance_logo_url(
-                    p.contact_id, DEFAULT_ICON_SIZE
+                    contact.contact_id, DEFAULT_ICON_SIZE
                 ),
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
+                "standing": contact.standing,
+                "labels": [label.name for label in contact.labels.all()],
             }
         )
 
@@ -772,36 +782,6 @@ def manage_revocations_write(request, contact_id):
         return JsonResponse(dict(), status=204)
     else:
         return Http404
-
-
-@login_required
-@permission_required("standingsrequests.affect_standings")
-def manage_revocations_undo(request, contact_id):
-    contact_id = int(contact_id)
-    logger.debug(
-        "manage_revocations_undo called by %s for contact_id %d",
-        request.user,
-        contact_id,
-    )
-    if StandingRevocation.objects.filter(contact_id=contact_id).exists():
-        owner = EveEntityHelper.get_owner_from_character_id(contact_id)
-        if owner is None:
-            return JsonResponse(
-                {
-                    "Success": False,
-                    "Message": "Cannot find an owner for that contact ID",
-                },
-                status=404,
-            )
-
-        result = StandingRevocation.objects.undo_revocation(contact_id, owner)
-        if result:
-            return JsonResponse(dict(), status=204)
-
-    return JsonResponse(
-        {"Success": False, "Message": "Cannot find a revocation for that contact ID"},
-        status=404,
-    )
 
 
 ###################

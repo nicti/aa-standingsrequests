@@ -90,8 +90,8 @@ Here is a complete example of all settings that goes into your local settings fi
 ```Python
 # id of character to use for updating alliance contacts
 STANDINGS_API_CHARID = 1234
-STR_CORP_IDS = ['CORP1ID', 'CORP2ID', '...']
-STR_ALLIANCE_IDS = ['YOUR_ALLIANCE_ID', '...']
+STR_CORP_IDS = [CORP1ID, CORP2ID, ...]
+STR_ALLIANCE_IDS = [YOUR_ALLIANCE_ID, ...]
 
 # This is a map, where the key is the State the user is in
 # and the value is a list of required scopes to check
@@ -134,7 +134,6 @@ Name | Description | Default
 `SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations | `True`
 `SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests | `False`
 `SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
-`SR_PREVIOUSLY_EFFECTIVE_GRACE_HOURS` | Grace period before a standing previously marked effective, but that is no longer effective, will be reset | `2`
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
 `SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`
 `SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`

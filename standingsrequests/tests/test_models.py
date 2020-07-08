@@ -229,7 +229,7 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         alt = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
         StandingRequest.objects.add_request(
-            self.user, alt.character_id, CharacterContact.get_contact_type_id(),
+            self.user, alt.character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
@@ -592,7 +592,9 @@ class TestStandingsRequest(TestCase):
             is_effective=True,
             effective_date=now(),
         )
-        StandingRevocation.objects.add_revocation(1001, CHARACTER_TYPE_ID)
+        StandingRevocation.objects.add_revocation(
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
+        )
         my_request_effective.delete()
         self.assertFalse(
             StandingRequest.objects.filter(

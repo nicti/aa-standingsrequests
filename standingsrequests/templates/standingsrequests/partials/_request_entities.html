@@ -4,23 +4,11 @@
 {% load evelinks %}
 
 <div class="col-lg-12">
-        <h3>{% trans "Standings Organization" %}</h3>                        
-            <div class="container">
-                <div class="row">
-                    <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">                            
-                            <tr>                                
-                                <td>
-                                    <img src="{{ organization_image_url }}" class="img-circle">&nbsp;&nbsp;&nbsp;
-                                    <strong>{{ organization.name }}</strong>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <p>            
+            On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
+        </p>
         
-        <h3>{% trans "Your Characters" %}</h3>
+        <h2>{% trans "Your Characters" %}</h2>
 
         <div class="container">
             {% if authinfo.main_char_id %}
@@ -94,7 +82,7 @@
                                                 </a>
                                             {% else %}
                                                 <a class="btn btn-danger" role="button" href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fas fa-trash-alt fa-fw" title="Revoke standing"></i>
+                                                    <i class="fas fa-trash-alt fa-fw" title="Standing exists. Click here to revoke it."></i>
                                                 </a>
                                             {% endif %}
                                         </span>
@@ -110,7 +98,7 @@
 
     {% if corporations_enabled %}
         <div class="col-lg-12">
-            <h3>{% trans "Your Corporations" %}</h3>
+            <h2>{% trans "Your Corporations" %}</h2>
 
             <div class="container">
                 {% if authinfo.main_char_id %}
@@ -178,7 +166,7 @@
                                                     {% endif %}
                                                 {% else %}
                                                     <a class="btn btn-danger" role="button" href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                        <i class="fas fa-trash-alt" title="Revoke standing"></i>
+                                                        <i class="fas fa-trash-alt" title="Standing exists. Click here to revoke it."></i>
                                                     </a>
                                                 {% endif %}
                                             </span>

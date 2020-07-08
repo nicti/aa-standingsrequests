@@ -17,7 +17,6 @@ from standingsrequests.tasks import (
 )
 from standingsrequests.utils import NoSocketsTestCase, set_test_logger
 
-from .entity_type_ids import CHARACTER_TYPE_ID
 from .my_test_data import create_contacts_set
 
 MODULE_PATH = "standingsrequests.tasks"
@@ -166,7 +165,7 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
 
     def test_one_younger_revocation_exists_no_purge(self):
         revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_1.mark_standing_effective()
         purge_stale_revocations()
@@ -176,7 +175,7 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
 
     def test_one_older_revocation_is_purged(self):
         revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
@@ -188,13 +187,13 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
 
     def test_one_younger_one_older_revocation_purge_older_only(self):
         revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
         revocation_2 = StandingRevocation.objects.add_revocation(
-            1002, CHARACTER_TYPE_ID
+            1002, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_2.mark_standing_effective()
         purge_stale_revocations()
@@ -204,13 +203,13 @@ class TestPurgeStaleRevocations(NoSocketsTestCase):
 
     def test_two_older_revocations_are_both_purged(self):
         revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, CHARACTER_TYPE_ID
+            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_1.is_effective = True
         revocation_1.save()
         revocation_2 = StandingRevocation.objects.add_revocation(
-            1002, CHARACTER_TYPE_ID
+            1002, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
         revocation_2.effective_date = now() - timedelta(days=7, seconds=1)
         revocation_2.is_effective = True

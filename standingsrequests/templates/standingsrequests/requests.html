@@ -14,9 +14,9 @@
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
-                {% trans "Requests" %} ({{requests_count|default:"-"}})
+                {% trans "Accepted Requests" %} ({{requests_count|default:"-"}})
             </h2>
-            <p>All standing requests for {{organization.name}}</p>
+            <p>All effective standings for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
                 
                 <div id="div_spinner" class="row">                    
@@ -40,7 +40,7 @@
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                  <td>
-                                    {{contact.request_date | date}}
+                                    {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
                                 </td>
                                 <td>
                                      <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
