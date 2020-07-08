@@ -1,3 +1,5 @@
+from allianceauth.eveonline.evelinks import eveimageserver
+
 from ..models import EveEntity, CharacterAssociation
 
 
@@ -56,3 +58,6 @@ class EveCharacterHelper:
             if self.alliance_id and self.alliance_id in names_ids
             else None
         )
+
+    def portrait_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
+        return eveimageserver.character_portrait_url(self.character_id, size)
