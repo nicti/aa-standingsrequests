@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from celery import shared_task, chain
+from celery import chain, shared_task
 
 from django.contrib.auth.models import User
 from django.utils.timezone import now
@@ -11,19 +11,22 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import (
-    SR_STANDINGS_STALE_HOURS,
     SR_REVOCATIONS_STALE_DAYS,
+    SR_STANDINGS_STALE_HOURS,
     SR_SYNC_BLUE_ALTS_ENABLED,
 )
+from .helpers.view_cache import cache_clear_character_standings_data
 from .models import (
+    AllianceContact,
     CharacterAssociation,
+    CharacterContact,
+    ContactLabel,
     ContactSet,
+    CorporationContact,
     StandingRequest,
     StandingRevocation,
 )
-from .models import CharacterContact, CorporationContact, AllianceContact, ContactLabel
 from .utils import LoggerAddTag
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -79,6 +82,7 @@ def standings_update():
                 contact_set.generate_standing_requests_for_blue_alts()
             StandingRequest.objects.process_requests()
             StandingRevocation.objects.process_requests()
+            cache_clear_character_standings_data()
 
     except Exception as ex:
         logger.exception("Failed to execute standings_update: %s", ex)

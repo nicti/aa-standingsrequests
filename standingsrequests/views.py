@@ -1,38 +1,38 @@
-from django.http import Http404, JsonResponse, HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.services.hooks import get_extension_logger
+
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.cache import cache
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-
-from allianceauth.eveonline.models import EveCharacter, EveAllianceInfo
-from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.services.hooks import get_extension_logger
 
 from esi.decorators import token_required
 
 from . import __title__
-from .decorators import token_required_by_state
 from .app_settings import (
-    STANDINGS_API_CHARID,
     SR_CORPORATIONS_ENABLED,
     SR_OPERATION_MODE,
+    STANDINGS_API_CHARID,
 )
+from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
-from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
+from .helpers.eveentity import EveEntityHelper
+from .helpers.view_cache import cache_get_or_set_character_standings_data
+from .helpers.writers import UnicodeWriter
 from .models import (
+    CharacterContact,
     ContactSet,
     EveEntity,
-    CharacterContact,
     StandingRequest,
     StandingRevocation,
     models,
 )
-from .helpers.eveentity import EveEntityHelper
 from .tasks import update_all
-from .utils import messages_plus, LoggerAddTag
+from .utils import LoggerAddTag, messages_plus
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -350,7 +350,7 @@ def remove_corp_standing(request, corporation_id):
 
 
 ###########################
-# Views pilots and groups #
+# Views character and groups #
 ###########################
 @login_required
 @permission_required("standingsrequests.view")
@@ -358,7 +358,7 @@ def view_pilots_standings(request):
     logger.debug("view_pilot_standings called by %s", request.user)
     try:
         contact_set = ContactSet.objects.latest()
-    except (ObjectDoesNotExist, ContactSet.DoesNotExist):
+    except ContactSet.DoesNotExist:
         contact_set = None
     finally:
         organization = ContactSet.standings_source_entity()
@@ -442,11 +442,8 @@ def view_pilots_standings_json(request):
 
         return characters_data
 
-    # Cache result for 10 minutes,
-    pilots = cache.get_or_set(
-        "standings_requests_view_pilots_standings_json", get_pilots, timeout=600
-    )
-    return JsonResponse(pilots, safe=False)
+    my_characters_data = cache_get_or_set_character_standings_data(get_pilots)
+    return JsonResponse(my_characters_data, safe=False)
 
 
 @login_required
