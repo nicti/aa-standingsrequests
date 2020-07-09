@@ -124,26 +124,12 @@ def partial_request_entities(request):
                     ).standing
                 except ObjectDoesNotExist:
                     standing = None
-                finally:
-                    have_scopes = sum(
-                        [
-                            1
-                            for a in CharacterOwnership.objects.filter(
-                                user=request.user
-                            )
-                            .filter(
-                                character__corporation_id=corporation.corporation_id
-                            )
-                            .select_related("character")
-                            if StandingRequest.has_required_scopes_for_request(
-                                a.character
-                            )
-                        ]
-                    )
 
                 corporations_data.append(
                     {
-                        "have_scopes": have_scopes,
+                        "token_count": corporation.member_tokens_count_for_user(
+                            request.user
+                        ),
                         "corp": corporation,
                         "standing": standing,
                         "pendingRequest": StandingRequest.objects.has_pending_request(
@@ -276,7 +262,7 @@ def request_corp_standing(request, corporation_id):
     )
 
     # Check the user has the required number of member keys for the corporation
-    if StandingRequest.all_corp_apis_recorded(corporation_id, request.user):
+    if StandingRequest.can_request_corporation_standing(corporation_id, request.user):
         if not StandingRequest.objects.has_pending_request(
             corporation_id
         ) and not StandingRevocation.objects.has_pending_request(corporation_id):
@@ -706,7 +692,7 @@ def _compose_standing_requests_data(requests_qs: models.QuerySet) -> list:
             corporation_ticker = corporation.ticker
             alliance_id = None
             alliance_name = ""
-            has_scopes = StandingRequest.all_corp_apis_recorded(
+            has_scopes = StandingRequest.can_request_corporation_standing(
                 corporation.corporation_id, r.user
             )
 

@@ -606,60 +606,49 @@ class StandingRequest(AbstractStandingsRequest):
         super().delete(using, keep_parents)
 
     @classmethod
-    def all_corp_apis_recorded(cls, corporation_id: int, user: User) -> bool:
+    def can_request_corporation_standing(cls, corporation_id: int, user: User) -> bool:
         """
-        Checks if a user has all of the required corps APIs recorded for
-         standings to be permitted
-        :param corporation_id: corp to check for
-        :param user: User to check for
-        :return: True if they can request standings, False if they cannot
+        Checks if given user owns all of the required corp tokens for standings to be permitted
+        
+        Params
+        - corporation_id: corp to check for
+        - user: User to check for
+        
+        returns True if they can request standings, False if they cannot
         """
-        corporation = EveCorporation.get_by_id(int(corporation_id))
-        if corporation is not None and not EveCorporation.corporation_is_npc(
-            corporation.corporation_id
-        ):
-            keys_recorded = sum(
-                [
-                    1
-                    for a in EveCharacter.objects.filter(
-                        character_ownership__user=user
-                    ).filter(corporation_id=corporation_id)
-                    if cls.has_required_scopes_for_request(a)
-                ]
-            )
-            logger.debug(
-                "Got %d keys recorded for %d total corp members",
-                keys_recorded,
-                corporation.member_count,
-            )
-        else:
-            keys_recorded = 0
-
-        return corporation is not None and keys_recorded >= corporation.member_count
+        corporation = EveCorporation.get_by_id(corporation_id)
+        return (
+            corporation is not None
+            and not corporation.is_npc
+            and corporation.user_has_all_member_tokens(user)
+        )
 
     @classmethod
-    def has_required_scopes_for_request(cls, character: EveCharacter) -> bool:
+    def has_required_scopes_for_request(
+        cls, character: EveCharacter, user: User = None
+    ) -> bool:
         """returns true if given character has the required scopes 
         for issueing a standings request else false
         """
-        try:
-            ownership = CharacterOwnership.objects.select_related(
-                "user__profile__state"
-            ).get(character__character_id=character.character_id)
-        except CharacterOwnership.DoesNotExist:
-            return False
+        if not user:
+            try:
+                ownership = CharacterOwnership.objects.select_related(
+                    "user__profile__state"
+                ).get(character__character_id=character.character_id)
+            except CharacterOwnership.DoesNotExist:
+                return False
+            else:
+                user = ownership.user
 
-        else:
-            user = ownership.user
-            state_name = user.profile.state.name
-            scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
-            has_required_scopes = (
-                Token.objects.filter(character_id=character.character_id)
-                .require_scopes(scopes_string)
-                .require_valid()
-                .exists()
-            )
-            return has_required_scopes
+        state_name = user.profile.state.name
+        scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
+        has_required_scopes = (
+            Token.objects.filter(character_id=character.character_id)
+            .require_scopes(scopes_string)
+            .require_valid()
+            .exists()
+        )
+        return has_required_scopes
 
     @staticmethod
     def get_required_scopes_for_state(state_name: str) -> list:

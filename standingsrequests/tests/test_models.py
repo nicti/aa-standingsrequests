@@ -1,58 +1,57 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 from django.utils.timezone import now
 
-from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
-from .entity_type_ids import (
-    ALLIANCE_TYPE_ID,
-    CHARACTER_TYPE_ID,
-    CORPORATION_TYPE_ID,
-    CHARACTER_NI_KUNNI_TYPE_ID,
-    CHARACTER_CIVRE_TYPE_ID,
-    CHARACTER_DETEIS_TYPE_ID,
-    CHARACTER_GALLENTE_TYPE_ID,
-    CHARACTER_INTAKI_TYPE_ID,
-    CHARACTER_SEBIESTOR_TYPE_ID,
-    CHARACTER_BRUTOR_TYPE_ID,
-    CHARACTER_STATIC_TYPE_ID,
-    CHARACTER_MODIFIER_TYPE_ID,
-    CHARACTER_ACHURA_TYPE_ID,
-    CHARACTER_JIN_MEI_TYPE_ID,
-    CHARACTER_KHANID_TYPE_ID,
-    CHARACTER_VHEROKIOR_TYPE_ID,
-    CHARACTER_DRIFTER_TYPE_ID,
-)
-from . import add_new_token, _generate_token, _store_as_Token, add_character_to_user
-from .my_test_data import (
-    create_contacts_set,
-    get_entity_name,
-    create_entity,
-    get_my_test_data,
-    create_standings_char,
-    TEST_STANDINGS_ALLIANCE_ID,
-)
-
+from ..helpers.evecorporation import EveCorporation
 from ..models import (
     AbstractContact,
     AbstractStandingsRequest,
     AllianceContact,
     CharacterAssociation,
+    CharacterContact,
     ContactLabel,
     ContactSet,
     CorporationContact,
     EveEntity,
-    CharacterContact,
     StandingRequest,
     StandingRevocation,
 )
-from ..utils import set_test_logger, NoSocketsTestCase
-
+from ..utils import NoSocketsTestCase, set_test_logger
+from . import _generate_token, _store_as_Token, add_character_to_user, add_new_token
+from .entity_type_ids import (
+    ALLIANCE_TYPE_ID,
+    CHARACTER_ACHURA_TYPE_ID,
+    CHARACTER_BRUTOR_TYPE_ID,
+    CHARACTER_CIVRE_TYPE_ID,
+    CHARACTER_DETEIS_TYPE_ID,
+    CHARACTER_DRIFTER_TYPE_ID,
+    CHARACTER_GALLENTE_TYPE_ID,
+    CHARACTER_INTAKI_TYPE_ID,
+    CHARACTER_JIN_MEI_TYPE_ID,
+    CHARACTER_KHANID_TYPE_ID,
+    CHARACTER_MODIFIER_TYPE_ID,
+    CHARACTER_NI_KUNNI_TYPE_ID,
+    CHARACTER_SEBIESTOR_TYPE_ID,
+    CHARACTER_STATIC_TYPE_ID,
+    CHARACTER_TYPE_ID,
+    CHARACTER_VHEROKIOR_TYPE_ID,
+    CORPORATION_TYPE_ID,
+)
+from .my_test_data import (
+    TEST_STANDINGS_ALLIANCE_ID,
+    create_contacts_set,
+    create_entity,
+    create_standings_char,
+    get_entity_name,
+    get_my_test_data,
+)
 
 MODULE_PATH = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
@@ -612,9 +611,9 @@ class TestStandingsRequest(TestCase):
 class TestStandingsRequestClassMethods(NoSocketsTestCase):
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
     @patch(MODULE_PATH + ".EveCorporation.get_by_id")
-    def test_all_corp_apis_recorded_good(self, mock_get_corp_by_id):
+    def test_can_request_corporation_standing_good(self, mock_get_corp_by_id):
         """user has tokens for all 3 chars of corp"""
-        mock_get_corp_by_id.return_value = EveCorporationInfo(
+        mock_get_corp_by_id.return_value = EveCorporation(
             **get_my_test_data()["EveCorporationInfo"]["2001"]
         )
         my_user = AuthUtils.create_user("John Doe")
@@ -630,13 +629,13 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
                     my_user,
                 )
 
-        self.assertTrue(StandingRequest.all_corp_apis_recorded(2001, my_user))
+        self.assertTrue(StandingRequest.can_request_corporation_standing(2001, my_user))
 
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
     @patch(MODULE_PATH + ".EveCorporation.get_by_id")
-    def test_all_corp_apis_recorded_incomplete(self, mock_get_corp_by_id):
+    def test_can_request_corporation_standing_incomplete(self, mock_get_corp_by_id):
         """user has tokens for only 2 / 3 chars of corp"""
-        mock_get_corp_by_id.return_value = EveCorporationInfo(
+        mock_get_corp_by_id.return_value = EveCorporation(
             **get_my_test_data()["EveCorporationInfo"]["2001"]
         )
         my_user = AuthUtils.create_user("John Doe")
@@ -652,16 +651,18 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
                     my_user,
                 )
 
-        self.assertFalse(StandingRequest.all_corp_apis_recorded(2001, my_user))
+        self.assertFalse(
+            StandingRequest.can_request_corporation_standing(2001, my_user)
+        )
 
     @patch(
         MODULE_PATH + ".SR_REQUIRED_SCOPES",
         {"Guest": ["publicData", "esi-mail.read_mail.v1"]},
     )
     @patch(MODULE_PATH + ".EveCorporation.get_by_id")
-    def test_all_corp_apis_recorded_wrong_scope(self, mock_get_corp_by_id):
+    def test_can_request_corporation_standing_wrong_scope(self, mock_get_corp_by_id):
         """user has tokens for only 3 / 3 chars of corp, but wrong scopes"""
-        mock_get_corp_by_id.return_value = EveCorporationInfo(
+        mock_get_corp_by_id.return_value = EveCorporation(
             **(get_my_test_data()["EveCorporationInfo"]["2001"])
         )
         my_user = AuthUtils.create_user("John Doe")
@@ -677,13 +678,17 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
                     my_user,
                 )
 
-        self.assertFalse(StandingRequest.all_corp_apis_recorded(2001, my_user))
+        self.assertFalse(
+            StandingRequest.can_request_corporation_standing(2001, my_user)
+        )
 
     @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
     @patch(MODULE_PATH + ".EveCorporation.get_by_id")
-    def test_all_corp_apis_recorded_good_another_user(self, mock_get_corp_by_id):
+    def test_can_request_corporation_standing_good_another_user(
+        self, mock_get_corp_by_id
+    ):
         """there are tokens for all 3 chars of corp, but for another user"""
-        mock_get_corp_by_id.return_value = EveCorporationInfo(
+        mock_get_corp_by_id.return_value = EveCorporation(
             **get_my_test_data()["EveCorporationInfo"]["2001"]
         )
         user_1 = AuthUtils.create_user("John Doe")
@@ -700,7 +705,7 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
                     user_1,
                 )
 
-        self.assertFalse(StandingRequest.all_corp_apis_recorded(2001, user_2))
+        self.assertFalse(StandingRequest.can_request_corporation_standing(2001, user_2))
 
 
 class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):

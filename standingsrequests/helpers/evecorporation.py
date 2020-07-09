@@ -2,8 +2,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 from bravado.exception import HTTPError
 
+from django.contrib.auth.models import User
 from django.core.cache import cache
 
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.services.hooks import get_extension_logger
 
@@ -25,7 +27,7 @@ class EveCorporation:
         self.corporation_id = int(kwargs.get("corporation_id"))
         self.corporation_name = kwargs.get("corporation_name")
         self.ticker = kwargs.get("ticker")
-        self.member_count = kwargs.get("member_count")
+        self.member_count = kwargs["member_count"]
         self.ceo_id = kwargs.get("ceo_id")
         self.alliance_id = kwargs.get("alliance_id")
         self.alliance_name = kwargs.get("alliance_name")
@@ -50,12 +52,40 @@ class EveCorporation:
         """returns true if this corporation is an NPC, else false"""
         return self.corporation_is_npc(self.corporation_id)
 
+    @staticmethod
+    def corporation_is_npc(corporation_id: int) -> bool:
+        """returns true if this corporation is an NPC, else false"""
+        return 1000000 <= corporation_id <= 2000000
+
     def logo_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
         return eveimageserver.corporation_logo_url(self.corporation_id, size)
 
-    @staticmethod
-    def corporation_is_npc(corporation_id) -> bool:
-        return 1000000 <= corporation_id <= 2000000
+    def member_tokens_count_for_user(self, user: User) -> int:
+        """returns the number of character tokens the given user owns 
+        for this corporation
+        """
+        from ..models import StandingRequest
+
+        return sum(
+            [
+                1
+                for character in EveCharacter.objects.filter(
+                    character_ownership__user=user
+                )
+                .select_related("character_ownership__user__profile__state")
+                .filter(corporation_id=self.corporation_id)
+                if StandingRequest.has_required_scopes_for_request(character, user)
+            ]
+        )
+
+    def user_has_all_member_tokens(self, user: User) -> bool:
+        """returns True if given user owns same amount of token than there are 
+        member characters in this corporation, else False
+        """
+        return (
+            self.member_count is not None
+            and self.member_tokens_count_for_user(user) >= self.member_count
+        )
 
     @classmethod
     def get_by_id(cls, corporation_id: int, ignore_cache: bool = False) -> object:

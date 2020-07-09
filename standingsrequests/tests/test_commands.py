@@ -8,7 +8,7 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
 from . import add_character_to_user
-from ..models import StandingRequest, CharacterContact
+from ..models import StandingRequest
 from .my_test_data import (
     create_standings_char,
     create_entity,

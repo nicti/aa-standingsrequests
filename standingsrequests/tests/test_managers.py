@@ -288,7 +288,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1003))
 
 
-@patch(MODULE_PATH_MODELS + ".StandingRequest.all_corp_apis_recorded")
+@patch(MODULE_PATH_MODELS + ".StandingRequest.can_request_corporation_standing")
 class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -299,7 +299,9 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     def setUp(self):
         StandingRequest.objects.all().delete()
 
-    def test_do_nothing_character_request_is_valid(self, mock_all_corp_apis_recorded):
+    def test_do_nothing_character_request_is_valid(
+        self, mock_can_request_corporation_standing
+    ):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
@@ -311,7 +313,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self.assertTrue(StandingRequest.objects.filter(pk=request.pk).exists())
 
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
-        self, mock_all_corp_apis_recorded
+        self, mock_can_request_corporation_standing
     ):
         StandingRequest.objects.add_request(
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
@@ -320,9 +322,9 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self.assertTrue(StandingRevocation.objects.filter(contact_id=1002).exists())
 
     def test_create_revocation_if_users_corporation_is_missing_apis(
-        self, mock_all_corp_apis_recorded
+        self, mock_can_request_corporation_standing
     ):
-        mock_all_corp_apis_recorded.return_value = False
+        mock_can_request_corporation_standing.return_value = False
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
@@ -334,9 +336,9 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self.assertTrue(StandingRevocation.objects.filter(contact_id=2001).exists())
 
     def test_keep_corp_standing_request_if_all_apis_recorded(
-        self, mock_all_corp_apis_recorded
+        self, mock_can_request_corporation_standing
     ):
-        mock_all_corp_apis_recorded.return_value = True
+        mock_can_request_corporation_standing.return_value = True
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )

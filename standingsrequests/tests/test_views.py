@@ -130,7 +130,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_update_all.delay.called)
 
 
-@patch(MODULE_PATH + ".cache")
+@patch(MODULE_PATH + ".cache_get_or_set_character_standings_data")
 class TestViewPilotStandingsJson(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -156,11 +156,11 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
     def setUp(self):
         pass
 
-    def test_normal(self, mock_cache):
-        def my_cache_get_or_set(key, func, timeout):
+    def test_normal(self, mock_cache_get_or_set_character_standings_data):
+        def my_cache_get_or_set(func):
             return func()
 
-        mock_cache.get_or_set.side_effect = my_cache_get_or_set
+        mock_cache_get_or_set_character_standings_data.side_effect = my_cache_get_or_set
         request = self.factory.get(reverse("standingsrequests:view_auth_page"))
         request.user = self.user
         response = views.view_pilots_standings_json(request)

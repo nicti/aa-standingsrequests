@@ -373,7 +373,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
             elif CorporationContact.is_corporation(
                 standing_request.contact_type_id
-            ) and not self.model.all_corp_apis_recorded(
+            ) and not self.model.can_request_corporation_standing(
                 standing_request.contact_id, standing_request.user
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
@@ -514,7 +514,7 @@ class CharacterAssociationManager(models.Manager):
                     else None
                 )
 
-            assoc, _ = self.update_or_create(
+            self.update_or_create(
                 character_id=character.character_id,
                 defaults={
                     "corporation_id": character.corporation_id,
