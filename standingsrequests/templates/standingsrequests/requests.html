@@ -14,9 +14,9 @@
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
-                {% trans "Accepted Requests" %} ({{requests_count|default:"-"}})
+                {% trans "Effective Requests" %} ({{requests_count|default:"-"}})
             </h2>
-            <p>All effective standings for <strong>{{organization.name}}</strong></p>
+            <p>All effective standing requests for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
                 
                 <div id="div_spinner" class="row">                    
@@ -67,8 +67,8 @@
                                     <span ng-bind="contact.action_by" ng-show="contact.actioned"></span>
                                 </td>                                
                                 <td>                                    
-                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject">
-                                        <i class="fas fa-trash-alt"></i>
+                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Revoke standing of this contact">                                        
+                                        Revoke
                                     </button>
                                 </td>
                             </tr>

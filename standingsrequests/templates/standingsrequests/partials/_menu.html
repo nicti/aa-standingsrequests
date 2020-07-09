@@ -23,16 +23,16 @@
                     <a href="{% url 'standingsrequests:manage' %}">{% trans "Manage Requests" %}</a>
                 </li>
                 <li class="{% navactive request 'standingsrequests:view_requests' %}">
-                    <a href="{% url 'standingsrequests:view_requests' %}">{% trans "Accepted Requests" %}</a>
+                    <a href="{% url 'standingsrequests:view_requests' %}">{% trans "Effective Requests" %}</a>
                 </li>
                 {% endif %}
                 
                 {% if perms.standingsrequests.view %}
                 <li class="{% navactive request 'standingsrequests:view_pilots' %}">
-                    <a href="{% url 'standingsrequests:view_pilots' %}">{% trans "Effective Character Standings" %}</a>
+                    <a href="{% url 'standingsrequests:view_pilots' %}">{% trans "Character Standings" %}</a>
                 </li>
                 <li class="{% navactive request 'standingsrequests:view_groups' %}">
-                    <a href="{% url 'standingsrequests:view_groups' %}">{% trans "Effective Group Standings" %}</a>
+                    <a href="{% url 'standingsrequests:view_groups' %}">{% trans "Group Standings" %}</a>
                 </li>
                 {% endif %}               
             </ul>

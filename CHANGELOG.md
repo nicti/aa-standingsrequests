@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 This release is a big overhaul with many changes including new functionality and changes to the UI.
 
+IMPORTANT: Please make sure you do not have any pending standing requests or standing revocations before updating to this version (e.g. manage requests page should be empty.)
+
 ### Added
 
 - You can now also define a corporation as standings source

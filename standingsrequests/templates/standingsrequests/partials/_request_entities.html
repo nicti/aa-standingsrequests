@@ -74,8 +74,9 @@
                                                 <a 
                                                     class="btn btn-warning" 
                                                     role="button" 
-                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fas fa-times fa-fw" title="Cancel Request"></i>
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Cancel Request">
+                                                    Cancel
                                                 </a>
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
@@ -83,15 +84,17 @@
                                                 <a 
                                                     class="btn btn-primary"
                                                     role="button"
-                                                    href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fas fa-plus fa-fw" title="Request standing"></i>
+                                                    href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Request to get standing for this character">                                                    
+                                                    &nbsp;Apply&nbsp;
                                                 </a>
                                             {% else %}
                                                 <a 
                                                     class="btn btn-danger" 
-                                                    role="button" 
-                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fas fa-trash-alt fa-fw" title="Standing exists. Click here to revoke it."></i>
+                                                    role="button"                                                     
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Request to revoke standing for this character">
+                                                    Revoke
                                                 </a>
                                             {% endif %}
                                         </span>
@@ -163,8 +166,9 @@
                                                     <a 
                                                         class="btn btn-warning" 
                                                         role="button" 
-                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                        <i class="fas fa-times" title="Cancel Request"></i>
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                        title="Cancel Request">
+                                                        Cancel
                                                     </a>
                                                 {% elif st.pendingRevocation == True %}
                                                     <!-- Revoked, No actions -->
@@ -173,8 +177,9 @@
                                                         <a 
                                                             class="btn btn-priamry" 
                                                             role="button" 
-                                                            href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                            <i class="fa-plus" title="Request standing"></i>
+                                                            href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                            title="Request to get standing for this corporation">              
+                                                            &nbsp;Apply&nbsp;
                                                         </a>
                                                     {% else %}
                                                         <i class="fas fa-info-circle text-info" title="{% trans 'More keys required to request standings' %}"></i>
@@ -183,8 +188,9 @@
                                                     <a 
                                                         class="btn btn-danger" 
                                                         role="button" 
-                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                        <i class="fas fa-trash-alt" title="Standing exists. Click here to revoke it."></i>
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                        title="Request to revoke standing for this corporation">
+                                                        Revoke
                                                     </a>
                                                 {% endif %}
                                             </span>

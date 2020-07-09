@@ -1,4 +1,5 @@
 from datetime import timedelta
+import json
 from unittest.mock import patch
 
 from django.core.cache import cache
@@ -140,6 +141,12 @@ class TestMainUseCases(TestCase):
 
         self.contact_set.refresh_from_db()
 
+    def _parse_json_response(self, response):
+        return {
+            row["contact_id"]: row
+            for row in json.loads(response.content.decode(response.charset))
+        }
+
     def _setup_mocks(self, mock_esi_client):
         mock_Corporation = mock_esi_client.return_value.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
@@ -192,6 +199,16 @@ class TestMainUseCases(TestCase):
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
+
+        # make sure standing request is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_requests_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_requests_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_1)
@@ -250,6 +267,16 @@ class TestMainUseCases(TestCase):
         self.assertEqual(my_request.user, self.user_requestor)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+
+        # make sure revocation is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_revocations_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_1)
@@ -311,6 +338,16 @@ class TestMainUseCases(TestCase):
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
+        # make sure standing request is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_requests_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_requests_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_corporation)
         request = self.factory.put(
@@ -369,6 +406,16 @@ class TestMainUseCases(TestCase):
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
 
+        # make sure revocation is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_revocations_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_corporation)
         request = self.factory.put(
@@ -425,6 +472,16 @@ class TestMainUseCases(TestCase):
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
+        # make sure standing request is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_requests_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_requests_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
         # Manage refused request
         request = self.factory.delete(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
@@ -477,6 +534,16 @@ class TestMainUseCases(TestCase):
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
+
+        # make sure standing request is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_requests_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_requests_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         request = self.factory.delete(
@@ -555,3 +622,56 @@ class TestMainUseCases(TestCase):
         my_request = StandingRequest.objects.get(contact_id=self.alt_1.character_id)
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
+
+    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+    @patch("standingsrequests.helpers.esi_fetch._esi_client")
+    def test_manager_revokes_standing_for_character(self, mock_esi_client):
+        """
+        given user's alt has standing and user has permission
+        when manager revokes that standing
+        then alt's standing is removed and user gets change notification
+        """
+        """
+        # setup
+        self._setup_mocks(mock_esi_client)
+        alt_id = self.alt_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_1)
+        my_request = self._create_standing_for_alt(self.alt_1)
+
+        # make sure standing for alt is visible to manager
+        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
+        request.user = self.user_manager
+        response = views.view_requests_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
+        # manager request standing to be revoked
+
+        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
+        self.assertFalse(my_revocation.is_effective)
+
+        # make sure revocation is visible to manager
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_revocations_json(request)
+        self.assertEqual(response.status_code, 200)
+        data = self._parse_json_response(response)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
+        # remove standing for alt in game and mark as actioned
+        self._remove_standing_for_alt_in_game(self.alt_1)
+
+        request = self.factory.put(
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+        )
+        request.user = self.user_manager
+        response = views.manage_revocations_write(request, alt_id)
+        self.assertEqual(response.status_code, 204)
+        my_revocation.refresh_from_db()
+        self.assertEqual(my_revocation.action_by, self.user_manager)
+        self.assertIsNotNone(my_revocation.action_date)
+        self.assertFalse(my_revocation.is_effective)
+        """
