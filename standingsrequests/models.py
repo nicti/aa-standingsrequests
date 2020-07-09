@@ -84,14 +84,42 @@ class ContactSet(models.Model):
 
         return standing
 
-    def has_character_standing(self, contact_id: int) -> bool:
-        """Return True if give character has standing, else False"""
-        try:
-            character = self.charactercontact_set.get(contact_id=contact_id)
-        except CharacterContact.DoesNotExist:
-            return False
+    def character_has_satisfied_standing(self, contact_id: int) -> bool:
+        return self.contact_has_satisfied_standing(
+            contact_id, CharacterContact.get_contact_type_id()
+        )
+
+    def corporation_has_satisfied_standing(self, contact_id: int) -> bool:
+        return self.contact_has_satisfied_standing(
+            contact_id, CorporationContact.get_contact_type_id()
+        )
+
+    def contact_has_satisfied_standing(
+        self, contact_id: int, contact_type_id: int
+    ) -> bool:
+        """Return True if give contact has standing exists"""
+        if contact_type_id in CharacterContact.contact_type_ids:
+            try:
+                contact = self.charactercontact_set.get(contact_id=contact_id)
+            except CharacterContact.DoesNotExist:
+                return False
+
+        elif contact_type_id in CorporationContact.contact_type_ids:
+            try:
+                contact = self.charactercontact_set.get(contact_id=contact_id)
+            except CorporationContact.DoesNotExist:
+                return False
+
+        elif contact_type_id in AllianceContact.contact_type_ids:
+            try:
+                contact = self.alliancecontact_set.get(contact_id=contact_id)
+            except CorporationContact.DoesNotExist:
+                return False
+
         else:
-            return character.standing >= StandingRequest.EXPECT_STANDING_GTEQ
+            raise ValueError("Invalid contact type ID: %s", contact_type_id)
+
+        return StandingRequest.is_standing_satisfied(contact.standing)
 
     @staticmethod
     def get_class_for_contact_type(contact_type_id):
@@ -101,7 +129,7 @@ class ContactSet(models.Model):
             return CorporationContact
         elif contact_type_id in AllianceContact.contact_type_ids:
             return AllianceContact
-        raise NotImplementedError()
+        raise ValueError("Invalid contact type ID: %s", contact_type_id)
 
     @classmethod
     def is_character_in_organisation(cls, character_id: int) -> bool:
@@ -205,7 +233,7 @@ class ContactSet(models.Model):
                     contact_id=alt.character_id
                 ).exists()
                 and StandingRequest.has_required_scopes_for_request(alt)
-                and self.has_character_standing(alt.character_id)
+                and self.character_has_satisfied_standing(alt.character_id)
                 and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
                 sr = StandingRequest.objects.add_request(
@@ -557,14 +585,19 @@ class AbstractStandingsRequest(models.Model):
 
 
 class StandingRequest(AbstractStandingsRequest):
-    """when not effective: A change request to get standing for an alt or corporation
+    """A change request to get standing for a character or corporation
     
-    when effective: record representing that a character or corporation currently 
-    has standing     
+    OR a record representing that a character or corporation currently has standing     
+    
+    Standing Requests (SR) can have one of 3 states:
+    - new: Newly created SRs represent a new request from a user. They are not actioned and not effective
+    - actionied: A standing manager marks a SR as actionied, once he has set the new standing in-game
+    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.    
     """
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
     EXPECT_STANDING_GTEQ = 0.01
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     objects = StandingsRequestManager()
 

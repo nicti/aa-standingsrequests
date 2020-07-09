@@ -389,6 +389,107 @@ class TestMainUseCases(TestCase):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+    @patch("standingsrequests.helpers.esi_fetch._esi_client")
+    def test_user_requests_standing_for_his_alt_character_but_refused(
+        self, mock_esi_client
+    ):
+        """
+        given user has permission and user's alt has no standing
+        when user requests standing and request is refused by manager
+        then request is reset, alt has no standing and user gets notification
+        """
+        # setup
+        self._setup_mocks(mock_esi_client)
+        alt_id = self.alt_1.character_id
+
+        # user opens create requests page
+        request = self.factory.get(reverse("standingsrequests:request_entities"))
+        request.user = self.user_requestor
+        response = views.partial_request_entities(request)
+        self.assertEqual(response.status_code, 200)
+
+        # make sure link for requesting standing is shown to user
+        request_standing_url = reverse(
+            "standingsrequests:request_pilot_standing", args=[alt_id],
+        )
+        self.assertIn(request_standing_url, response.content.decode("utf8"))
+
+        # user requests standing for alt
+        request = self.factory.get(request_standing_url)
+        request.user = self.user_requestor
+        response = views.request_pilot_standing(request, alt_id)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        my_request = StandingRequest.objects.get(contact_id=alt_id)
+        self.assertFalse(my_request.is_effective)
+        self.assertEqual(my_request.user, self.user_requestor)
+
+        # Manage refused request
+        request = self.factory.delete(
+            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+        )
+        request.user = self.user_manager
+        response = views.manage_requests_write(request, alt_id)
+        self.assertEqual(response.status_code, 204)
+
+        # validate results
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+
+    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+    @patch("standingsrequests.helpers.esi_fetch._esi_client")
+    def test_user_requests_standing_for_his_alt_corporation_but_refused(
+        self, mock_esi_client
+    ):
+        """
+        given user has permission and user's alt has no standing
+        and all corporation members have tokens
+        when user requests standing and request is actioned by manager
+        then alt has standing and user gets change notification
+        """
+
+        # setup
+        self._setup_mocks(mock_esi_client)
+        alt_id = self.alt_corporation.corporation_id
+        add_character_to_user(
+            self.user_requestor, self.alt_2, scopes=[TEST_SCOPE],
+        )
+
+        # user opens create requests page
+        request = self.factory.get(reverse("standingsrequests:request_entities"))
+        request.user = self.user_requestor
+        response = views.partial_request_entities(request)
+        self.assertEqual(response.status_code, 200)
+
+        # make sure link for requesting standing is shown to user
+        request_standing_url = reverse(
+            "standingsrequests:request_corp_standing", args=[alt_id],
+        )
+        self.assertIn(request_standing_url, response.content.decode("utf8"))
+
+        # user requests standing for alt
+        request = self.factory.get(request_standing_url)
+        request.user = self.user_requestor
+        response = views.request_corp_standing(request, alt_id)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        my_request = StandingRequest.objects.get(contact_id=alt_id)
+        self.assertFalse(my_request.is_effective)
+        self.assertEqual(my_request.user, self.user_requestor)
+
+        # Manage refused request
+        request = self.factory.delete(
+            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+        )
+        request.user = self.user_manager
+        response = views.manage_requests_write(request, alt_id)
+        self.assertEqual(response.status_code, 204)
+
+        # validate results
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+
     def test_automatic_standing_revocation_when_standing_is_reset_in_game(self):
         """
         given user's alt has standing and user has permission

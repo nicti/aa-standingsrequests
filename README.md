@@ -132,7 +132,7 @@ Here is a brief explanation of all available settings:
 Name | Description | Default
 -- | -- | --
 `SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations | `True`
-`SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests | `False`
+`SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests and standing changes of their characters | `True`
 `SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
 `SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`

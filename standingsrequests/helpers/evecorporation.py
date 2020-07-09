@@ -99,20 +99,19 @@ class EveCorporation:
         Returns corporation object or None
         """
         logger.debug("Getting corporation by id %d", corporation_id)
-        corporation = cache.get(cls._get_cache_key(corporation_id))
+        my_cache_key = cls._get_cache_key(corporation_id)
+        corporation = cache.get(my_cache_key)
         if corporation is None or ignore_cache:
             logger.debug("Corp not in cache or ignoring cache, fetching")
             corporation = cls.fetch_corporation_from_api(corporation_id)
             if corporation is not None:
-                cache.set(
-                    cls._get_cache_key(corporation_id), corporation, cls.CACHE_TIME
-                )
+                cache.set(my_cache_key, corporation, cls.CACHE_TIME)
         else:
-            logger.debug("Corp in cache")
+            logger.debug("Retreving corporation %s from cache", corporation_id)
         return corporation
 
     @classmethod
-    def _get_cache_key(cls, corporation_id):
+    def _get_cache_key(cls, corporation_id: int) -> str:
         return cls.CACHE_PREFIX + str(corporation_id)
 
     @classmethod
@@ -153,24 +152,31 @@ class EveCorporation:
         return EveCorporation.get_by_id(corporation_id)
 
     @classmethod
-    def get_by_ids(cls, corporation_ids: list) -> list:
-        """Returns multiple corporations from given IDs
+    def get_many_by_id(cls, corporation_ids: list) -> list:
+        """Returns multiple corporations by ID
         
         Fetches requested corporations from cache or API as needed. 
         Uses threads to fetch them in parallel.
         """
-        _esi_client()  # make sure client is loaded before starting threads
-        logger.info(
-            "Starting to fetch the %d corporations from ESI with up to %d workers",
-            len(corporation_ids),
-            MAX_WORKERS,
-        )
-        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-            futures = [
-                executor.submit(cls.thread_fetch_corporation, corporation_id)
-                for corporation_id in corporation_ids
-            ]
-            logger.info("Waiting for all threads fetching corporations to complete...")
+        if len(corporation_ids) == 0:
+            return []
+        else:
+            _esi_client()  # make sure client is loaded before starting threads
+            logger.info(
+                "Starting to fetch the %d corporations from ESI with up to %d workers",
+                len(corporation_ids),
+                MAX_WORKERS,
+            )
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                futures = [
+                    executor.submit(cls.thread_fetch_corporation, corporation_id)
+                    for corporation_id in corporation_ids
+                ]
+                logger.info(
+                    "Waiting for all threads fetching corporations to complete..."
+                )
 
-        logger.info("Completed fetching %d corporations from ESI", len(corporation_ids))
-        return [f.result() for f in futures]
+            logger.info(
+                "Completed fetching %d corporations from ESI", len(corporation_ids)
+            )
+            return [f.result() for f in futures]

@@ -9,33 +9,36 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.5.0] - alpha, tbd
 
+This release is a big overhaul with many changes including new functionality and changes to the UI.
+
 ### Added
 
-- You can also use a corporation as standings source
-- Standings requests can be automatically created for existing alts with standing in game (deactivated by default)
-- User are notified once their standing request is effective (deactivated off by default)
-- Standing organization shown on the request page
-- Added eve entity icons to most views
-- New management command to automatically create requests from already existing blues
+- You can now also define a corporation as standings source
+- It is no longer required to create standing requests for characters that already have standing in game and that fullfil all requirements. This wil be done automatically.
+- User are now always notified when their standings change, e.g. once their standing request becomes effective or in case it gets revoked. (can be deactivated)
+- Standing organization is now shown on the "create request" page
+- Added icons for character, corporations and alliances to most pages
+- Corporations on groups page now also show to which alliance they belong
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - Added new tests and improved existing tests
 - Added support for django-esi 2.x and backwards compatibility for 1.x
-- Corporations on groups page now also show to which alliance they belong
 
 ### Changed
 
+- User's main no longer has to be outside the main organization to be allowed to request standing for an alt corporation ([#7](https://gitlab.com/basraah/standingsrequests/issues/7))
 - UI improvements
-- Significant performance improvements
-- Icons upgraded to Font Awesome v5
-- Logging directed to extensions logger
-- App will wait a grace period before resetting previous effective standings
+- Performance improvements
+- Removed undo feature for revocation
+- IDs in settings can now also be integers
 - Timeout before actioned standings are reset can now be configured via setting
 - Improved maintainability (refactored database and code structure)
-- Reduced load time for view_pilots view
+- Icons upgraded to Font Awesome v5
+- Logging directed to extensions logger
 - Fix tests for new Auth version
-- Removed undo feature for revocation
-- IDs in settings can not also be integers
-- user's main no longer has to be outside alliance to request standing for his alts corporation ([#7](https://gitlab.com/basraah/standingsrequests/issues/7))
+
+### Fixes
+
+- Numerous bugfixes
 
 ## [0.4.1] - 2020-05-28
 

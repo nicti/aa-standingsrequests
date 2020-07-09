@@ -4,7 +4,7 @@ from unittest.mock import patch, Mock
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
 
@@ -34,6 +34,7 @@ from .. import views
 
 MODULE_PATH = "standingsrequests.views"
 MODULE_PATH_MODELS = "standingsrequests.models"
+MODULE_PATH_MANAGERS = "standingsrequests.managers"
 logger = set_test_logger(MODULE_PATH, __file__)
 
 TEST_SCOPE = "publicData"
@@ -236,7 +237,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         # print(data)
 
 
-class TestViewStandingRequestsBase(NoSocketsTestCase):
+class TestViewPagesBase(TestCase):
     """Base TestClass for all tests that deal with standing requests
     
     Defines common test data
@@ -255,7 +256,7 @@ class TestViewStandingRequestsBase(NoSocketsTestCase):
         perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
         member_state.permissions.add(perm)
 
-        # Requesting user
+        # Requesting user - can only make requests
         cls.main_1 = EveCharacter.objects.get(character_id=1002)
         cls.user_requestor = AuthUtils.create_member(cls.main_1.character_name)
         add_character_to_user(
@@ -266,7 +267,7 @@ class TestViewStandingRequestsBase(NoSocketsTestCase):
             cls.user_requestor, cls.alt_1, scopes=[TEST_SCOPE],
         )
 
-        # Standing manager
+        # Standing manager - can do everything
         cls.main_2 = EveCharacter.objects.get(character_id=1001)
         cls.user_manager = AuthUtils.create_member(cls.main_2.character_name)
         add_character_to_user(
@@ -274,6 +275,9 @@ class TestViewStandingRequestsBase(NoSocketsTestCase):
         )
         AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
+        )
+        AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.view", cls.user_manager
         )
         cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
@@ -295,8 +299,54 @@ class TestViewStandingRequestsBase(NoSocketsTestCase):
         )
 
 
+@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+@patch("standingsrequests.helpers.esi_fetch._esi_client")
+class TestViewsBasics(TestViewPagesBase):
+    def _setup_mocks(self, mock_esi_client):
+        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
+
+    def test_user_can_open_index(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:index"))
+        request.user = self.user_requestor
+        response = views.index_view(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_user_can_open_pilots_standing(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:view_pilots"))
+        request.user = self.user_manager
+        response = views.view_pilots_standings(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_user_can_open_groups_standing(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:view_groups"))
+        request.user = self.user_manager
+        response = views.view_groups_standings(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_user_can_open_manage_requests(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:manage"))
+        request.user = self.user_manager
+        response = views.manage_standings(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_user_can_open_accepted_requests(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:view_requests"))
+        request.user = self.user_manager
+        response = views.view_active_requests(request)
+        self.assertEqual(response.status_code, 200)
+
+
 @patch(MODULE_PATH + ".messages_plus")
-class TestRequestStanding(TestViewStandingRequestsBase):
+class TestRequestStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
             reverse("standingsrequests:request_pilot_standing", args=[character_id],)
@@ -346,7 +396,7 @@ class TestRequestStanding(TestViewStandingRequestsBase):
 
 
 @patch(MODULE_PATH + ".messages_plus")
-class TestRemovePilotStanding(TestViewStandingRequestsBase):
+class TestRemovePilotStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
             reverse("standingsrequests:remove_pilot_standing", args=[character_id],)
@@ -426,7 +476,7 @@ class TestRemovePilotStanding(TestViewStandingRequestsBase):
 @patch("standingsrequests.helpers.evecorporation.cache")
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-class TestViewManageRequestsJson(TestViewStandingRequestsBase):
+class TestViewManageRequestsJson(TestViewPagesBase):
     def test_request_character(self, mock_esi_client, mock_cache):
         # setup
         mock_Corporation = mock_esi_client.return_value.Corporation
@@ -545,7 +595,7 @@ class TestViewManageRequestsJson(TestViewStandingRequestsBase):
 @patch("standingsrequests.helpers.evecorporation.cache")
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-class TestViewManageRevocationsJson(TestViewStandingRequestsBase):
+class TestViewManageRevocationsJson(TestViewPagesBase):
     def test_revoke_character(self, mock_esi_client, mock_cache):
         # setup
         alt_id = self.alt_1.character_id
@@ -660,7 +710,7 @@ class TestViewManageRevocationsJson(TestViewStandingRequestsBase):
 @patch("standingsrequests.helpers.evecorporation.cache")
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-class TestViewActiveRequestsJson(TestViewStandingRequestsBase):
+class TestViewActiveRequestsJson(TestViewPagesBase):
     def test_request_character(self, mock_esi_client, mock_cache):
         # setup
         alt_id = self.alt_1.character_id
@@ -757,31 +807,3 @@ class TestViewActiveRequestsJson(TestViewStandingRequestsBase):
             "action_by": self.user_manager.username,
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
-
-    """
-    def test_only_wanted_requests_shown(self):
-        # setup
-        alt_id = self.alt_1.character_id
-        self._create_standing_for_alt(alt_id, CHARACTER_TYPE_ID)
-        
-        StandingRequest.objects.add_request(
-            1002, StandingRequest.CHARACTER_CONTACT_TYPE
-        )
-        StandingRequest.objects.add_request(
-            1002, CharacterContact.get_contact_type_id()
-        )
-
-        # make request
-        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
-        request.user = self.user_manager
-        response = views.view_requests_json(request)
-
-        # validate
-        self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
-        expected = {alt_id}
-        self.assertSetEqual(set(data.keys()), expected)
-    """

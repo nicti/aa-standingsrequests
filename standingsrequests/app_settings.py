@@ -9,7 +9,7 @@ SR_CORPORATIONS_ENABLED = clean_setting("SR_CORPORATIONS_ENABLED", True)
 SR_ESI_TIMEOUT_ENABLED = clean_setting("SR_ESI_TIMEOUT_ENABLED", True)
 
 # Send notifications to users about the results of standings requests
-SR_NOTIFICATIONS_ENABLED = clean_setting("SR_NOTIFICATIONS_ENABLED", False)
+SR_NOTIFICATIONS_ENABLED = clean_setting("SR_NOTIFICATIONS_ENABLED", True)
 
 # Automatically create accepted standings requests for
 # alt characters on Auth that already have blue standing in-game
