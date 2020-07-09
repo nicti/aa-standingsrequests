@@ -208,7 +208,6 @@ class AbstractStandingsRequestManager(models.Manager):
         from .models import (
             ContactSet,
             EveEntity,
-            CharacterContact,
             StandingRequest,
             StandingRevocation,
             AbstractStandingsRequest,
@@ -220,54 +219,50 @@ class AbstractStandingsRequestManager(models.Manager):
         organization = ContactSet.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
-            character_name = EveEntity.objects.get_name(standing_request.contact_id)
+            contact = EveEntity.objects.get_object(standing_request.contact_id)
             is_currently_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.process_standing()
-            if (
-                is_satisfied_standing
-                and standing_request.contact_type_id
-                in CharacterContact.contact_type_ids
-            ):
-                if SR_NOTIFICATIONS_ENABLED and not is_currently_effective:
+            if is_satisfied_standing and not is_currently_effective:
+                if SR_NOTIFICATIONS_ENABLED:
+                    # send notification to user about standing change if enabled
                     if type(standing_request) == StandingRequest:
-                        # Request, send a notification
                         notify(
                             user=standing_request.user,
                             title=_(
-                                "%s: Standing for %s now in effect"
-                                % (__title__, character_name)
+                                "%s: Standing with %s now in effect"
+                                % (__title__, contact.name)
                             ),
                             message=_(
-                                "'%s' now has blue standing with your "
-                                "character '%s'. Please also update "
-                                "the standing of your character accordingly."
+                                "'%(organization_name)s' now has blue standing with "
+                                "your alt %(contact_category)s '%(contact_name)s'. "
+                                "Please also update the standing of "
+                                "your %(contact_category)s accordingly."
                             )
-                            % (organization_name, character_name),
+                            % {
+                                "organization_name": organization_name,
+                                "contact_category": contact.category,
+                                "contact_name": contact.name,
+                            },
                         )
                     elif type(standing_request) == StandingRevocation:
-                        # Revocation. Try and send a notification to use
-                        # (user or character may be deleted)
-                        try:
-                            character = EveCharacter.objects.get(
-                                character_id=standing_request.contact_id
-                            )
-                        except EveCharacter.DoesNotExist:
-                            pass
-                        else:
-                            try:
-                                notify(
-                                    user=character.character_ownership.user,
-                                    title="%s: Standing for %s revoked"
-                                    % (__title__, character_name),
-                                    message=_(
-                                        "'%s' has no longer blue standing with your "
-                                        "character '%s'. Please also update "
-                                        "the standing of your character accordingly."
-                                    )
-                                    % (organization_name, character_name),
+                        if standing_request.user:
+                            notify(
+                                user=standing_request.user,
+                                title="%s: Standing with %s revoked"
+                                % (__title__, contact.name),
+                                message=_(
+                                    "'%(organization_name)s' no longer has "
+                                    "standing with your "
+                                    "%(contact_category)s '%(contact_name)s'. "
+                                    "Please also update the standing of "
+                                    "your %(contact_category)s accordingly."
                                 )
-                            except AttributeError:
-                                pass
+                                % {
+                                    "organization_name": organization_name,
+                                    "contact_category": contact.category,
+                                    "contact_name": contact.name,
+                                },
+                            )
 
                 # if this was a revocation the standing requests need to be remove
                 # to indicate that this character no longer has standing
@@ -285,9 +280,7 @@ class AbstractStandingsRequestManager(models.Manager):
                 pass
 
             elif not is_satisfied_standing and is_currently_effective:
-                # Standing is not effective, but has previously
-                # been marked as effective.
-                # Unset effective
+                # Effective standing no longer effective
                 logger.info(
                     "Standing for %d is marked as effective but is not "
                     "satisfied in game. Deleting." % standing_request.contact_id
@@ -304,12 +297,17 @@ class AbstractStandingsRequestManager(models.Manager):
                         "and will be reset" % standing_request.contact_id
                     )
                     if SR_NOTIFICATIONS_ENABLED:
-                        title = _("Standing request reset for %s" % character_name)
+                        title = _("Standing Request for %s reset" % contact.name)
                         message = _(
-                            "The standings request for character '%s' from user "
-                            "'%s' has been reset as it did not appear in "
+                            "The standing request for %(contact_category)s "
+                            "'%(contact_name)s' from %(user_name)s "
+                            "has been reset as it did not appear in "
                             "game before the timeout period expired."
-                            % (character_name, standing_request.user)
+                            % {
+                                "contact_category": contact.category,
+                                "contact_name": contact.name,
+                                "user_name": standing_request.user.username,
+                            },
                         )
                         # Notify standing manager
                         notify(user=actioned_timeout, title=title, message=message)
@@ -715,6 +713,10 @@ class EveEntityManager(models.Manager):
 
         names_info = self.get_names([entity_id])
         return names_info[entity_id] if entity_id in names_info else None
+
+    def get_object(self, entity_id: int) -> object:
+        self.get_name(entity_id)
+        return self.get(entity_id=entity_id)
 
     def update_name(self, entity_id, name, category=None):
         self.update_or_create(

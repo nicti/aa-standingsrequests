@@ -71,17 +71,26 @@
                                             {% if std.inOrganisation == True %}
                                                 <!-- Already in organisation, No actions -->
                                             {% elif std.pendingRequest == True or std.requestActioned == True %}
-                                                <a class="btn btn-warning" role="button" href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                <a 
+                                                    class="btn btn-warning" 
+                                                    role="button" 
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fas fa-times fa-fw" title="Cancel Request"></i>
                                                 </a>
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
                                             {% elif not std.hasStanding %}
-                                                <a class="btn btn-primary" role="button" href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
+                                                <a 
+                                                    class="btn btn-primary"
+                                                    role="button"
+                                                    href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fas fa-plus fa-fw" title="Request standing"></i>
                                                 </a>
                                             {% else %}
-                                                <a class="btn btn-danger" role="button" href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
+                                                <a 
+                                                    class="btn btn-danger" 
+                                                    role="button" 
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
                                                     <i class="fas fa-trash-alt fa-fw" title="Standing exists. Click here to revoke it."></i>
                                                 </a>
                                             {% endif %}
@@ -151,21 +160,30 @@
                                         <p>
                                             <span style="font-size:2em;">
                                                 {% if st.pendingRequest == True or st.requestActioned == True %}
-                                                    <a class="btn btn-warning" role="button" href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    <a 
+                                                        class="btn btn-warning" 
+                                                        role="button" 
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
                                                         <i class="fas fa-times" title="Cancel Request"></i>
                                                     </a>
                                                 {% elif st.pendingRevocation == True %}
                                                     <!-- Revoked, No actions -->
                                                 {% elif not st.hasStanding %}
-                                                    {% if st.have_keys >= st.corp.member_count %}
-                                                        <a class="btn btn-priamry" role="button" href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    {% if st.token_count >= st.corp.member_count %}
+                                                        <a 
+                                                            class="btn btn-priamry" 
+                                                            role="button" 
+                                                            href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
                                                             <i class="fa-plus" title="Request standing"></i>
                                                         </a>
                                                     {% else %}
                                                         <i class="fas fa-info-circle text-info" title="{% trans 'More keys required to request standings' %}"></i>
                                                     {% endif %}
                                                 {% else %}
-                                                    <a class="btn btn-danger" role="button" href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
+                                                    <a 
+                                                        class="btn btn-danger" 
+                                                        role="button" 
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
                                                         <i class="fas fa-trash-alt" title="Standing exists. Click here to revoke it."></i>
                                                     </a>
                                                 {% endif %}

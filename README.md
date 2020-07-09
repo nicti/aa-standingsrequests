@@ -160,8 +160,10 @@ These are the requirements to be able to request and maintain blue standings. If
 
 Request Type | Requirements
 -- | --
-Character | • Valid Member-level API key on record. <br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permissions.
-Corporation | • ALL Corporation member API keys recorded in auth.<br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permission.
+Character | • Character has been added to Auth and is owned by the requesting user.<br> • User has the `request_standings` permissions.
+Corporation | • All member characters of the corporation have been added to Auth and are owned by the requesting user<br>• User has the `request_standings` permission.
+
+Note that all characters need to maintain valid tokens in Auth or there standing will automatically be revoked.
 
 ## Manual for Standing Managers
 

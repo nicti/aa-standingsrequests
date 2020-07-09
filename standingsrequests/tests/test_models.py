@@ -692,19 +692,14 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
             **get_my_test_data()["EveCorporationInfo"]["2001"]
         )
         user_1 = AuthUtils.create_user("John Doe")
-        user_2 = AuthUtils.create_user("Mike Myers")
         for character_id, character in get_my_test_data()["EveCharacter"].items():
             if character["corporation_id"] == 2001:
                 my_character = EveCharacter.objects.create(**character)
-                _store_as_Token(
-                    _generate_token(
-                        character_id=my_character.character_id,
-                        character_name=my_character.character_name,
-                        scopes=["publicData"],
-                    ),
-                    user_1,
+                add_character_to_user(
+                    user_1, my_character, scopes=["publicData"],
                 )
 
+        user_2 = AuthUtils.create_user("Mike Myers")
         self.assertFalse(StandingRequest.can_request_corporation_standing(2001, user_2))
 
 

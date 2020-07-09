@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix tests for new Auth version
 - Removed undo feature for revocation
 - IDs in settings can not also be integers
+- user's main no longer has to be outside alliance to request standing for his alts corporation ([#7](https://gitlab.com/basraah/standingsrequests/issues/7))
 
 ## [0.4.1] - 2020-05-28
 

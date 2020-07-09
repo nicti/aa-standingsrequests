@@ -193,7 +193,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertIsNotNone(my_request.effective_date)
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
-        self.assertFalse(mock_notify.called)
+        self.assertTrue(mock_notify.called)
 
     def test_notify_about_requests_that_are_reset_and_timed_out(self, mock_notify):
         StandingRequest.objects.create(

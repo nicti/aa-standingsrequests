@@ -324,7 +324,7 @@ def remove_corp_standing(request, corporation_id):
                 )
             else:
                 logger.debug("No standings exist for corpID %d", corporation_id)
-            logger.debug("Cannot remove standings for pilot %d", corporation_id)
+
     else:
         logger.warning(
             "User %s tried to remove standings for corpID %d but was not permitted",
