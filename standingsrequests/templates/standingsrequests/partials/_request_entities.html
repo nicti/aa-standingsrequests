@@ -166,7 +166,7 @@
                                                     <a 
                                                         class="btn btn-warning" 
                                                         role="button" 
-                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
                                                         title="Cancel Request">
                                                         Cancel
                                                     </a>
@@ -177,7 +177,7 @@
                                                         <a 
                                                             class="btn btn-priamry" 
                                                             role="button" 
-                                                            href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                            href="{% url 'standingsrequests:request_corp_standing' corporation_id=st.corp.corporation_id %}"
                                                             title="Request to get standing for this corporation">              
                                                             &nbsp;Apply&nbsp;
                                                         </a>
@@ -188,7 +188,7 @@
                                                     <a 
                                                         class="btn btn-danger" 
                                                         role="button" 
-                                                        href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}"
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
                                                         title="Request to revoke standing for this corporation">
                                                         Revoke
                                                     </a>

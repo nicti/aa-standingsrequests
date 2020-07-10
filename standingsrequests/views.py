@@ -39,6 +39,28 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 DEFAULT_ICON_SIZE = 32
 
 
+class HttpResponseNoContent(HttpResponse):
+    """
+    Special HTTP response with no content, just headers.
+
+    The content operations are ignored.
+    """
+
+    def __init__(self, content="", mimetype=None, status=None, content_type=None):
+        super().__init__(status=204)
+
+        # although we don't say a content-type, base class sets a
+        # default one -- remove it, we're not returning content
+        if "content-type" in self._headers:
+            del self._headers["content-type"]
+
+    def _set_content(self, value):
+        pass
+
+    def _get_content(self, value):
+        pass
+
+
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def index_view(request):
@@ -106,7 +128,7 @@ def partial_request_entities(request):
 
     corporations_data = list()
     if SR_CORPORATIONS_ENABLED:
-        corp_ids = set(
+        corporation_ids = set(
             eve_characters_qs.exclude(
                 corporation_id__in=ContactSet.corporation_ids_in_organization()
             )
@@ -114,9 +136,9 @@ def partial_request_entities(request):
             .values_list("corporation_id", flat=True)
         )
         corporation_contacts_qs = contact_set.corporationcontact_set.filter(
-            contact_id__in=corp_ids
+            contact_id__in=corporation_ids
         )
-        for corporation in EveCorporation.get_many_by_id(corp_ids):
+        for corporation in EveCorporation.get_many_by_id(corporation_ids):
             if corporation and not corporation.is_npc:
                 try:
                     standing = corporation_contacts_qs.get(
@@ -811,15 +833,15 @@ def manage_requests_write(request, contact_id):
             r.mark_standing_actioned(request.user)
             actioned += 1
         if actioned > 0:
-            return JsonResponse(dict(), status=204)
+            return HttpResponseNoContent()
         else:
             return Http404
     elif request.method == "DELETE":
         StandingRequest.objects.remove_requests(contact_id, request.user)
         # TODO: Error handling
-        return JsonResponse(dict(), status=204)
+        return HttpResponseNoContent()
     else:
-        return Http404
+        return Http404()
 
 
 @login_required
@@ -837,15 +859,15 @@ def manage_revocations_write(request, contact_id):
             r.mark_standing_actioned(request.user)
             actioned += 1
         if actioned > 0:
-            return JsonResponse(dict(), status=204)
+            return HttpResponseNoContent()
         else:
             return Http404
     elif request.method == "DELETE":
         StandingRevocation.objects.filter(contact_id=contact_id).delete()
         # TODO: Error handling
-        return JsonResponse(dict(), status=204)
+        return HttpResponseNoContent()
     else:
-        return Http404
+        return Http404()
 
 
 ###################

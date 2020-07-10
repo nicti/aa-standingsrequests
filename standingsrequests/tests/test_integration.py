@@ -1,10 +1,10 @@
 from datetime import timedelta
-import json
 from unittest.mock import patch
+
+from django_webtest import WebTest
 
 from django.core.cache import cache
 from django.contrib.auth.models import User
-from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
 
@@ -28,7 +28,6 @@ from ..models import (
     CharacterContact,
     CorporationContact,
 )
-from .. import views
 from .. import tasks
 from ..utils import set_test_logger
 
@@ -43,11 +42,13 @@ TEST_SCOPE = "publicData"
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-class TestMainUseCases(TestCase):
+class TestMainUseCases(WebTest):
+
+    csrf_checks = False
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.factory = RequestFactory()
 
         create_standings_char()
         create_eve_objects()
@@ -63,6 +64,7 @@ class TestMainUseCases(TestCase):
         add_character_to_user(
             cls.user_requestor, cls.main_1, is_main=True, scopes=[TEST_SCOPE],
         )
+        cls.member_state.member_characters.add(cls.main_1)
         cls.alt_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
             cls.user_requestor, cls.alt_1, scopes=[TEST_SCOPE],
@@ -71,6 +73,9 @@ class TestMainUseCases(TestCase):
             corporation_id=cls.alt_1.corporation_id
         )
         cls.alt_2 = EveCharacter.objects.get(character_id=1008)
+        add_character_to_user(
+            cls.user_requestor, cls.alt_2, scopes=[TEST_SCOPE],
+        )
 
         # Standing manager
         cls.main_2 = EveCharacter.objects.get(character_id=1001)
@@ -78,10 +83,13 @@ class TestMainUseCases(TestCase):
         add_character_to_user(
             cls.user_manager, cls.main_2, is_main=True, scopes=[TEST_SCOPE],
         )
+        cls.member_state.member_characters.add(cls.main_2)
+        AuthUtils.add_permission_to_user_by_name(
+            StandingRequest.REQUEST_PERMISSION_NAME, cls.user_manager
+        )
         AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
         )
-        cls.member_state.member_characters.add(cls.main_2)
         cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
     @patch(MODULE_PATH_TASKS + ".ContactSet.objects.create_new_from_api")
@@ -142,10 +150,7 @@ class TestMainUseCases(TestCase):
         self.contact_set.refresh_from_db()
 
     def _parse_json_response(self, response):
-        return {
-            row["contact_id"]: row
-            for row in json.loads(response.content.decode(response.charset))
-        }
+        return {row["contact_id"]: row for row in response.json}
 
     def _setup_mocks(self, mock_esi_client):
         mock_Corporation = mock_esi_client.return_value.Corporation
@@ -163,7 +168,11 @@ class TestMainUseCases(TestCase):
         StandingRequest.objects.all().delete()
         StandingRevocation.objects.all().delete()
         Notification.objects.all().delete()
-        self.member_state.member_characters.add(self.main_1)
+
+        # requestor as permission
+        AuthUtils.add_permission_to_user_by_name(
+            StandingRequest.REQUEST_PERMISSION_NAME, self.user_requestor
+        )
         self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
 
     @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
@@ -179,53 +188,56 @@ class TestMainUseCases(TestCase):
         alt_id = self.alt_1.character_id
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for requesting standing is shown to user
+        # user requests standing for alt
         request_standing_url = reverse(
             "standingsrequests:request_pilot_standing", args=[alt_id],
         )
-        self.assertIn(request_standing_url, response.content.decode("utf8"))
-
-        # user requests standing for alt
-        request = self.factory.get(request_standing_url)
-        request.user = self.user_requestor
-        response = views.request_pilot_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
-        # make sure standing request is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_requests_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_1)
-        request = self.factory.put(
+        response = self.app.put(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_requests_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
+
+        # validate new state
         my_request.refresh_from_db()
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
         self.assertFalse(my_request.is_effective)
 
+        # run process standing results task
         self._process_standing_requests()
 
-        # validate results
+        # validate final state
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
@@ -239,7 +251,6 @@ class TestMainUseCases(TestCase):
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
-
         # setup
         self._setup_mocks(mock_esi_client)
         alt_id = self.alt_1.character_id
@@ -247,54 +258,56 @@ class TestMainUseCases(TestCase):
         my_request = self._create_standing_for_alt(self.alt_1)
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for revoking standing is shown to user
-        revoke_standing_url = reverse(
+        # user requests standing for alt
+        request_standing_url = reverse(
             "standingsrequests:remove_pilot_standing", args=[alt_id],
         )
-        self.assertIn(revoke_standing_url, response.content.decode("utf8"))
-
-        # user requests revocation for alt
-        request = self.factory.get(revoke_standing_url)
-        request.user = self.user_requestor
-        response = views.remove_pilot_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
 
-        # make sure revocation is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_revocations_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_1)
-
-        request = self.factory.put(
+        response = self.app.put(
             reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_revocations_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
+
+        # validate new state
         my_revocation.refresh_from_db()
         self.assertEqual(my_revocation.action_by, self.user_manager)
         self.assertIsNotNone(my_revocation.action_date)
         self.assertFalse(my_revocation.is_effective)
 
+        # run process standing results task
         self._process_standing_requests()
 
-        # validate results
+        # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
@@ -308,62 +321,61 @@ class TestMainUseCases(TestCase):
         when user requests standing and request is actioned by manager
         then alt has standing and user gets change notification
         """
-
         # setup
         self._setup_mocks(mock_esi_client)
         alt_id = self.alt_corporation.corporation_id
-        add_character_to_user(
-            self.user_requestor, self.alt_2, scopes=[TEST_SCOPE],
-        )
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for requesting standing is shown to user
+        # user requests standing for alt
         request_standing_url = reverse(
             "standingsrequests:request_corp_standing", args=[alt_id],
         )
-        self.assertIn(request_standing_url, response.content.decode("utf8"))
-
-        # user requests standing for alt
-        request = self.factory.get(request_standing_url)
-        request.user = self.user_requestor
-        response = views.request_corp_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
-        # make sure standing request is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_requests_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
-        self._set_standing_for_alt_in_game(self.alt_corporation)
-        request = self.factory.put(
+        self._set_standing_for_alt_in_game(self.alt_1)
+        response = self.app.put(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_requests_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
+
+        # validate new state
         my_request.refresh_from_db()
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
         self.assertFalse(my_request.is_effective)
 
+        # run process standing results task
         self._process_standing_requests()
 
-        # validate results
+        # validate final state
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
@@ -377,7 +389,6 @@ class TestMainUseCases(TestCase):
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
-
         # setup
         self._setup_mocks(mock_esi_client)
         alt_id = self.alt_corporation.corporation_id
@@ -385,53 +396,56 @@ class TestMainUseCases(TestCase):
         my_request = self._create_standing_for_alt(self.alt_corporation)
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for revoking standing is shown to user
-        revoke_standing_url = reverse(
+        # user requests standing for alt
+        request_standing_url = reverse(
             "standingsrequests:remove_corp_standing", args=[alt_id],
         )
-        self.assertIn(revoke_standing_url, response.content.decode("utf8"))
-
-        # user requests revocation for alt
-        request = self.factory.get(revoke_standing_url)
-        request.user = self.user_requestor
-        response = views.remove_corp_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
 
-        # make sure revocation is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_revocations_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_corporation)
-        request = self.factory.put(
+        response = self.app.put(
             reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_revocations_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
+
+        # validate new state
         my_revocation.refresh_from_db()
         self.assertEqual(my_revocation.action_by, self.user_manager)
         self.assertIsNotNone(my_revocation.action_date)
         self.assertFalse(my_revocation.is_effective)
 
+        # run process standing results task
         self._process_standing_requests()
 
-        # validate results
+        # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
@@ -451,46 +465,46 @@ class TestMainUseCases(TestCase):
         alt_id = self.alt_1.character_id
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for requesting standing is shown to user
+        # user requests standing for alt
         request_standing_url = reverse(
             "standingsrequests:request_pilot_standing", args=[alt_id],
         )
-        self.assertIn(request_standing_url, response.content.decode("utf8"))
-
-        # user requests standing for alt
-        request = self.factory.get(request_standing_url)
-        request.user = self.user_requestor
-        response = views.request_pilot_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
-        # make sure standing request is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_requests_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
-        request = self.factory.delete(
+        response = self.app.delete(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_requests_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
 
-        # validate results
+        # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
@@ -505,55 +519,51 @@ class TestMainUseCases(TestCase):
         when user requests standing and request is actioned by manager
         then alt has standing and user gets change notification
         """
-
         # setup
         self._setup_mocks(mock_esi_client)
         alt_id = self.alt_corporation.corporation_id
-        add_character_to_user(
-            self.user_requestor, self.alt_2, scopes=[TEST_SCOPE],
-        )
 
         # user opens create requests page
-        request = self.factory.get(reverse("standingsrequests:request_entities"))
-        request.user = self.user_requestor
-        response = views.partial_request_entities(request)
-        self.assertEqual(response.status_code, 200)
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
 
-        # make sure link for requesting standing is shown to user
+        # user requests standing for alt
         request_standing_url = reverse(
             "standingsrequests:request_corp_standing", args=[alt_id],
         )
-        self.assertIn(request_standing_url, response.content.decode("utf8"))
-
-        # user requests standing for alt
-        request = self.factory.get(request_standing_url)
-        request.user = self.user_requestor
-        response = views.request_corp_standing(request, alt_id)
+        response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
         my_request = StandingRequest.objects.get(contact_id=alt_id)
         self.assertFalse(my_request.is_effective)
         self.assertEqual(my_request.user, self.user_requestor)
 
-        # make sure standing request is visible to manager
-        request = self.factory.get(
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
             reverse("standingsrequests:manage_get_requests_json")
         )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
-        request = self.factory.delete(
+        response = self.app.delete(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
-        request.user = self.user_manager
-        response = views.manage_requests_write(request, alt_id)
         self.assertEqual(response.status_code, 204)
 
-        # validate results
+        # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
@@ -590,6 +600,10 @@ class TestMainUseCases(TestCase):
         self._set_standing_for_alt_in_game(self.alt_1)
         my_request = self._create_standing_for_alt(self.alt_1)
         self.member_state.member_characters.remove(self.main_1)
+        permission = AuthUtils.get_permission_by_name(
+            StandingRequest.REQUEST_PERMISSION_NAME
+        )
+        self.user_requestor.user_permissions.remove(permission)
         self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
         self.assertFalse(
             self.user_requestor.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
@@ -622,56 +636,3 @@ class TestMainUseCases(TestCase):
         my_request = StandingRequest.objects.get(contact_id=self.alt_1.character_id)
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
-
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_manager_revokes_standing_for_character(self, mock_esi_client):
-        """
-        given user's alt has standing and user has permission
-        when manager revokes that standing
-        then alt's standing is removed and user gets change notification
-        """
-        """
-        # setup
-        self._setup_mocks(mock_esi_client)
-        alt_id = self.alt_1.character_id
-        self._set_standing_for_alt_in_game(self.alt_1)
-        my_request = self._create_standing_for_alt(self.alt_1)
-
-        # make sure standing for alt is visible to manager
-        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
-        request.user = self.user_manager
-        response = views.view_requests_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
-        self.assertSetEqual(set(data.keys()), {alt_id})
-
-        # manager request standing to be revoked
-
-        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
-        self.assertFalse(my_revocation.is_effective)
-
-        # make sure revocation is visible to manager
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_revocations_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
-        self.assertEqual(response.status_code, 200)
-        data = self._parse_json_response(response)
-        self.assertSetEqual(set(data.keys()), {alt_id})
-
-        # remove standing for alt in game and mark as actioned
-        self._remove_standing_for_alt_in_game(self.alt_1)
-
-        request = self.factory.put(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
-        )
-        request.user = self.user_manager
-        response = views.manage_revocations_write(request, alt_id)
-        self.assertEqual(response.status_code, 204)
-        my_revocation.refresh_from_db()
-        self.assertEqual(my_revocation.action_by, self.user_manager)
-        self.assertIsNotNone(my_revocation.action_date)
-        self.assertFalse(my_revocation.is_effective)
-        """

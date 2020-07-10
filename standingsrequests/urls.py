@@ -18,12 +18,12 @@ local_urlpatterns = [
         name="remove_pilot_standing",
     ),
     url(
-        r"^request_corp_standing/(?P<corp_id>\d+)/",
+        r"^request_corp_standing/(?P<corporation_id>\d+)/",
         views.request_corp_standing,
         name="request_corp_standing",
     ),
     url(
-        r"^remove_corp_standing/(?P<corp_id>\d+)/",
+        r"^remove_corp_standing/(?P<corporation_id>\d+)/",
         views.remove_corp_standing,
         name="remove_corp_standing",
     ),
