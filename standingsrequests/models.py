@@ -132,15 +132,14 @@ class ContactSet(models.Model):
         raise ValueError("Invalid contact type ID: %s", contact_type_id)
 
     @classmethod
-    def is_character_in_organisation(cls, character_id: int) -> bool:
+    def is_character_in_organisation(cls, character: EveCharacter) -> bool:
         """Check if the Pilot is in the auth instances organisation
         
-        character_id: EveCharacter character_id
+        character: EveCharacter
 
         returns True if the character is in the organisation, False otherwise
         """
-        character = EveCharacter.objects.get_character_by_id(character_id)
-        return character and (
+        return (
             character.corporation_id in cls.corporation_ids_in_organization()
             or character.alliance_id in cls.alliance_ids_in_organization()
         )
@@ -225,14 +224,14 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not self.is_character_in_organisation(alt.character_id)
+                not self.is_character_in_organisation(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
                 and not StandingRevocation.objects.filter(
                     contact_id=alt.character_id
                 ).exists()
-                and StandingRequest.has_required_scopes_for_request(alt)
+                and StandingRequest.has_required_scopes_for_request(alt, user)
                 and self.character_has_satisfied_standing(alt.character_id)
                 and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
@@ -449,7 +448,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_actioned(self) -> bool:
-        return self.action_date is not None
+        return self.action_date is not None and not self.is_effective
+
+    @property
+    def is_pending(self) -> bool:
+        return self.action_date is None and self.is_effective is False
 
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
@@ -658,10 +661,14 @@ class StandingRequest(AbstractStandingsRequest):
 
     @classmethod
     def has_required_scopes_for_request(
-        cls, character: EveCharacter, user: User = None
+        cls, character: EveCharacter, user: User = None, quick_check: bool = False
     ) -> bool:
         """returns true if given character has the required scopes 
         for issueing a standings request else false
+
+        Params:
+        - user: provide User object to shorten processing time
+        - quick: if True will not check if tokens are valid to save time
         """
         if not user:
             try:
@@ -675,13 +682,13 @@ class StandingRequest(AbstractStandingsRequest):
 
         state_name = user.profile.state.name
         scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
-        has_required_scopes = (
-            Token.objects.filter(character_id=character.character_id)
-            .require_scopes(scopes_string)
-            .require_valid()
-            .exists()
-        )
-        return has_required_scopes
+        token_qs = Token.objects.filter(
+            character_id=character.character_id
+        ).require_scopes(scopes_string)
+        if not quick_check:
+            token_qs = token_qs.require_valid()
+
+        return token_qs.exists()
 
     @staticmethod
     def get_required_scopes_for_state(state_name: str) -> list:

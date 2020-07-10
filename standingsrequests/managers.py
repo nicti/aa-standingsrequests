@@ -314,21 +314,21 @@ class AbstractStandingsRequestManager(models.Manager):
                         # Notify the user
                         notify(user=standing_request.user, title=title, message=message)
 
-    def has_pending_request(self, contact_id) -> bool:
+    def has_pending_request(self, contact_id: int) -> bool:
         """Checks if a request is pending for the given contact_id
         
         contact_id: int contact_id to check the pending request for
         
         returns True if a request is already pending, False otherwise
         """
-        pending = (
+        return (
             self.filter(contact_id=contact_id)
-            .filter(action_by=None)
+            .filter(action_date=None)
             .filter(is_effective=False)
+            .exists()
         )
-        return pending.exists()
 
-    def has_actioned_request(self, contact_id) -> bool:
+    def has_actioned_request(self, contact_id: int) -> bool:
         """Checks if an actioned request is pending API confirmation for 
         the given contact_id
         
@@ -336,12 +336,12 @@ class AbstractStandingsRequestManager(models.Manager):
         
         returns True if a request is pending API confirmation, False otherwise
         """
-        pending = (
+        return (
             self.filter(contact_id=contact_id)
             .exclude(action_by=None)
             .filter(is_effective=False)
+            .exists()
         )
-        return pending.exists()
 
 
 class StandingsRequestManager(AbstractStandingsRequestManager):
@@ -456,6 +456,12 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
                     notify(user=standing_request.user, title=title, message=message)
             logger.debug("%d requests to be removed", len(standing_requests))
             standing_requests.delete()
+
+    def has_effective_request(self, contact_id: int) -> bool:
+        """return True if an effective standing request exists for given contact_id, 
+        else False
+        """
+        return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
 
 
 class StandingsRevocationManager(AbstractStandingsRequestManager):

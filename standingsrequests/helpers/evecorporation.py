@@ -60,9 +60,15 @@ class EveCorporation:
     def logo_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
         return eveimageserver.corporation_logo_url(self.corporation_id, size)
 
-    def member_tokens_count_for_user(self, user: User) -> int:
+    def member_tokens_count_for_user(
+        self, user: User, quick_check: bool = False
+    ) -> int:
         """returns the number of character tokens the given user owns 
         for this corporation
+
+        Params:
+        - user: user owning the characters
+        - quick: if True will not check if tokens are valid to save time
         """
         from ..models import StandingRequest
 
@@ -74,17 +80,24 @@ class EveCorporation:
                 )
                 .select_related("character_ownership__user__profile__state")
                 .filter(corporation_id=self.corporation_id)
-                if StandingRequest.has_required_scopes_for_request(character, user)
+                if StandingRequest.has_required_scopes_for_request(
+                    character=character, user=user, quick_check=quick_check
+                )
             ]
         )
 
-    def user_has_all_member_tokens(self, user: User) -> bool:
+    def user_has_all_member_tokens(self, user: User, quick_check: bool = False) -> bool:
         """returns True if given user owns same amount of token than there are 
         member characters in this corporation, else False
+
+        Params:
+        - user: user owning the characters
+        - quick: if True will not check if tokens are valid to save time
         """
         return (
             self.member_count is not None
-            and self.member_tokens_count_for_user(user) >= self.member_count
+            and self.member_tokens_count_for_user(user=user, quick_check=quick_check)
+            >= self.member_count
         )
 
     @classmethod

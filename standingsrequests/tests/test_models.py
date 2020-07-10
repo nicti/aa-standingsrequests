@@ -118,25 +118,26 @@ class TestContactSet(NoSocketsTestCase):
     @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_corp(self):
-        create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(1001))
+        character = create_entity(EveCharacter, 1001)
+        self.assertTrue(ContactSet.is_character_in_organisation(character))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
     def test_pilot_in_organisation_matches_alliance(self):
-        create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(1001))
+        character = create_entity(EveCharacter, 1001)
+        self.assertTrue(ContactSet.is_character_in_organisation(character))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [3001])
     def test_pilot_in_organisation_doest_not_exist(self):
-        self.assertFalse(ContactSet.is_character_in_organisation(1999))
+        character = create_entity(EveCharacter, 1007)
+        self.assertFalse(ContactSet.is_character_in_organisation(character))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_none(self):
-        create_entity(EveCharacter, 1001)
-        self.assertFalse(ContactSet.is_character_in_organisation(1001))
+        character = create_entity(EveCharacter, 1001)
+        self.assertFalse(ContactSet.is_character_in_organisation(character))
 
 
 class TestContactSetCreateStanding(NoSocketsTestCase):
