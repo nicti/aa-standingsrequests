@@ -491,7 +491,7 @@ def view_pilots_standings_json(request):
                 character = EveCharacterHelper(p.contact_id)
                 main = None
                 state = ""
-                has_required_scopes = False
+                has_required_scopes = None
             else:
                 user = character.character_ownership.user
                 main = user.profile.main_character
@@ -782,7 +782,7 @@ def _compose_standing_requests_data(
             state_name = r.user.profile.state.name
         except AttributeError:
             main = None
-            state_name = ""
+            state_name = "(no main)"
             main_character_name = ""
             main_character_ticker = ""
             main_character_icon_url = ""
@@ -859,7 +859,7 @@ def _compose_standing_requests_data(
                 "is_effective": r.is_effective,
                 "is_corporation": r.is_corporation,
                 "is_character": r.is_character,
-                "action_by": r.action_by.username if r.action_by else "",
+                "action_by": r.action_by.username if r.action_by else "(System)",
             }
         )
 

@@ -1,4 +1,5 @@
 <span style="font-size:1.5em;" ng-switch on="value">
-        <i ng-switch-when="true" class="fas fa-check fa-fw text-success" title="{{trueTitle}}"></i>
-        <i ng-switch-default class="fas fa-times fa-fw text-danger" title="{{falseTitle}}"></i>
+    <i ng-switch-when="true" class="fas fa-check fa-fw text-success" title="{{trueTitle}}"></i>
+    <i ng-switch-when="false" class="fas fa-times fa-fw text-danger" title="{{falseTitle}}"></i>
+    <span ng-switch-default></span>
 </span>
