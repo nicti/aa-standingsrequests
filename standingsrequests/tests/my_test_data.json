@@ -104,7 +104,7 @@
             "standing": 5
         },
         {
-            "contact_id": 2004,
+            "contact_id": 2003,
             "contact_type": "corporation",
             "label_ids": [],
             "standing": 5
@@ -112,6 +112,12 @@
         {
             "contact_id": 2102,
             "contact_type": "corporation",
+            "label_ids": [],
+            "standing": -10
+        },
+        {
+            "contact_id": 3010,
+            "contact_type": "alliance",
             "label_ids": [],
             "standing": -10
         }
@@ -184,6 +190,12 @@
             "alliance_name": "Wayne Enterprises",
             "alliance_ticker": "WYE",
             "executor_corp_id": 2001
+        },
+        "3010": {
+            "alliance_id": 3010,
+            "alliance_name": "Bad Boys Inc",
+            "alliance_ticker": "BBI",
+            "executor_corp_id": 2099
         }
     },
     "EveCorporationInfo": {

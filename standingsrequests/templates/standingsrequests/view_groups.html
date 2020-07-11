@@ -34,16 +34,29 @@
                             <tr>
                                 <th class="col-md-2">{% trans "Name" %}</th>
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
+                                <th class="col-md-2">{% trans "Main Character" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
+                                <th class="col-md-1">{% trans "Scopes" %}</th>
+                                <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">                                
                                 <td>
-                                    <img ng-src="{{ entity.corporation_icon_url }}" class="img-circle"/>&nbsp;&nbsp;{{ entity.corporation_name }}
+                                    <img ng-src="{{ entity.corporation_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    {{ entity.corporation_name }}
                                 </td>
                                 <td>
                                     {{ entity.alliance_name }}
+                                </td>
+                                <td>
+                                    <img ng-src="{{ entity.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <span ng-show="entity.main_character_ticker">
+                                        [{{ entity.main_character_ticker }}]
+                                    </span>                                    
+                                    <span ng-show="entity.main_character_name">
+                                        {{ entity.main_character_name }}
+                                    </span>
                                 </td>
                                 <td>
                                     <span style="font-size:1.5em;">
@@ -51,7 +64,16 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span ng-repeat="label in entity.labels" ng-bind="label"></span>
+                                    <bool-checkmark value="entity.has_required_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
+                                </td>
+                                 <td>
+                                    {{entity.state}}
+                                </td>
+                                <td>
+                                    <span ng-repeat="label in entity.labels | orderBy">
+                                        {{ label }}
+                                        <span ng-show="!$last">,&nbsp;</span>
+                                    </span>
                                 </td>
                             </tr>
                             
@@ -69,8 +91,8 @@
                         <table class="table table-condensed table-hover table-striped">
                             <!-- Alliances -->
                             <tr>
-                                <th class="col-md-4">{% trans "Name" %}</th>
-                                <th class="col-md-1">{% trans "Standing" %}</th>
+                                <th class="col-md-6">{% trans "Name" %}</th>
+                                <th class="col-md-3">{% trans "Standing" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
                             </tr>                            
                             {% verbatim %}
@@ -85,7 +107,10 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span ng-repeat="label in entity.labels" ng-bind="label"></span>
+                                    <span ng-repeat="label in entity.labels | orderBy">
+                                        {{ label }}
+                                        <span ng-show="!$last">,&nbsp;</span>
+                                    </span>
                                 </td>
                             </tr>
 

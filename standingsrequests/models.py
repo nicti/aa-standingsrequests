@@ -106,7 +106,7 @@ class ContactSet(models.Model):
 
         elif contact_type_id in CorporationContact.contact_type_ids:
             try:
-                contact = self.charactercontact_set.get(contact_id=contact_id)
+                contact = self.corporationcontact_set.get(contact_id=contact_id)
             except CorporationContact.DoesNotExist:
                 return False
 

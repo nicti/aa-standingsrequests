@@ -59,31 +59,31 @@ class TestMainUseCases(WebTest):
         cls.member_state.permissions.add(perm)
 
         # Requesting user
-        cls.main_1 = EveCharacter.objects.get(character_id=1002)
-        cls.user_requestor = AuthUtils.create_user(cls.main_1.character_name)
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_requestor = AuthUtils.create_user(cls.main_character_1.character_name)
         add_character_to_user(
-            cls.user_requestor, cls.main_1, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
         )
-        cls.member_state.member_characters.add(cls.main_1)
-        cls.alt_1 = EveCharacter.objects.get(character_id=1007)
+        cls.member_state.member_characters.add(cls.main_character_1)
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor, cls.alt_1, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.alt_character_1, scopes=[TEST_SCOPE],
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
-            corporation_id=cls.alt_1.corporation_id
+            corporation_id=cls.alt_character_1.corporation_id
         )
-        cls.alt_2 = EveCharacter.objects.get(character_id=1008)
+        cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
         add_character_to_user(
-            cls.user_requestor, cls.alt_2, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.alt_character_2, scopes=[TEST_SCOPE],
         )
 
         # Standing manager
-        cls.main_2 = EveCharacter.objects.get(character_id=1001)
-        cls.user_manager = AuthUtils.create_user(cls.main_2.character_name)
+        cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
+        cls.user_manager = AuthUtils.create_user(cls.main_character_2.character_name)
         add_character_to_user(
-            cls.user_manager, cls.main_2, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_manager, cls.main_character_2, is_main=True, scopes=[TEST_SCOPE],
         )
-        cls.member_state.member_characters.add(cls.main_2)
+        cls.member_state.member_characters.add(cls.main_character_2)
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, cls.user_manager
         )
@@ -101,18 +101,22 @@ class TestMainUseCases(WebTest):
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
             contact_name = alt.character_name
+            CharacterContact.objects.update_or_create(
+                contact_set=self.contact_set,
+                contact_id=contact_id,
+                defaults={"name": contact_name, "standing": 10,},
+            )
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
             contact_name = alt.corporation_name
+            CorporationContact.objects.update_or_create(
+                contact_set=self.contact_set,
+                contact_id=contact_id,
+                defaults={"name": contact_name, "standing": 10,},
+            )
         else:
             raise NotImplementedError()
 
-        CharacterContact.objects.create(
-            contact_set=self.contact_set,
-            contact_id=contact_id,
-            name=contact_name,
-            standing=10,
-        )
         self.contact_set.refresh_from_db()
 
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
@@ -185,7 +189,7 @@ class TestMainUseCases(WebTest):
         """
         # setup
         self._setup_mocks(mock_esi_client)
-        alt_id = self.alt_1.character_id
+        alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
@@ -222,7 +226,7 @@ class TestMainUseCases(WebTest):
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
-        self._set_standing_for_alt_in_game(self.alt_1)
+        self._set_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
@@ -253,9 +257,9 @@ class TestMainUseCases(WebTest):
         """
         # setup
         self._setup_mocks(mock_esi_client)
-        alt_id = self.alt_1.character_id
-        self._set_standing_for_alt_in_game(self.alt_1)
-        my_request = self._create_standing_for_alt(self.alt_1)
+        alt_id = self.alt_character_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_character_1)
+        my_request = self._create_standing_for_alt(self.alt_character_1)
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
@@ -292,7 +296,7 @@ class TestMainUseCases(WebTest):
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
-        self._remove_standing_for_alt_in_game(self.alt_1)
+        self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
             reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
         )
@@ -360,7 +364,7 @@ class TestMainUseCases(WebTest):
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
-        self._set_standing_for_alt_in_game(self.alt_1)
+        self._set_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
             reverse("standingsrequests:manage_requests_write", args=[alt_id],)
         )
@@ -462,7 +466,7 @@ class TestMainUseCases(WebTest):
         """
         # setup
         self._setup_mocks(mock_esi_client)
-        alt_id = self.alt_1.character_id
+        alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
@@ -575,8 +579,8 @@ class TestMainUseCases(WebTest):
         """
 
         # setup
-        alt_id = self.alt_1.character_id
-        self._create_standing_for_alt(self.alt_1)
+        alt_id = self.alt_character_1.character_id
+        self._create_standing_for_alt(self.alt_character_1)
 
         # run task
         self._process_standing_requests()
@@ -596,10 +600,10 @@ class TestMainUseCases(WebTest):
         """
 
         # setup
-        alt_id = self.alt_1.character_id
-        self._set_standing_for_alt_in_game(self.alt_1)
-        my_request = self._create_standing_for_alt(self.alt_1)
-        self.member_state.member_characters.remove(self.main_1)
+        alt_id = self.alt_character_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_character_1)
+        my_request = self._create_standing_for_alt(self.alt_character_1)
+        self.member_state.member_characters.remove(self.main_character_1)
         permission = AuthUtils.get_permission_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME
         )
@@ -627,12 +631,14 @@ class TestMainUseCases(WebTest):
         """
 
         # setup
-        self._set_standing_for_alt_in_game(self.alt_1)
+        self._set_standing_for_alt_in_game(self.alt_character_1)
 
         # run task
         self._process_standing_requests()
 
         # validate
-        my_request = StandingRequest.objects.get(contact_id=self.alt_1.character_id)
+        my_request = StandingRequest.objects.get(
+            contact_id=self.alt_character_1.character_id
+        )
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)

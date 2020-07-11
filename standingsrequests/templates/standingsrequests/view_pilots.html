@@ -98,7 +98,10 @@
                                     {{character.state}}
                                 </td>
                                 <td>
-                                    <span ng-repeat="label in character.labels" ng-bind="label"></span>
+                                    <span ng-repeat="label in character.labels | orderBy">
+                                        {{ label }}
+                                        <span ng-show="!$last">,&nbsp;</span>
+                                    </span>
                                 </td>
                             </tr>
 

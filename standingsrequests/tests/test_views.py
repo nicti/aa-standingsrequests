@@ -8,13 +8,16 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
 
-from allianceauth.eveonline.models import EveCharacter, EveAllianceInfo
+from allianceauth.eveonline.models import (
+    EveCharacter,
+    EveAllianceInfo,
+    EveCorporationInfo,
+)
 from allianceauth.tests.auth_utils import AuthUtils
 from esi.models import Token
 
 from . import add_character_to_user
 
-from .entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
@@ -25,6 +28,8 @@ from .my_test_data import (
     esi_post_universe_names,
 )
 from ..models import (
+    CharacterContact,
+    CorporationContact,
     EveEntity,
     StandingRequest,
     StandingRevocation,
@@ -144,14 +149,14 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         cls.user = AuthUtils.create_member("John Doe")
         AuthUtils.add_permission_to_user_by_name("standingsrequests.view", cls.user)
         EveCharacter.objects.get(character_id=1009).delete()
-        cls.main_1 = EveCharacter.objects.get(character_id=1002)
-        cls.user_1 = AuthUtils.create_member(cls.main_1.character_name)
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
         add_character_to_user(
-            cls.user_1, cls.main_1, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_1, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
         )
-        cls.alt_1 = EveCharacter.objects.get(character_id=1004)
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_1, cls.alt_1, scopes=[TEST_SCOPE],
+            cls.user_1, cls.alt_character_1, scopes=[TEST_SCOPE],
         )
 
     def setUp(self):
@@ -174,8 +179,8 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         self.assertSetEqual(set(data.keys()), expected)
 
         self.maxDiff = None
-        data_main_1 = data[self.main_1.character_id]
-        expected_main_1 = {
+        data_character_1002 = data[1002]
+        expected_character_1002 = {
             "character_id": 1002,
             "character_name": "Peter Parker",
             "character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
@@ -192,27 +197,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "main_character_name": "Peter Parker",
             "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
         }
-        self.assertDictEqual(data_main_1, expected_main_1)
-
-        data_alt_1 = data[self.alt_1.character_id]
-        expected_alt_1 = {
-            "character_id": 1004,
-            "character_name": "Kara Danvers",
-            "character_icon_url": "https://images.evetech.net/characters/1004/portrait?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
-            "alliance_id": None,
-            "alliance_name": None,
-            "has_required_scopes": True,
-            "state": "Member",
-            "main_character_ticker": "WYE",
-            "standing": 0.01,
-            "labels": ["yellow"],
-            "main_character_name": "Peter Parker",
-            "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
-        }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertDictEqual(data_character_1002, expected_character_1002)
 
         data_character_1009 = data[1009]
         expected_character_1009 = {
@@ -224,7 +209,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "corporation_ticker": None,
             "alliance_id": None,
             "alliance_name": None,
-            "has_required_scopes": False,
+            "has_required_scopes": None,
             "state": "",
             "main_character_ticker": None,
             "standing": -10.0,
@@ -247,8 +232,11 @@ class TestViewPagesBase(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.factory = RequestFactory()
-        cls.contact_set = create_contacts_set()
+
+        create_standings_char()
         create_eve_objects()
+
+        cls.contact_set = create_contacts_set()
 
         # State is alliance, all members can add standings
         member_state = AuthUtils.get_member_state()
@@ -257,21 +245,30 @@ class TestViewPagesBase(TestCase):
         member_state.permissions.add(perm)
 
         # Requesting user - can only make requests
-        cls.main_1 = EveCharacter.objects.get(character_id=1002)
-        cls.user_requestor = AuthUtils.create_member(cls.main_1.character_name)
-        add_character_to_user(
-            cls.user_requestor, cls.main_1, is_main=True, scopes=[TEST_SCOPE],
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_requestor = AuthUtils.create_member(
+            cls.main_character_1.character_name
         )
-        cls.alt_1 = EveCharacter.objects.get(character_id=1004)
         add_character_to_user(
-            cls.user_requestor, cls.alt_1, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
+        )
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
+        add_character_to_user(
+            cls.user_requestor, cls.alt_character_1, scopes=[TEST_SCOPE],
+        )
+        cls.alt_corporation = EveCorporationInfo.objects.get(
+            corporation_id=cls.alt_character_1.corporation_id
+        )
+        cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
+        add_character_to_user(
+            cls.user_requestor, cls.alt_character_2, scopes=[TEST_SCOPE],
         )
 
         # Standing manager - can do everything
-        cls.main_2 = EveCharacter.objects.get(character_id=1001)
-        cls.user_manager = AuthUtils.create_member(cls.main_2.character_name)
+        cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
+        cls.user_manager = AuthUtils.create_member(cls.main_character_2.character_name)
         add_character_to_user(
-            cls.user_manager, cls.main_2, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_manager, cls.main_character_2, is_main=True, scopes=[TEST_SCOPE],
         )
         AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
@@ -285,18 +282,47 @@ class TestViewPagesBase(TestCase):
         StandingRequest.objects.all().delete()
         StandingRevocation.objects.all().delete()
 
-    def _create_standing_for_alt(
-        self, alt_id: int, contact_type_id: int
-    ) -> StandingRequest:
+    def _create_standing_for_alt(self, alt: object) -> StandingRequest:
+        if isinstance(alt, EveCharacter):
+            contact_id = alt.character_id
+            contact_type_id = CharacterContact.get_contact_type_id()
+        elif isinstance(alt, EveCorporationInfo):
+            contact_id = alt.corporation_id
+            contact_type_id = CorporationContact.get_contact_type_id()
+        else:
+            raise NotImplementedError()
+
         return StandingRequest.objects.create(
             user=self.user_requestor,
-            contact_id=alt_id,
+            contact_id=contact_id,
             contact_type_id=contact_type_id,
             action_by=self.user_manager,
             action_date=now() - timedelta(days=1, hours=1),
             is_effective=True,
             effective_date=now() - timedelta(days=1),
         )
+
+    def _set_standing_for_alt_in_game(self, alt: object) -> None:
+        if isinstance(alt, EveCharacter):
+            contact_id = alt.character_id
+            contact_name = alt.character_name
+            CharacterContact.objects.update_or_create(
+                contact_set=self.contact_set,
+                contact_id=contact_id,
+                defaults={"name": contact_name, "standing": 10,},
+            )
+        elif isinstance(alt, EveCorporationInfo):
+            contact_id = alt.corporation_id
+            contact_name = alt.corporation_name
+            CorporationContact.objects.update_or_create(
+                contact_set=self.contact_set,
+                contact_id=contact_id,
+                defaults={"name": contact_name, "standing": 10,},
+            )
+        else:
+            raise NotImplementedError()
+
+        self.contact_set.refresh_from_db()
 
 
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
@@ -360,7 +386,7 @@ class TestRequestStanding(TestViewPagesBase):
     def test_when_no_pending_request_or_revocation_for_character_create_new_request(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
         self.make_request(character_id)
         self.assertEqual(
             StandingRequest.objects.filter(contact_id=character_id).count(), 1
@@ -369,7 +395,7 @@ class TestRequestStanding(TestViewPagesBase):
     def test_when_pending_request_for_character_dont_create_new_request(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
 
         StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -382,7 +408,7 @@ class TestRequestStanding(TestViewPagesBase):
     def test_when_pending_revocation_for_character_dont_create_new_request(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
 
         StandingRevocation.objects.add_revocation(
             character_id,
@@ -410,7 +436,8 @@ class TestRemovePilotStanding(TestViewPagesBase):
     def test_when_effective_standing_request_exists_create_revocation(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_character_1)
         sr = StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
@@ -428,7 +455,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
     def test_when_none_effective_standing_request_exists_remove_standing_request(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
 
         # default standing request
         StandingRequest.objects.add_request(
@@ -451,7 +478,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
     def test_when_effective_standing_request_exists_and_standing_revocation_exists(
         self, mock_messages
     ):
-        character_id = self.alt_1.character_id
+        character_id = self.alt_character_1.character_id
 
         sr = StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -488,7 +515,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         )
         mock_cache.get.return_value = None
 
-        alt_id = self.alt_1.character_id
+        alt_id = self.alt_character_1.character_id
         standing_request = StandingRequest.objects.add_request(
             self.user_requestor, alt_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
@@ -510,14 +537,14 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
 
-        data_alt_1 = data[self.alt_1.character_id]
+        data_alt_1 = data[self.alt_character_1.character_id]
         expected_alt_1 = {
-            "contact_id": 1004,
-            "contact_name": "Kara Danvers",
-            "contact_icon_url": "https://images.evetech.net/characters/1004/portrait?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 1007,
+            "contact_name": "James Gordon",
+            "contact_icon_url": "https://images.evetech.net/characters/1007/portrait?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
@@ -531,7 +558,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_effective": False,
             "is_corporation": False,
             "is_character": True,
-            "action_by": "",
+            "action_by": "(System)",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -545,7 +572,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
-        alt_id = self.alt_1.corporation_id
+        alt_id = self.alt_character_1.corporation_id
         standing_request = StandingRequest.objects.add_request(
             self.user_requestor, alt_id, StandingRequest.CORPORATION_CONTACT_TYPE,
         )
@@ -568,15 +595,15 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         self.maxDiff = None
 
         expected_alt_1 = {
-            "contact_id": 2003,
-            "contact_name": "CatCo Worldwide Media",
-            "contact_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 2004,
+            "contact_name": "Metro Police",
+            "contact_icon_url": "https://images.evetech.net/corporations/2004/logo?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
-            "has_scopes": False,
+            "has_scopes": True,
             "request_date": standing_request.request_date.isoformat(),
             "action_date": None,
             "state": "Member",
@@ -587,7 +614,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_effective": False,
             "is_corporation": True,
             "is_character": False,
-            "action_by": "",
+            "action_by": "(System)",
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -598,8 +625,8 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 class TestViewManageRevocationsJson(TestViewPagesBase):
     def test_revoke_character(self, mock_esi_client, mock_cache):
         # setup
-        alt_id = self.alt_1.character_id
-        self._create_standing_for_alt(alt_id, CHARACTER_TYPE_ID)
+        alt_id = self.alt_character_1.character_id
+        self._create_standing_for_alt(self.alt_character_1)
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
         )
@@ -621,14 +648,14 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
 
-        data_alt_1 = data[self.alt_1.character_id]
+        data_alt_1 = data[self.alt_character_1.character_id]
         expected_alt_1 = {
-            "contact_id": 1004,
-            "contact_name": "Kara Danvers",
-            "contact_icon_url": "https://images.evetech.net/characters/1004/portrait?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 1007,
+            "contact_name": "James Gordon",
+            "contact_icon_url": "https://images.evetech.net/characters/1007/portrait?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
@@ -642,7 +669,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_effective": False,
             "is_corporation": False,
             "is_character": True,
-            "action_by": "",
+            "action_by": "(System)",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -657,8 +684,8 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         )
         mock_cache.get.return_value = None
 
-        alt_id = self.alt_1.corporation_id
-        self._create_standing_for_alt(alt_id, CORPORATION_TYPE_ID)
+        alt_id = self.alt_corporation.corporation_id
+        self._create_standing_for_alt(self.alt_corporation)
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id,
             StandingRevocation.CORPORATION_CONTACT_TYPE,
@@ -683,15 +710,15 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.maxDiff = None
 
         expected_alt_1 = {
-            "contact_id": 2003,
-            "contact_name": "CatCo Worldwide Media",
-            "contact_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 2004,
+            "contact_name": "Metro Police",
+            "contact_icon_url": "https://images.evetech.net/corporations/2004/logo?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
-            "has_scopes": False,
+            "has_scopes": True,
             "request_date": standing_request.request_date.isoformat(),
             "action_date": None,
             "state": "Member",
@@ -702,7 +729,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_effective": False,
             "is_corporation": True,
             "is_character": False,
-            "action_by": "",
+            "action_by": "(System)",
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -713,8 +740,8 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 class TestViewActiveRequestsJson(TestViewPagesBase):
     def test_request_character(self, mock_esi_client, mock_cache):
         # setup
-        alt_id = self.alt_1.character_id
-        standing_request = self._create_standing_for_alt(alt_id, CHARACTER_TYPE_ID)
+        alt_id = self.alt_character_1.character_id
+        standing_request = self._create_standing_for_alt(self.alt_character_1)
 
         # make request
         request = self.factory.get(reverse("standingsrequests:view_requests_json"))
@@ -731,14 +758,14 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
 
-        data_alt_1 = data[self.alt_1.character_id]
+        data_alt_1 = data[self.alt_character_1.character_id]
         expected_alt_1 = {
-            "contact_id": 1004,
-            "contact_name": "Kara Danvers",
-            "contact_icon_url": "https://images.evetech.net/characters/1004/portrait?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 1007,
+            "contact_name": "James Gordon",
+            "contact_icon_url": "https://images.evetech.net/characters/1007/portrait?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
@@ -766,8 +793,8 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
-        alt_id = self.alt_1.corporation_id
-        standing_request = self._create_standing_for_alt(alt_id, CORPORATION_TYPE_ID)
+        alt_id = self.alt_corporation.corporation_id
+        standing_request = self._create_standing_for_alt(self.alt_corporation)
 
         # make request
         request = self.factory.get(reverse("standingsrequests:view_requests_json"))
@@ -785,15 +812,15 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.maxDiff = None
 
         expected_alt_1 = {
-            "contact_id": 2003,
-            "contact_name": "CatCo Worldwide Media",
-            "contact_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
-            "corporation_id": 2003,
-            "corporation_name": "CatCo Worldwide Media",
-            "corporation_ticker": "CC",
+            "contact_id": 2004,
+            "contact_name": "Metro Police",
+            "contact_icon_url": "https://images.evetech.net/corporations/2004/logo?size=32",
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_ticker": "MP",
             "alliance_id": None,
             "alliance_name": "",
-            "has_scopes": False,
+            "has_scopes": True,
             "request_date": standing_request.request_date.isoformat(),
             "action_date": standing_request.action_date.isoformat(),
             "state": "Member",
@@ -807,3 +834,70 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "action_by": self.user_manager.username,
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
+
+
+@patch("standingsrequests.helpers.evecorporation.cache")
+@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+class TestGroupsStandings(TestViewPagesBase):
+    def test_view(self, mock_esi_client, mock_cache):
+        # setup
+        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
+        )
+        mock_cache.get.return_value = None
+        self._create_standing_for_alt(self.alt_corporation)
+        self._set_standing_for_alt_in_game(self.alt_corporation)
+
+        # make request
+        request = self.factory.get(reverse("standingsrequests:view_groups_json"))
+        request.user = self.user_manager
+        response = views.view_groups_standings_json(request)
+
+        # validate
+        self.maxDiff = None
+        self.assertEqual(response.status_code, 200)
+        data_json = json.loads(response.content.decode(response.charset))
+        corporations = {row["corporation_id"]: row for row in data_json["corps"]}
+        expected = {2003, 2004, 2102}
+        self.assertSetEqual(set(corporations.keys()), expected)
+
+        corporation_2003_expected = {
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
+            "alliance_id": None,
+            "alliance_name": None,
+            "standing": 5.0,
+            "labels": [],
+            "has_required_scopes": None,
+            "state": "",
+            "main_character_name": "",
+            "main_character_ticker": "",
+            "main_character_icon_url": "",
+        }
+        self.assertDictEqual(corporations[2003], corporation_2003_expected)
+
+        corporation_2004_expected = {
+            "corporation_id": 2004,
+            "corporation_name": "Metro Police",
+            "corporation_icon_url": "https://images.evetech.net/corporations/2004/logo?size=32",
+            "alliance_id": None,
+            "alliance_name": None,
+            "standing": 10.0,
+            "labels": [],
+            "has_required_scopes": True,
+            "state": "Member",
+            "main_character_name": "Peter Parker",
+            "main_character_ticker": "WYE",
+            "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
+        }
+        self.assertDictEqual(corporations[2004], corporation_2004_expected)
+
+        alliances = {row["alliance_id"]: row for row in data_json["alliances"]}
+        expected = {3010}
+        self.assertSetEqual(set(alliances.keys()), expected)

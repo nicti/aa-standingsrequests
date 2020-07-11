@@ -20,6 +20,7 @@ IMPORTANT: Please make sure you do not have any pending standing requests or sta
 - User are now always notified when their standings change, e.g. once their standing request becomes effective or in case it gets revoked. (can be deactivated)
 - Standing organization is now shown on the "create request" page
 - Added icons for character, corporations and alliances to most pages
+- Character who has received corp standing shown on "Group standings" page
 - Corporations on groups page now also show to which alliance they belong
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - Added new tests and improved existing tests

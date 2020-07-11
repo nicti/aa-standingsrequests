@@ -659,9 +659,38 @@ def view_groups_standings_json(request):
         )
     }
     corporations_data = list()
+    standing_requests_qs = StandingRequest.objects.filter(
+        contact_type_id=CorporationContact.get_contact_type_id()
+    )
     for contact in corporations_qs:
         if contact.contact_id in eve_corporations:
             corporation = eve_corporations[contact.contact_id]
+            try:
+                standing_request = standing_requests_qs.get(
+                    contact_id=contact.contact_id,
+                )
+            except StandingRequest.DoesNotExist:
+                main = None
+                has_required_scopes = None
+                state_name = ""
+            else:
+                user = standing_request.user
+                main = user.profile.main_character
+                state_name = user.profile.state.name
+                has_required_scopes = (
+                    not corporation.is_npc
+                    and corporation.user_has_all_member_tokens(
+                        user=user, quick_check=True
+                    )
+                )
+            finally:
+                main_character_name = main.character_name if main else ""
+                main_character_ticker = main.corporation_ticker if main else ""
+                main_character_icon_url = (
+                    main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
+                )
+                labels = [label.name for label in contact.labels.all()]
+
             corporations_data.append(
                 {
                     "corporation_id": corporation.corporation_id,
@@ -670,7 +699,12 @@ def view_groups_standings_json(request):
                     "alliance_id": corporation.alliance_id,
                     "alliance_name": corporation.alliance_name,
                     "standing": contact.standing,
-                    "labels": [label.name for label in contact.labels.all()],
+                    "labels": labels,
+                    "has_required_scopes": has_required_scopes,
+                    "state": state_name,
+                    "main_character_name": main_character_name,
+                    "main_character_ticker": main_character_ticker,
+                    "main_character_icon_url": main_character_icon_url,
                 }
             )
 
@@ -764,7 +798,7 @@ def _compose_standing_requests_data(
             for character in EveCharacter.objects.filter(character_id__in=character_ids)
         }
     else:
-        character_ids = list()
+        eve_characters = list()
     # preload corporations in bulk
     corporation_ids = requests_qs.filter(
         contact_type_id=CorporationContact.get_contact_type_id()

@@ -98,8 +98,8 @@ class TestContactSetManager(NoSocketsTestCase):
             contact_set.corporationcontact_set.values_list("contact_id", "standing")
         )
         expected = {
-            (2004, 5),
-            (2102, -10),
+            (2003, 5.0),
+            (2102, -10.0),
         }
         self.assertSetEqual(corporations, expected)
 
@@ -182,7 +182,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
     ):
         my_request = StandingRequest.objects.create(
             user=self.user_requestor,
-            contact_id=2004,
+            contact_id=2003,
             contact_type_id=CORPORATION_TYPE_ID,
             action_by=self.user_manager,
             action_date=now(),
