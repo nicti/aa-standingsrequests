@@ -6,6 +6,7 @@
         To:<b ng-bind="filters.standing.to"></b>
         <input ng-model="filters.standing.to" type="range" min="-10" max="10" step="1" value="10">
     </div>
+
     <div class="col-md-1" ng-show="scopes !== false">
         <label>Scopes</label>
         <div class="btn-group-vertical " role="group" aria-label="Scopes">
@@ -23,14 +24,32 @@
             </button>
         </div>
     </div>
-    <div class="col-md-2">
-        <label>Search</label>
-        <input type="text" placeholder="Search" ng-model="filters.search">
-        <label>Label</label>
-        <input type="text" placeholder="Label Search" ng-model="filters.searchLabel">
-
-        <label ng-show="states !== false">State</label>
-        <input ng-show="states !== false" type="text" placeholder="State Search" ng-model="filters.searchState">
+    
+    <div class="col-md-4">
+        <form class="form">        
+            <div class="form-group">
+                <label for="InputFilterSearch">Search</label>
+                <input 
+                    type="text" placeholder="Text Search" 
+                    class="form-control" 
+                    id="InputFilterSearch" 
+                    ng-model="filters.search">                                            
+                <input 
+                    type="text" 
+                    placeholder="Label Search" 
+                    class="form-control" 
+                    id="InputFilterLabel" 
+                    ng-model="filters.searchLabel">
+                
+                <input 
+                    ng-show="states !== false" 
+                    type="text" 
+                    class="form-control"  
+                    placeholder="State Search" 
+                    ng-model="filters.searchState">
+            </div>
+        </form>        
     </div>
+    
     <div class="clearfix"></div>
 </div>

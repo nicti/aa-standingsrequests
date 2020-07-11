@@ -35,15 +35,15 @@
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
                                 <th class="col-md-1">{% trans "Scopes / State" %}</th>                                
                                 <th class="col-md-2">{% trans "Effective / Accepted By" %}</th>                                
-                                <th class="col-md-1">{% trans "Actions" %}</th>
+                                <th class="col-md-1">{% trans "" %}</th>
                             </tr>                            
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
-                                 <td>
+                                <td>
                                     {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
                                 </td>
                                 <td>
-                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                                    <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <clipboard-copy copy="contact.contact_name"></clipboard-copy>
                                 </td>
                                 <td>
@@ -67,9 +67,11 @@
                                     <span ng-bind="contact.action_by" ng-show="contact.action_by"></span>
                                 </td>                                
                                 <td>                                    
+                                    <!--
                                     <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Revoke standing of this contact">                                        
                                         Revoke
                                     </button>
+                                    -->
                                 </td>
                             </tr>
                             

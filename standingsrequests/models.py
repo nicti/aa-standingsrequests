@@ -58,13 +58,15 @@ class ContactSet(models.Model):
     def __repr__(self):
         return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
 
-    def get_standing_for_id(self, contact_id, contact_type_id):
-        """
-        Attempts to fetch the standing for the given ID and type
-        :param contact_id: Integer contact ID
-        :param contact_type_id: Integer contact type from the contact_type_ids attribute 
+    def get_contact_by_id(self, contact_id: int, contact_type_id: int) -> object:
+        """Attempts to fetch the contact for the given ID and type
+        
+        Params:
+        - contact_id: Integer contact ID
+        - contact_type_id: Integer contact type from the contact_type_ids attribute 
         in concrete models
-        :return: concrete contact Object or ObjectDoesNotExist exception
+        
+        Returns concrete contact Object or ObjectDoesNotExist exception
         """
         if contact_type_id in CharacterContact.contact_type_ids:
             return self.charactercontact_set.get(contact_id=contact_id)
@@ -74,15 +76,23 @@ class ContactSet(models.Model):
             return self.alliancecontact_set.get(contact_id=contact_id)
         raise exceptions.ObjectDoesNotExist()
 
-    def create_standing(self, contact_type_id, contact_id, name, standing, labels):
+    def create_contact(
+        self,
+        contact_type_id: int,
+        contact_id: int,
+        name: str,
+        standing: float,
+        labels: list,
+    ) -> object:
+        """creates new contact"""
         StandingType = self.get_class_for_contact_type(contact_type_id)
-        standing = StandingType.objects.create(
+        contact = StandingType.objects.create(
             contact_set=self, contact_id=contact_id, name=name, standing=standing,
         )
         for label in labels:
-            standing.labels.add(label)
+            contact.labels.add(label)
 
-        return standing
+        return contact
 
     def character_has_satisfied_standing(self, contact_id: int) -> bool:
         return self.contact_has_satisfied_standing(
@@ -489,7 +499,7 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.get_standing_for_id(self.contact_id, self.contact_type_id)
+            contact = latest.get_contact_by_id(self.contact_id, self.contact_type_id)
             if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)

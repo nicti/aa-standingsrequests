@@ -15,7 +15,7 @@ from .app_settings import (
     SR_STANDINGS_STALE_HOURS,
     SR_SYNC_BLUE_ALTS_ENABLED,
 )
-from .helpers.view_cache import cache_clear_character_standings_data
+from .helpers.viewcache import cache_view_pilots_json, cache_view_groups_json
 from .models import (
     AllianceContact,
     CharacterAssociation,
@@ -82,7 +82,8 @@ def standings_update():
                 contact_set.generate_standing_requests_for_blue_alts()
             StandingRequest.objects.process_requests()
             StandingRevocation.objects.process_requests()
-            cache_clear_character_standings_data()
+            cache_view_pilots_json.clear()
+            cache_view_groups_json.clear()
 
     except Exception as ex:
         logger.exception("Failed to execute standings_update: %s", ex)

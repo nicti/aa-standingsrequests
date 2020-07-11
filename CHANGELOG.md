@@ -32,6 +32,7 @@ IMPORTANT: Please make sure you do not have any pending standing requests or sta
 - UI improvements
 - Performance improvements
 - Removed undo feature for revocation
+- Standings can currently not be revoked by managers through the app (will be re-added later). Workaround: Reset standing in game or remove permission for user.
 - IDs in settings can now also be integers
 - Timeout before actioned standings are reset can now be configured via setting
 - Improved maintainability (refactored database and code structure)

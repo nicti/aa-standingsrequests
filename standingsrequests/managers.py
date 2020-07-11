@@ -80,7 +80,7 @@ class ContactSetManager(models.Manager):
         for contact in contacts:
             flat_labels = [label.id for label in contact.labels]
             labels = contact_set.contactlabel_set.filter(label_id__in=flat_labels)
-            contact_set.create_standing(
+            contact_set.create_contact(
                 contact_type_id=contact.type_id,
                 contact_id=contact.id,
                 name=contact.name,

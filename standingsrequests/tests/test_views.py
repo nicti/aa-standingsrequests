@@ -136,7 +136,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_update_all.delay.called)
 
 
-@patch(MODULE_PATH + ".cache_get_or_set_character_standings_data")
+@patch(MODULE_PATH + ".cache_view_pilots_json.get_or_set")
 class TestViewPilotStandingsJson(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -836,11 +836,16 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
 
-@patch("standingsrequests.helpers.evecorporation.cache")
+@patch(MODULE_PATH + ".cache_view_groups_json.get_or_set")
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
 class TestGroupsStandings(TestViewPagesBase):
-    def test_view(self, mock_esi_client, mock_cache):
+    def test_view(
+        self, mock_esi_client, mock_cache_get_or_set_character_standings_data
+    ):
+        def my_cache_get_or_set(func):
+            return func()
+
         # setup
         mock_Corporation = mock_esi_client.return_value.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
@@ -849,7 +854,7 @@ class TestGroupsStandings(TestViewPagesBase):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
-        mock_cache.get.return_value = None
+        mock_cache_get_or_set_character_standings_data.side_effect = my_cache_get_or_set
         self._create_standing_for_alt(self.alt_corporation)
         self._set_standing_for_alt_in_game(self.alt_corporation)
 

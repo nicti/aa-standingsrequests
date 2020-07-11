@@ -68,52 +68,52 @@ class TestContactSet(NoSocketsTestCase):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
 
-    def test_get_standing_for_id_pilot(self):
+    def test_get_contact_by_id_pilot(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         CharacterContact.objects.create(
             contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=5
         )
         # look for existing pilot
-        obj = my_set.get_standing_for_id(1001, CHARACTER_TYPE_ID)
+        obj = my_set.get_contact_by_id(1001, CHARACTER_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing pilot
         with self.assertRaises(CharacterContact.DoesNotExist):
-            my_set.get_standing_for_id(1999, CHARACTER_TYPE_ID)
+            my_set.get_contact_by_id(1999, CHARACTER_TYPE_ID)
 
-    def test_get_standing_for_id_corporation(self):
+    def test_get_contact_by_id_corporation(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         CorporationContact.objects.create(
             contact_set=my_set, contact_id=2001, name="Dummy Corp 1", standing=5
         )
         # look for existing corp
-        obj = my_set.get_standing_for_id(2001, CORPORATION_TYPE_ID)
+        obj = my_set.get_contact_by_id(2001, CORPORATION_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing corp
         with self.assertRaises(CorporationContact.DoesNotExist):
-            my_set.get_standing_for_id(2999, CORPORATION_TYPE_ID)
+            my_set.get_contact_by_id(2999, CORPORATION_TYPE_ID)
 
-    def test_get_standing_for_id_alliance(self):
+    def test_get_contact_by_id_alliance(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         AllianceContact.objects.create(
             contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
         )
         # look for existing alliance
-        obj = my_set.get_standing_for_id(3001, ALLIANCE_TYPE_ID)
+        obj = my_set.get_contact_by_id(3001, ALLIANCE_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing alliance
         with self.assertRaises(AllianceContact.DoesNotExist):
-            my_set.get_standing_for_id(3999, ALLIANCE_TYPE_ID)
+            my_set.get_contact_by_id(3999, ALLIANCE_TYPE_ID)
 
-    def test_get_standing_for_id_other_type(self):
+    def test_get_contact_by_id_other_type(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
         AllianceContact.objects.create(
             contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
         )
         with self.assertRaises(ObjectDoesNotExist):
-            my_set.get_standing_for_id(9999, 99)
+            my_set.get_contact_by_id(9999, 99)
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
@@ -147,7 +147,7 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         cls.contact_set = create_contacts_set()
 
     def test_can_create_pilot_standing(self):
-        obj = self.contact_set.create_standing(
+        obj = self.contact_set.create_contact(
             contact_type_id=CHARACTER_TYPE_ID,
             name="Lex Luthor",
             contact_id=1009,
@@ -160,7 +160,7 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_corp_standing(self):
-        obj = self.contact_set.create_standing(
+        obj = self.contact_set.create_contact(
             contact_type_id=CORPORATION_TYPE_ID,
             name="Lexcorp",
             contact_id=2102,
@@ -173,7 +173,7 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_alliance_standing(self):
-        obj = self.contact_set.create_standing(
+        obj = self.contact_set.create_contact(
             contact_type_id=ALLIANCE_TYPE_ID,
             name="Wayne Enterprises",
             contact_id=3001,
