@@ -1,11 +1,11 @@
 from django.contrib import admin
 
 from .models import (
-    StandingsRequest,
-    StandingsRevocation,
-    EveNameCache,
-    PilotStanding,
-    CorpStanding,
+    StandingRequest,
+    StandingRevocation,
+    EveEntity,
+    CharacterContact,
+    CorporationContact,
 )
 
 
@@ -15,22 +15,22 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         "_contact_type_str",
         "_contact_name",
         "_user",
-        "requestDate",
-        "actionBy",
-        "actionDate",
-        "effective",
-        "effectiveDate",
+        "request_date",
+        "action_by",
+        "action_date",
+        "is_effective",
+        "effective_date",
     )
-    list_filter = ("effective",)
+    list_filter = ("is_effective",)
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveNameCache.get_name(obj.contactID)
+        return EveEntity.objects.get_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contactType in PilotStanding.contactTypes:
+        if obj.contact_type_id in CharacterContact.contact_type_ids:
             return "Character"
-        elif obj.contactType in CorpStanding.contactTypes:
+        elif obj.contact_type_id in CorporationContact.contact_type_ids:
             return "Corporation"
         else:
             return "(undefined)"
@@ -38,9 +38,9 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     _contact_type_str.short_description = "contact type"
 
     def _user(self, obj):
-        if hasattr(obj, "user"):
+        try:
             return obj.user
-        else:
+        except AttributeError:
             return None
 
     def has_add_permission(self, request):
@@ -50,22 +50,11 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(StandingsRequest)
+@admin.register(StandingRequest)
 class StandingsRequestAdmin(AbstractStandingsRequestAdmin):
     pass
 
 
-@admin.register(StandingsRevocation)
+@admin.register(StandingRevocation)
 class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
     pass
-
-
-@admin.register(EveNameCache)
-class EveNameCacheAdmin(admin.ModelAdmin):
-    list_display = ("entityID", "name", "updated")
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False

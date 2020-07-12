@@ -1,6 +1,6 @@
 var standingsApp = angular.module('standingsApp', ['ui.bootstrap']);
 
-standingsApp.config(['$httpProvider', function($httpProvider) {
+standingsApp.config(['$httpProvider', function ($httpProvider) {
     // Enable CSRF tokens from Django
     $httpProvider.defaults.xsrfCookieName = 'csrftoken';
     $httpProvider.defaults.xsrfHeaderName = 'X-CSRFToken';
@@ -8,7 +8,7 @@ standingsApp.config(['$httpProvider', function($httpProvider) {
 
 // Components
 function StandingsIconController($scope) {
-    $scope.getAbsStanding = function(std) {
+    $scope.getAbsStanding = function (std) {
         if (std < -5.0) {
             return -10;
         } else if (std < 0.0) {
@@ -43,21 +43,21 @@ standingsApp.component('clipboardCopy', {
         copy: '<',
     },
     controller: function ($scope, $interval) {
-        $scope.onCopy = function() {
+        $scope.onCopy = function () {
             var target = document.getElementById($scope.id);
             target.select();
             document.execCommand("copy");
 
             // Deselect
-            if ( document.selection ) {
+            if (document.selection) {
                 document.selection.empty();
-            } else if ( window.getSelection ) {
+            } else if (window.getSelection) {
                 window.getSelection().removeAllRanges();
             }
 
             // Flash icon green
-            $scope.style = {'color':'#0BBF2C'};
-            $interval(function(){
+            $scope.style = { 'color': '#0BBF2C' };
+            $interval(function () {
                 $scope.style = {};
             }, 1000, 1)
         };

@@ -99,7 +99,6 @@ TEMPLATES = [
                 "django.template.context_processors.static",
                 "django.template.context_processors.tz",
                 "allianceauth.notifications.context_processors.user_notification_count",
-                "allianceauth.groupmanagement.context_processors.can_manage_groups",
                 "allianceauth.context_processors.auth_settings",
             ],
         },
@@ -292,10 +291,9 @@ DEFAULT_FROM_EMAIL = ""
 #######################################
 
 # standingsrequests
-STANDINGS_API_CHARID = 2112839520
+STANDINGS_API_CHARID = 1001
 STR_CORP_IDS = []
-STR_ALLIANCE_IDS = ["99005502"]
-SR_CORPORATIONS_ENABLED = False
+STR_ALLIANCE_IDS = [3001]
 
 # This is a map, where the key is the State the user is in
 # and the value is a list of required scopes to check

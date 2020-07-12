@@ -6,31 +6,50 @@
         To:<b ng-bind="filters.standing.to"></b>
         <input ng-model="filters.standing.to" type="range" min="-10" max="10" step="1" value="10">
     </div>
+
     <div class="col-md-1" ng-show="scopes !== false">
         <label>Scopes</label>
         <div class="btn-group-vertical " role="group" aria-label="Scopes">
             <button type="button" class="btn btn-default" title="Both"
                     ng-class="{'btn-primary': filters.has_scopes === null}" ng-click="filters.has_scopes = null">
-              <i class="fa fa-circle-thin fa-fw"></i>
+              <i class="fas fa-circle-thin fa-fw"></i>
             </button>
             <button type="button" class="btn btn-default" title="Has required scopes"
                     ng-class="{'btn-primary': filters.has_scopes}" ng-click="filters.has_scopes = true">
-              <i class="fa fa-check fa-fw" style="color:#018c24;"></i>
+              <i class="fas fa-check fa-fw text-success"></i>
             </button>
             <button type="button" class="btn btn-default" title="Is missing required scopes"
                     ng-class="{'btn-primary': filters.has_scopes === false}" ng-click="filters.has_scopes = false">
-              <i class="fa fa-times fa-fw" style="color:#b31414;"></i>
+              <i class="fas fa-times fa-fw text-danger"></i>
             </button>
         </div>
     </div>
-    <div class="col-md-2">
-        <label>Search</label>
-        <input type="text" placeholder="Search" ng-model="filters.search">
-        <label>Label</label>
-        <input type="text" placeholder="Label Search" ng-model="filters.searchLabel">
-
-        <label ng-show="states !== false">State</label>
-        <input ng-show="states !== false" type="text" placeholder="State Search" ng-model="filters.searchState">
+    
+    <div class="col-md-4">
+        <form class="form">        
+            <div class="form-group">
+                <label for="InputFilterSearch">Search</label>
+                <input 
+                    type="text" placeholder="Text Search" 
+                    class="form-control" 
+                    id="InputFilterSearch" 
+                    ng-model="filters.search">                                            
+                <input 
+                    type="text" 
+                    placeholder="Label Search" 
+                    class="form-control" 
+                    id="InputFilterLabel" 
+                    ng-model="filters.searchLabel">
+                
+                <input 
+                    ng-show="states !== false" 
+                    type="text" 
+                    class="form-control"  
+                    placeholder="State Search" 
+                    ng-model="filters.searchState">
+            </div>
+        </form>        
     </div>
+    
     <div class="clearfix"></div>
 </div>

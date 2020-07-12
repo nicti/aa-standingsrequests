@@ -4,7 +4,11 @@
 {% load evelinks %}
 
 <div class="col-lg-12">
-        <h1 class="page-header">{% trans "Your Characters" %}</h1>
+        <p>            
+            On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
+        </p>
+        
+        <h2>{% trans "Your Characters" %}</h2>
 
         <div class="container">
             {% if authinfo.main_char_id %}
@@ -14,35 +18,31 @@
             <div class="row">
                 <div class="table-responsive">
                     <table class="table table-condensed table-hover table-striped">
-                        <tr>
-                            <th class="col-md-1"></th>
+                        <tr>                            
                             <th class="col-md-2">{% trans "Character" %}</th>
                             <th class="col-md-2">{% trans "Corporation" %}</th>
                             <th class="col-md-2">{% trans "Alliance" %}</th>
                             <th class="col-md-1">{% trans "Scopes" %}</th>
                             <th class="col-md-1">{% trans "Standing" %}</th>
-                            <th class="col-md-1">{% trans "Action" %}</th>
+                            <th class="col-md-1">{% trans "Actions" %}</th>
                         </tr>
                         {% for std in characters %}
-                            <tr>
-                                <td>                                    
-                                    <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">
+                            <tr>                                
+                                <td>
+                                    <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">&nbsp;&nbsp;&nbsp;{{ std.character.character_name }}
                                 </td>
                                 <td>
-                                    <p>{{ std.character.character_name }}</p>
+                                    [{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}
                                 </td>
                                 <td>
-                                    <p>[{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}</p>
-                                </td>
-                                <td>
-                                    <p>{{ std.character.alliance_name }}</p>
+                                    {{ std.character.alliance_name|default_if_none:"" }}
                                 </td>
                                 <td>
                                     <span style="font-size:2em;">
                                         {% if std.hasRequiredScopes %}
-                                            <i class="fa fa-check fa-fw text-success" title="Has required scopes"></i>
+                                            <i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>
                                         {% else %}
-                                            <a title="{% trans "Add required scopes" %}" class="btn btn-danger btn-sm" href="{% url 'standingsrequests:view_requester_add_scopes' %}"><i class="fa fa-plus fa-lg"></i> {% trans "Required" %}</a>
+                                            <a title="{% trans 'Add required scopes' %}" class="btn btn-danger btn-sm" href="{% url 'standingsrequests:view_requester_add_scopes' %}"><i class="fas fa-plus"></i> {% trans "Required" %}</a>
                                         {% endif %}
                                     </span>
                                 </td>
@@ -50,19 +50,15 @@
                                     <p>
                                         <span style="font-size:2em;">
                                             {% if std.inOrganisation == True %}
-                                                <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}"
-                                                    style="color:#042177;"></i>
+                                                <i class="fas fa-star fa-fw text-primary" title="{% trans 'In Organisation' %}"></i>
                                             {% elif std.requestActioned == True %}
-                                                <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
-                                                    style="color:#00ba32;"></i>
+                                                <i class="fas fa-hourglass-half fa-fw text-success" title="{% trans 'Accepted, pending update in game.' %}"></i>
                                             {% elif std.pendingRequest == True %}
-                                                <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                                                <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
                                             {% elif std.pendingRevocation == True %}
-                                                <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}"
-                                                    style="color:#e81341;"></i>
+                                                <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
                                             {% elif std.standing == None and std.pendingRequest == False %}
-                                                <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
-                                                    title="{% trans "No Standing" %}"></i>
+                                                <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
                                             {% else %}
                                                 {% include 'standingsrequests/partials/_standing.html' with standing=std.standing %}
                                             {% endif %}
@@ -75,20 +71,30 @@
                                             {% if std.inOrganisation == True %}
                                                 <!-- Already in organisation, No actions -->
                                             {% elif std.pendingRequest == True or std.requestActioned == True %}
-                                                <a href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
-                                                        title="Remove Request"></i>
+                                                <a 
+                                                    class="btn btn-warning" 
+                                                    role="button" 
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Cancel Request">
+                                                    Cancel
                                                 </a>
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
-                                            {% elif std.standing == None or std.standing == 0  or std.standingReqExists == None%}
-                                                <a href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
+                                            {% elif not std.hasStanding %}
+                                                <a 
+                                                    class="btn btn-primary"
+                                                    role="button"
+                                                    href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Request to get standing for this character">                                                    
+                                                    &nbsp;Apply&nbsp;
                                                 </a>
                                             {% else %}
-                                                <a href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}">
-                                                    <i class="fa fa-times-circle fa-fw grayiconecolor"
-                                                        style="color:#e81341;" title="Remove"></i>
+                                                <a 
+                                                    class="btn btn-danger" 
+                                                    role="button"                                                     
+                                                    href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                                    title="Request to revoke standing for this character">
+                                                    Revoke
                                                 </a>
                                             {% endif %}
                                         </span>
@@ -104,7 +110,7 @@
 
     {% if corporations_enabled %}
         <div class="col-lg-12">
-            <h1 class="page-header">{% trans "Your Corporations" %}</h1>
+            <h2>{% trans "Your Corporations" %}</h2>
 
             <div class="container">
                 {% if authinfo.main_char_id %}
@@ -114,41 +120,39 @@
                 <div class="row">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
-                            <tr>
-                                <th class="col-md-1"></th>
-                                <th class="col-md-2">{% trans "Corporation" %}</th>
+                            <tr>                                
+                                <th class="col-md-4">{% trans "Corporation" %}</th>
+                                <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-1">{% trans "Keys/Req" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
-                                <th class="col-md-1">{% trans "Action" %}</th>
+                                <th class="col-md-1">{% trans "Actions" %}</th>
                             </tr>
                             {% for st in corps %}
-                                <tr>
-                                    <td>                                        
+                                <tr>                                
+                                    <td>
                                         <img src="{{ st.corp.corporation_id|corporation_logo_url:32 }}" class="img-circle">
+                                        &nbsp;&nbsp;&nbsp;
+                                        {{ st.corp.corporation_name }}
                                     </td>
                                     <td>
-                                        <p>{{ st.corp.corporation_name }}</p>
+                                        {{ st.corp.alliance_name|default_if_none:"" }}
                                     </td>
                                     <td>
-                                        <p>{{ st.have_scopes }}/{{ st.corp.member_count }}</p>
+                                        {{ st.token_count }}/{{ st.corp.member_count }}
                                     </td>
                                     <td>
                                         <p>
                                             <span style="font-size:2em;">
                                                 {% if st.inOrganisation == True %}
-                                                    <i class="fa fa-star fa-fw" title="{% trans "In Organisation" %}"
-                                                        style="color:#042177;"></i>
+                                                    <i class="fas fa-star fa-fw text-primary" title="{% trans 'In Organisation' %}"></i>
                                                 {% elif st.requestActioned == True %}
-                                                    <i class="fa fa-sliders fa-fw" title="{% trans "Actioned, pending API pull." %}"
-                                                        style="color:#00ba32;"></i>
+                                                    <i class="fas fa-hourglass-half fa-fw text-success" title="{% trans 'Accepted, pending update in game.' %}"></i>
                                                 {% elif st.pendingRequest == True %}
-                                                    <i class="fa fa-sliders fa-fw" title="{% trans "Standing Pending" %}"></i>
+                                                    <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
                                                 {% elif st.pendingRevocation == True %}
-                                                    <i class="fa fa-reply-all fa-fw" title="{% trans "Standing Revoked" %}"
-                                                        style="color:#e81341;"></i>
+                                                    <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
                                                 {% elif st.standing == None and st.pendingRequest == False %}
-                                                    <i class="fa fa-exclamation-triangle fa-fw grayiconecolor"
-                                                        title="{% trans "No Standing" %}"></i>
+                                                    <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
                                                 {% else %}
                                                     {% include 'standingsrequests/partials/_standing.html' with standing=st.standing %}
                                                 {% endif %}
@@ -159,26 +163,34 @@
                                         <p>
                                             <span style="font-size:2em;">
                                                 {% if st.pendingRequest == True or st.requestActioned == True %}
-                                                    <a href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                        <i class="fa fa-times fa-fw grayiconecolor" style="color:#e81341;"
-                                                            title="Remove Request"></i>
+                                                    <a 
+                                                        class="btn btn-warning" 
+                                                        role="button" 
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                                        title="Cancel Request">
+                                                        Cancel
                                                     </a>
                                                 {% elif st.pendingRevocation == True %}
                                                     <!-- Revoked, No actions -->
-                                                {% elif st.standing == None or st.standing == 0 or st.standingReqExists == None%}
-                                                    {% if st.have_keys >= st.corp.member_count %}
-                                                        <a href="{% url 'standingsrequests:request_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                            <i class="fa fa-plus fa-fw grayiconecolor" title="Request"></i>
+                                                {% elif not st.hasStanding %}
+                                                    {% if st.token_count >= st.corp.member_count %}
+                                                        <a 
+                                                            class="btn btn-priamry" 
+                                                            role="button" 
+                                                            href="{% url 'standingsrequests:request_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                                            title="Request to get standing for this corporation">              
+                                                            &nbsp;Apply&nbsp;
                                                         </a>
                                                     {% else %}
-                                                        <i class="glyphicon glyphicon-info-sign"
-                                                            style="color:#c34704"
-                                                            title="{% trans "More keys required to request standings" %}"></i>
+                                                        <i class="fas fa-info-circle text-info" title="{% trans 'More keys required to request standings' %}"></i>
                                                     {% endif %}
                                                 {% else %}
-                                                    <a href="{% url 'standingsrequests:remove_corp_standing' corp_id=st.corp.corporation_id %}">
-                                                        <i class="fa fa-times-circle fa-fw grayiconecolor"
-                                                            style="color:#e81341;" title="Remove"></i>
+                                                    <a 
+                                                        class="btn btn-danger" 
+                                                        role="button" 
+                                                        href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                                        title="Request to revoke standing for this corporation">
+                                                        Revoke
                                                     </a>
                                                 {% endif %}
                                             </span>

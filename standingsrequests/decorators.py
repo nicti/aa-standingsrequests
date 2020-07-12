@@ -1,15 +1,18 @@
-import logging
 from functools import wraps
 
 from django.utils.decorators import available_attrs
+
+from allianceauth.services.hooks import get_extension_logger
 from esi.decorators import _check_callback
 from esi.models import Token
 from esi.views import select_token, sso_redirect
 
-from .managers.standings import StandingsManager
+from . import __title__
+from .models import StandingRequest
+from .utils import LoggerAddTag
 
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 def token_required_by_state(new=False):
@@ -28,7 +31,7 @@ def token_required_by_state(new=False):
             scopes = ""
             if request.user.profile.state is not None:
                 scopes = " ".join(
-                    StandingsManager.get_required_scopes_for_state(
+                    StandingRequest.get_required_scopes_for_state(
                         request.user.profile.state.name
                     )
                 )
@@ -55,6 +58,7 @@ def token_required_by_state(new=False):
 
                 token_pk = request.POST.get("_token", None)
                 if token_pk:
+                    token_pk = int(token_pk)
                     logger.debug("%s has selected token %d", request.user, token_pk)
                     try:
                         token = Token.objects.get(pk=token_pk)

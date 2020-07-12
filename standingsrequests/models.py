@@ -1,18 +1,50 @@
-import logging
-import datetime
+from datetime import timedelta
 
 from django.core import exceptions
 from django.contrib.auth.models import User
 from django.db import models
-from django.utils import timezone
+from django.utils.timezone import now
 
-from .helpers import StandingsRequestManager
-from .managers.eveentity import EveEntityManager
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.evelinks import eveimageserver
+from allianceauth.services.hooks import get_extension_logger
 
-logger = logging.getLogger(__name__)
+from esi.models import Token
+
+from . import __title__
+from .app_settings import (
+    SR_REQUIRED_SCOPES,
+    SR_STANDING_TIMEOUT_HOURS,
+    STANDINGS_API_CHARID,
+    STR_CORP_IDS,
+    STR_ALLIANCE_IDS,
+    SR_OPERATION_MODE,
+)
+from .helpers.evecorporation import EveCorporation
+from .managers import (
+    AbstractStandingsRequestManager,
+    CharacterAssociationManager,
+    ContactSetManager,
+    EveEntityManager,
+    StandingsRequestManager,
+    StandingsRevocationManager,
+)
+from .utils import LoggerAddTag
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ContactSet(models.Model):
+    """Set of contacts from configured alliance or corporation 
+    which defines its current standings
+    """
+
+    date = models.DateTimeField(auto_now_add=True, db_index=True)
+    name = models.CharField(max_length=254)
+
+    objects = ContactSetManager()
+
     class Meta:
         get_latest_by = "date"
         permissions = (
@@ -20,36 +52,238 @@ class ContactSet(models.Model):
             ("download", "User can export standings to a CSV file"),
         )
 
-    date = models.DateTimeField(auto_now_add=True)
-    name = models.CharField(max_length=254)
-
     def __str__(self):
         return str(self.date)
 
-    def get_standing_for_id(self, contact_id, contact_type):
-        """
-        Attempts to fetch the standing for the given ID and type
-        :param contact_id: Integer contact ID
-        :param contact_type: Integer contact type from the contactTypes attribute 
+    def __repr__(self):
+        return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
+
+    def get_contact_by_id(self, contact_id: int, contact_type_id: int) -> object:
+        """Attempts to fetch the contact for the given ID and type
+        
+        Params:
+        - contact_id: Integer contact ID
+        - contact_type_id: Integer contact type from the contact_type_ids attribute 
         in concrete models
-        :return: concrete contact Object or ObjectDoesNotExist exception
+        
+        Returns concrete contact Object or ObjectDoesNotExist exception
         """
-        if contact_type in PilotStanding.contactTypes:
-            return self.pilotstanding_set.get(contactID=contact_id)
-        elif contact_type in CorpStanding.contactTypes:
-            return self.corpstanding_set.get(contactID=contact_id)
-        elif contact_type in AllianceStanding.contactTypes:
-            return self.alliancestanding_set.get(contactID=contact_id)
+        if contact_type_id in CharacterContact.contact_type_ids:
+            return self.charactercontact_set.get(contact_id=contact_id)
+        elif contact_type_id in CorporationContact.contact_type_ids:
+            return self.corporationcontact_set.get(contact_id=contact_id)
+        elif contact_type_id in AllianceContact.contact_type_ids:
+            return self.alliancecontact_set.get(contact_id=contact_id)
         raise exceptions.ObjectDoesNotExist()
+
+    def create_contact(
+        self,
+        contact_type_id: int,
+        contact_id: int,
+        name: str,
+        standing: float,
+        labels: list,
+    ) -> object:
+        """creates new contact"""
+        StandingType = self.get_class_for_contact_type(contact_type_id)
+        contact = StandingType.objects.create(
+            contact_set=self, contact_id=contact_id, name=name, standing=standing,
+        )
+        for label in labels:
+            contact.labels.add(label)
+
+        return contact
+
+    def character_has_satisfied_standing(self, contact_id: int) -> bool:
+        return self.contact_has_satisfied_standing(
+            contact_id, CharacterContact.get_contact_type_id()
+        )
+
+    def corporation_has_satisfied_standing(self, contact_id: int) -> bool:
+        return self.contact_has_satisfied_standing(
+            contact_id, CorporationContact.get_contact_type_id()
+        )
+
+    def contact_has_satisfied_standing(
+        self, contact_id: int, contact_type_id: int
+    ) -> bool:
+        """Return True if give contact has standing exists"""
+        if contact_type_id in CharacterContact.contact_type_ids:
+            try:
+                contact = self.charactercontact_set.get(contact_id=contact_id)
+            except CharacterContact.DoesNotExist:
+                return False
+
+        elif contact_type_id in CorporationContact.contact_type_ids:
+            try:
+                contact = self.corporationcontact_set.get(contact_id=contact_id)
+            except CorporationContact.DoesNotExist:
+                return False
+
+        elif contact_type_id in AllianceContact.contact_type_ids:
+            try:
+                contact = self.alliancecontact_set.get(contact_id=contact_id)
+            except CorporationContact.DoesNotExist:
+                return False
+
+        else:
+            raise ValueError("Invalid contact type ID: %s" % contact_type_id)
+
+        return StandingRequest.is_standing_satisfied(contact.standing)
+
+    @staticmethod
+    def get_class_for_contact_type(contact_type_id):
+        if contact_type_id in CharacterContact.contact_type_ids:
+            return CharacterContact
+        elif contact_type_id in CorporationContact.contact_type_ids:
+            return CorporationContact
+        elif contact_type_id in AllianceContact.contact_type_ids:
+            return AllianceContact
+        raise ValueError("Invalid contact type ID: %s" % contact_type_id)
+
+    @classmethod
+    def is_character_in_organisation(cls, character: EveCharacter) -> bool:
+        """Check if the Pilot is in the auth instances organisation
+        
+        character: EveCharacter
+
+        returns True if the character is in the organisation, False otherwise
+        """
+        return (
+            character.corporation_id in cls.corporation_ids_in_organization()
+            or character.alliance_id in cls.alliance_ids_in_organization()
+        )
+
+    @staticmethod
+    def corporation_ids_in_organization() -> list:
+        return [int(corporation_id) for corporation_id in list(STR_CORP_IDS)]
+
+    @staticmethod
+    def alliance_ids_in_organization() -> list:
+        return [int(corporation_id) for corporation_id in list(STR_ALLIANCE_IDS)]
+
+    @staticmethod
+    def required_esi_scope() -> str:
+        """returns the required ESI scopes for syncing"""
+        if SR_OPERATION_MODE == "alliance":
+            return "esi-alliances.read_contacts.v1"
+        elif SR_OPERATION_MODE == "corporation":
+            return "esi-corporations.read_contacts.v1"
+        else:
+            raise NotImplementedError()
+
+    @staticmethod
+    def standings_character() -> EveCharacter:
+        """returns the configured standings character"""
+        try:
+            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
+        except EveCharacter.DoesNotExist:
+            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
+            EveEntity.objects.get_or_create(
+                entity_id=character.character_id,
+                defaults={
+                    "name": character.character_name,
+                    "category": EveEntity.CATEGORY_CHARACTER,
+                },
+            )
+
+        return character
+
+    @classmethod
+    def standings_source_entity(cls) -> object:
+        """returns the entity that all standings are fetched from
+        
+        returns None when in alliance mode, but character has no alliance
+        """
+        character = cls.standings_character()
+        if SR_OPERATION_MODE == "alliance":
+            if character.alliance_id:
+                entity, _ = EveEntity.objects.get_or_create(
+                    entity_id=character.alliance_id,
+                    defaults={
+                        "name": character.alliance_name,
+                        "category": EveEntity.CATEGORY_ALLIANCE,
+                    },
+                )
+            else:
+                entity = None
+        elif SR_OPERATION_MODE == "corporation":
+            entity, _ = EveEntity.objects.get_or_create(
+                entity_id=character.corporation_id,
+                defaults={
+                    "name": character.corporation_name,
+                    "category": EveEntity.CATEGORY_CORPORATION,
+                },
+            )
+        else:
+            raise NotImplementedError()
+
+        return entity
+
+    def generate_standing_requests_for_blue_alts(self) -> int:
+        """Automatically creates effective standings requests for
+        alt characters on Auth that already have blue standing in-game.
+
+        return count of generated standings requests
+        """
+        logger.info("Started generating standings request for blue alts.")
+        owned_characters_qs = EveCharacter.objects.filter(
+            character_ownership__isnull=False
+        ).select_related()
+        created_counter = 0
+        for alt in owned_characters_qs:
+            user = alt.character_ownership.user
+            if (
+                not self.is_character_in_organisation(alt)
+                and not StandingRequest.objects.filter(
+                    user=user, contact_id=alt.character_id
+                ).exists()
+                and not StandingRevocation.objects.filter(
+                    contact_id=alt.character_id
+                ).exists()
+                and self.character_has_satisfied_standing(alt.character_id)
+            ):
+                sr = StandingRequest.objects.add_request(
+                    user=user,
+                    contact_id=alt.character_id,
+                    contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+                )
+                sr.mark_actioned(None)
+                sr.mark_effective()
+                logger.info(
+                    "Generated standings request for blue alt %s "
+                    "belonging to user %s.",
+                    alt,
+                    user,
+                )
+                created_counter += 1
+
+        logger.info(
+            "Completed generating %d standings request for blue alts.", created_counter,
+        )
+        return created_counter
 
 
 class ContactLabel(models.Model):
-    labelID = models.BigIntegerField()
-    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
-    name = models.CharField(max_length=254)
+    """A contact label"""
+
+    contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
+    label_id = models.BigIntegerField(db_index=True)
+    name = models.CharField(max_length=254, db_index=True)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(pk={self.pk}, "
+            f"label_id={self.label_id}, name='{self.name}')"
+        )
 
 
-class AbstractStanding(models.Model):
+class AbstractContact(models.Model):
+    """Base class for a contact"""
+
     CHARACTER_AMARR_TYPE_ID = 1373
     CHARACTER_NI_KUNNI_TYPE_ID = 1374
     CHARACTER_CIVRE_TYPE_ID = 1375
@@ -68,160 +302,239 @@ class AbstractStanding(models.Model):
     ALLIANCE_TYPE_ID = 16159
     CORPORATION_TYPE_ID = 2
 
+    contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
+    contact_id = models.PositiveIntegerField(db_index=True)
+    name = models.CharField(max_length=254, db_index=True)
+    standing = models.FloatField(db_index=True)
+    labels = models.ManyToManyField(ContactLabel)
+
     class Meta:
         abstract = True
 
-    set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
-    contactID = models.IntegerField()
-    name = models.CharField(max_length=254)
-    standing = models.FloatField()
-    labels = models.ManyToManyField(ContactLabel)
-
-    contactTypes = []
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}(pk={self.pk}, "
+            f"contact_id={self.contact_id}, name='{self.name}', "
+            f"standing={self.standing})"
+        )
 
     @classmethod
-    def get_contact_type(cls, contact_id):
-        raise NotImplementedError()
+    def get_contact_type_id(cls) -> int:
+        """returns the contact type ID for this type of contact"""
+        try:
+            return cls.contact_type_ids[0]
+        except AttributeError:
+            raise NotImplementedError() from None
+
+    @classmethod
+    def get_contact_type_ids(cls) -> int:
+        """returns the list of valid contact type IDs for this type of contact"""
+        try:
+            return cls.contact_type_ids
+        except AttributeError:
+            raise NotImplementedError() from None
+
+    @staticmethod
+    def is_character(type_id):
+        return type_id in CharacterContact.contact_type_ids
+
+    @staticmethod
+    def is_corporation(type_id):
+        return type_id in CorporationContact.contact_type_ids
+
+    @staticmethod
+    def is_alliance(type_id):
+        return type_id in AllianceContact.contact_type_ids
 
 
-class PilotStanding(AbstractStanding):
-    contactTypes = [
-        AbstractStanding.CHARACTER_AMARR_TYPE_ID,
-        AbstractStanding.CHARACTER_NI_KUNNI_TYPE_ID,
-        AbstractStanding.CHARACTER_CIVRE_TYPE_ID,
-        AbstractStanding.CHARACTER_DETEIS_TYPE_ID,
-        AbstractStanding.CHARACTER_GALLENTE_TYPE_ID,
-        AbstractStanding.CHARACTER_INTAKI_TYPE_ID,
-        AbstractStanding.CHARACTER_SEBIESTOR_TYPE_ID,
-        AbstractStanding.CHARACTER_BRUTOR_TYPE_ID,
-        AbstractStanding.CHARACTER_STATIC_TYPE_ID,
-        AbstractStanding.CHARACTER_MODIFIER_TYPE_ID,
-        AbstractStanding.CHARACTER_ACHURA_TYPE_ID,
-        AbstractStanding.CHARACTER_JIN_MEI_TYPE_ID,
-        AbstractStanding.CHARACTER_KHANID_TYPE_ID,
-        AbstractStanding.CHARACTER_VHEROKIOR_TYPE_ID,
-        AbstractStanding.CHARACTER_DRIFTER_TYPE_ID,
+class CharacterContact(AbstractContact):
+    """A character contact"""
+
+    contact_type_ids = [
+        AbstractContact.CHARACTER_AMARR_TYPE_ID,
+        AbstractContact.CHARACTER_NI_KUNNI_TYPE_ID,
+        AbstractContact.CHARACTER_CIVRE_TYPE_ID,
+        AbstractContact.CHARACTER_DETEIS_TYPE_ID,
+        AbstractContact.CHARACTER_GALLENTE_TYPE_ID,
+        AbstractContact.CHARACTER_INTAKI_TYPE_ID,
+        AbstractContact.CHARACTER_SEBIESTOR_TYPE_ID,
+        AbstractContact.CHARACTER_BRUTOR_TYPE_ID,
+        AbstractContact.CHARACTER_STATIC_TYPE_ID,
+        AbstractContact.CHARACTER_MODIFIER_TYPE_ID,
+        AbstractContact.CHARACTER_ACHURA_TYPE_ID,
+        AbstractContact.CHARACTER_JIN_MEI_TYPE_ID,
+        AbstractContact.CHARACTER_KHANID_TYPE_ID,
+        AbstractContact.CHARACTER_VHEROKIOR_TYPE_ID,
+        AbstractContact.CHARACTER_DRIFTER_TYPE_ID,
     ]
-    inWatchlist = models.BooleanField(default=False)
-
-    @classmethod
-    def get_contact_type(cls, contact_id):
-        """
-        Get the type ID for the contactID
-
-        Just spoofs it at the moment, not actually the correct race ID
-        :return: contactType
-        """
-        return cls.contactTypes[0]
-
-    @classmethod
-    def is_pilot(cls, type_id):
-        return type_id in cls.contactTypes
+    is_watched = models.BooleanField(default=False)
 
 
-class CorpStanding(AbstractStanding):
-    contactTypes = [AbstractStanding.CORPORATION_TYPE_ID]
+class CorporationContact(AbstractContact):
+    """A corporation contact"""
 
-    @classmethod
-    def get_contact_type(cls, contact_id):
-        """
-        Get the type ID for the contactID
-        :return: contactType
-        """
-        return cls.contactTypes[0]
-
-    @classmethod
-    def is_corp(cls, type_id):
-        return type_id in cls.contactTypes
+    contact_type_ids = [AbstractContact.CORPORATION_TYPE_ID]
 
 
-class AllianceStanding(AbstractStanding):
-    contactTypes = [AbstractStanding.ALLIANCE_TYPE_ID]
+class AllianceContact(AbstractContact):
+    """An alliance contact"""
 
-    @classmethod
-    def get_contact_type(cls, contact_id):
-        """
-        Get the type ID for the contactID
-        :return: contactType
-        """
-        return cls.contactTypes[0]
-
-    @classmethod
-    def is_alliance(cls, type_id):
-        return type_id in cls.contactTypes
+    contact_type_ids = [AbstractContact.ALLIANCE_TYPE_ID]
 
 
 class AbstractStandingsRequest(models.Model):
+    """Base class for a standing request"""
+
+    # possible contact types to make a request for
+    CHARACTER_CONTACT_TYPE = "character"
+    CORPORATION_CONTACT_TYPE = "corporation"
+
+    # Standing less than or equal
+    EXPECT_STANDING_LTEQ = 10.0
+
+    # Standing greater than or equal
+    EXPECT_STANDING_GTEQ = -10.0
+
+    # permission needed to request standing
+    REQUEST_PERMISSION_NAME = "standingsrequests.request_standings"
+
+    contact_id = models.PositiveIntegerField(
+        db_index=True, help_text="EVE Online ID of contact this standing is for"
+    )
+    contact_type_id = models.PositiveIntegerField(
+        db_index=True, help_text="EVE Online Type ID of this contact"
+    )
+    request_date = models.DateTimeField(
+        auto_now_add=True, db_index=True, help_text="datetime this request was created"
+    )
+    action_by = models.ForeignKey(
+        User,
+        default=None,
+        null=True,
+        on_delete=models.SET_DEFAULT,
+        db_index=True,
+        help_text="standing manager that accepted or rejected this requests",
+    )
+    action_date = models.DateTimeField(
+        null=True, db_index=True, help_text="datetime of action by standing manager"
+    )
+    is_effective = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True, when this standing is also set in-game, else False",
+    )
+    effective_date = models.DateTimeField(
+        null=True, help_text="Datetime when this standing was set active in-game"
+    )
+
+    objects = AbstractStandingsRequestManager()
+
     class Meta:
         permissions = (
             ("affect_standings", "User can process standings requests."),
             ("request_standings", "User can request standings."),
         )
 
-    contactID = models.IntegerField()
-    contactType = models.IntegerField()
-    requestDate = models.DateTimeField(auto_now_add=True)
-    actionBy = models.ForeignKey(User, null=True, on_delete=models.DO_NOTHING)
-    actionDate = models.DateTimeField(null=True)
-    effective = models.BooleanField(default=False)
-    effectiveDate = models.DateTimeField(null=True)
+    def __repr__(self) -> str:
+        try:
+            user_str = f", user='{self.user}'"
+        except AttributeError:
+            user_str = ""
 
-    # Standing less than or equal
-    expectStandingLTEQ = 10.0
+        return (
+            f"{type(self).__name__}(pk={self.pk}, contact_id={self.contact_id}"
+            f"{user_str}, is_effective={self.is_effective})"
+        )
 
-    # Standing greater than or equal
-    expectStandingGTEQ = -10.0
+    @property
+    def is_character(self) -> bool:
+        return AbstractContact.is_character(self.contact_type_id)
 
-    # Hours to wait for a standing to be effective after being marked actioned
-    standingTimeoutHours = 24
+    @property
+    def is_corporation(self) -> bool:
+        return AbstractContact.is_corporation(self.contact_type_id)
 
-    def check_standing_satisfied(self, check_only=False):
+    @property
+    def is_actioned(self) -> bool:
+        return self.action_date is not None and not self.is_effective
+
+    @property
+    def is_pending(self) -> bool:
+        return self.action_date is None and self.is_effective is False
+
+    @classmethod
+    def is_standing_satisfied(cls, standing: float) -> bool:
+        if standing is not None:
+            return (
+                cls.EXPECT_STANDING_GTEQ <= float(standing) <= cls.EXPECT_STANDING_LTEQ
+            )
+        else:
+            return False
+
+    @classmethod
+    def contact_type_2_id(cls, contact_type) -> int:
+        if contact_type == cls.CHARACTER_CONTACT_TYPE:
+            return CharacterContact.get_contact_type_id()
+        elif contact_type == cls.CORPORATION_CONTACT_TYPE:
+            return CorporationContact.get_contact_type_id()
+        else:
+            raise ValueError("Invalid contact type")
+
+    @classmethod
+    def contact_id_2_type(cls, contact_type_id) -> str:
+        if contact_type_id in CharacterContact.get_contact_type_ids():
+            return cls.CHARACTER_CONTACT_TYPE
+        elif contact_type_id in CorporationContact.get_contact_type_ids():
+            return cls.CORPORATION_CONTACT_TYPE
+        else:
+            raise ValueError("Invalid contact type")
+
+    def evaluate_effective_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
-        :param check_only: Check the standing only, take no action
-        :return: True if satisfied else False
+        :param check_only: Check the standing only, take no action        
         """
         try:
-            logger.debug("Checking standing for %d", self.contactID)
+            logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.get_standing_for_id(self.contactID, self.contactType)
-            if self.expectStandingGTEQ <= contact.standing <= self.expectStandingLTEQ:
+            contact = latest.get_contact_by_id(self.contact_id, self.contact_type_id)
+            if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
-                logger.debug("Standing satisfied for %d", self.contactID)
+                logger.debug("Standing satisfied for %d", self.contact_id)
                 if not check_only:
-                    self.mark_standing_effective()
+                    self.mark_effective()
                 return True
 
         except exceptions.ObjectDoesNotExist:
             logger.debug(
-                "No standing set for %d, checking if neutral is OK", self.contactID
+                "No standing set for %d, checking if neutral is OK", self.contact_id
             )
-            if self.expectStandingLTEQ == 0:
+            if self.is_standing_satisfied(0):
                 # Standing satisfied but deleted (neutral)
                 logger.debug(
-                    "Standing satisfied but deleted (neutral) for %d", self.contactID
+                    "Standing satisfied but deleted (neutral) for %d", self.contact_id
                 )
                 if not check_only:
-                    self.mark_standing_effective()
+                    self.mark_effective()
                 return True
 
         # Standing not satisfied
-        logger.debug("Standing NOT satisfied for %d", self.contactID)
+        logger.debug("Standing NOT satisfied for %d", self.contact_id)
         return False
 
-    def mark_standing_effective(self, date=None):
+    def mark_effective(self, date=None):
         """
         Marks a standing as effective (standing exists in game) 
         from the current or supplied TZ aware datetime
         :param date: TZ aware datetime object of when the standing became effective
         :return:
         """
-        logger.debug("Marking standing for %d as effective", self.contactID)
-        self.effective = True
-        self.effectiveDate = date if date else timezone.now()
+        logger.debug("Marking standing for %d as effective", self.contact_id)
+        self.is_effective = True
+        self.effective_date = date if date else now()
         self.save()
 
-    def mark_standing_actioned(self, user, date=None):
+    def mark_actioned(self, user, date=None):
         """
         Marks a standing as actioned (user has made the change in game) 
         with the current or supplied TZ aware datetime
@@ -229,12 +542,12 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
-        logger.debug("Marking standing for %d as actioned", self.contactID)
-        self.actionBy = user
-        self.actionDate = date if date else timezone.now()
+        logger.debug("Marking standing for %d as actioned", self.contact_id)
+        self.action_by = user
+        self.action_date = date if date else now()
         self.save()
 
-    def check_standing_actioned_timeout(self):
+    def check_actioned_timeout(self):
         """
         Check that a standing hasn't been marked as actioned 
         and is still not effective ~24hr later
@@ -242,11 +555,11 @@ class AbstractStandingsRequest(models.Model):
         None if the check was unsuccessful
         """
         logger.debug("Checking standings request timeout")
-        if self.effective:
+        if self.is_effective:
             logger.debug("Standing is already marked as effective...")
             return None
 
-        if self.actionBy is None:
+        if self.action_by is None:
             logger.debug("Standing was never actioned, cannot timeout")
             return None
 
@@ -256,67 +569,46 @@ class AbstractStandingsRequest(models.Model):
             logger.debug("Cannot check standing timeout, no standings available")
             return None
 
-        # More than 24 hours after, reset
-        if (
-            self.actionDate + datetime.timedelta(hours=self.standingTimeoutHours)
-            < latest.date
-        ):
-            logger.debug(
-                "Standing actioned timed out, resetting actioned for contactID %d",
-                self.contactID,
+        # Reset request that has not become effective after timeout expired
+        if self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS) < latest.date:
+            logger.info(
+                "Standing actioned timed out, resetting actioned for contact_id %d",
+                self.contact_id,
             )
-            actioner = self.actionBy
-            self.actionBy = None
-            self.actionDate = None
+            actioner = self.action_by
+            self.action_by = None
+            self.action_date = None
             self.save()
             return actioner
         return False
 
-    def reset_to_initial(self):
+    def reset_to_initial(self) -> None:
         """
         Reset a standing back to its initial creation state 
         (Not actioned and not effective)
         :return:
         """
-        self.effective = False
-        self.effectiveDate = None
-        self.actionBy = None
-        self.actionDate = None
+        self.is_effective = False
+        self.effective_date = None
+        self.action_by = None
+        self.action_date = None
         self.save()
 
-    @classmethod
-    def pending_request(cls, contact_id):
-        """
-        Checks if a request is pending for the given contact_id
-        :param contact_id: int contactID to check the pending request for
-        :return: bool True if a request is already pending, False otherwise
-        """
-        pending = (
-            cls.objects.filter(contactID=contact_id)
-            .filter(actionBy=None)
-            .filter(effective=False)
-        )
-        return pending.exists()
 
-    @classmethod
-    def actioned_request(cls, contact_id):
-        """
-        Checks if an actioned request is pending API confirmation for 
-        the given contact_id
-        :param contact_id: int contactID to check the pending request for
-        :return: bool True if a request is pending API confirmation, False otherwise
-        """
-        pending = (
-            cls.objects.filter(contactID=contact_id)
-            .exclude(actionBy=None)
-            .filter(effective=False)
-        )
-        return pending.exists()
+class StandingRequest(AbstractStandingsRequest):
+    """A change request to get standing for a character or corporation
+    
+    OR a record representing that a character or corporation currently has standing     
+    
+    Standing Requests (SR) can have one of 3 states:
+    - new: Newly created SRs represent a new request from a user. They are not actioned and not effective
+    - actionied: A standing manager marks a SR as actionied, once he has set the new standing in-game
+    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.    
+    """
 
+    EXPECT_STANDING_GTEQ = 0.01
 
-class StandingsRequest(AbstractStandingsRequest):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    expectStandingGTEQ = 0.01
 
     objects = StandingsRequestManager()
 
@@ -326,123 +618,106 @@ class StandingsRequest(AbstractStandingsRequest):
         actioned (pending) or is effective and
         doesn't already have a pending revocation request.
         """
-        if self.actionBy is not None or self.effective:
+        if self.action_by is not None or self.is_effective:
             # Check if theres not already a revocation pending
-            if not StandingsRevocation.pending_request(self.contactID):
+            if not StandingRevocation.objects.has_pending_request(self.contact_id):
                 logger.debug(
                     "Adding revocation for deleted request "
-                    "with contactID %d type %s",
-                    self.contactID,
-                    self.contactType,
+                    "with contact_id %d type %s",
+                    self.contact_id,
+                    self.contact_type_id,
                 )
-                StandingsRevocation.add_revocation(self.contactID, self.contactType)
+                StandingRevocation.objects.add_revocation(
+                    contact_id=self.contact_id,
+                    contact_type=self.contact_id_2_type(self.contact_type_id),
+                    user=self.user,
+                )
             else:
                 logger.debug(
                     "Revocation already pending for deleted request "
-                    "with contactID %d type %s",
-                    self.contactID,
-                    self.contactType,
+                    "with contact_id %d type %s",
+                    self.contact_id,
+                    self.contact_type_id,
                 )
         else:
             logger.debug(
                 "Standing never effective, no revocation required "
-                "for deleted request with contactID %d type %s",
-                self.contactID,
-                self.contactType,
+                "for deleted request with contact_id %d type %s",
+                self.contact_id,
+                self.contact_type_id,
             )
 
-        super(AbstractStandingsRequest, self).delete(using, keep_parents)
+        super().delete(using, keep_parents)
 
     @classmethod
-    def add_request(cls, user, contact_id, contact_type):
+    def can_request_corporation_standing(cls, corporation_id: int, user: User) -> bool:
         """
-        Add a new standings request
-        :param user: User the request and contactID belongs to
-        :param contact_id: contactID to request standings on
-        :param contact_type: contactType from a AbstractStanding concrete class
-        :return: the created StandingsRequest instance
+        Checks if given user owns all of the required corp tokens for standings to be permitted
+        
+        Params
+        - corporation_id: corp to check for
+        - user: User to check for
+        
+        returns True if they can request standings, False if they cannot
         """
-        logger.debug(
-            "Adding new standings request for user %s, contact %d type %s",
-            user,
-            contact_id,
-            contact_type,
+        corporation = EveCorporation.get_by_id(corporation_id)
+        return (
+            corporation is not None
+            and not corporation.is_npc
+            and corporation.user_has_all_member_tokens(user)
         )
 
-        if cls.objects.filter(contactID=contact_id, contactType=contact_type).exists():
-            logger.debug(
-                "Standings request already exists, " "returning first existing request"
-            )
-            return cls.objects.filter(contactID=contact_id, contactType=contact_type)[0]
-
-        instance = cls(user=user, contactID=contact_id, contactType=contact_type)
-        instance.save()
-        return instance
-
     @classmethod
-    def remove_requests(cls, contact_id):
-        """
-        Remove the requests for the given contact_id. If any of these requests 
-        have been actioned or are effective
-        a Revocation request will automatically be generated
-        :param contact_id: str contactID to remove.
-        :return:
-        """
-        logger.debug("Removing requests for contactID %d", contact_id)
-        requests = cls.objects.filter(contactID=contact_id)
-        logger.debug("%d requests to be removed", len(requests))
-        requests.delete()
+    def has_required_scopes_for_request(
+        cls, character: EveCharacter, user: User = None, quick_check: bool = False
+    ) -> bool:
+        """returns true if given character has the required scopes 
+        for issueing a standings request else false
 
-
-class StandingsRevocation(AbstractStandingsRequest):
-    expectStandingLTEQ = 0.0
-
-    @classmethod
-    def add_revocation(cls, contact_id, contact_type):
+        Params:
+        - user: provide User object to shorten processing time
+        - quick: if True will not check if tokens are valid to save time
         """
-        Add a new standings revocation
-        :param contact_id: contactID to request standings on
-        :param contact_type: contactType from AbstractStanding concrete implementation
-        :return: the created StandingsRevocation instance
-        """
-        logger.debug(
-            "Adding new standings revocation for contact %d type %s",
-            contact_id,
-            contact_type,
+        if not user:
+            try:
+                ownership = CharacterOwnership.objects.select_related(
+                    "user__profile__state"
+                ).get(character__character_id=character.character_id)
+            except CharacterOwnership.DoesNotExist:
+                return False
+            else:
+                user = ownership.user
+
+        state_name = user.profile.state.name
+        scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
+        token_qs = Token.objects.filter(
+            character_id=character.character_id
+        ).require_scopes(scopes_string)
+        if not quick_check:
+            token_qs = token_qs.require_valid()
+
+        return token_qs.exists()
+
+    @staticmethod
+    def get_required_scopes_for_state(state_name: str) -> list:
+        state_name = "" if not state_name else state_name
+        return (
+            SR_REQUIRED_SCOPES[state_name]
+            if state_name in SR_REQUIRED_SCOPES
+            else list()
         )
-        pending = cls.objects.filter(contactID=contact_id).filter(effective=False)
-        if pending.exists():
-            logger.debug(
-                "Cannot add revocation for contact %d %s, " "pending revocation exists",
-                contact_id,
-                contact_type,
-            )
-            return None
 
-        instance = cls(contactID=contact_id, contactType=contact_type)
-        instance.save()
-        return instance
 
-    @classmethod
-    def undo_revocation(cls, contact_id, owner):
-        """
-        Converts existing revocation into request if it exists
-        :param contact_id: contactID to request standings on
-        :param owner: user owning the revocation
-        :return: created StandingsRequest pendant 
-            or False if revocation does not exist
-        """
-        logger.debug("Undoing revocation for contactID %d", contact_id)
-        revocations = cls.objects.filter(contactID=contact_id)
+class StandingRevocation(AbstractStandingsRequest):
+    """A standing revocation"""
 
-        if not revocations.exists():
-            return False
+    EXPECT_STANDING_LTEQ = 0.0
 
-        request = StandingsRequest.add_request(
-            owner, contact_id, revocations[0].contactType
-        )
-        revocations.delete()
-        return request
+    user = models.ForeignKey(
+        User, on_delete=models.SET_DEFAULT, default=None, null=True
+    )
+
+    objects = StandingsRevocationManager()
 
 
 class CharacterAssociation(models.Model):
@@ -451,13 +726,15 @@ class CharacterAssociation(models.Model):
     Main characters are associated with themselves
     """
 
-    character_id = models.IntegerField(primary_key=True)
-    corporation_id = models.IntegerField(null=True)
-    alliance_id = models.IntegerField(null=True)
-    main_character_id = models.IntegerField(null=True)
+    API_CACHE_TIMER = timedelta(days=3)
+
+    character_id = models.PositiveIntegerField(primary_key=True)
+    corporation_id = models.PositiveIntegerField(null=True)
+    alliance_id = models.PositiveIntegerField(null=True)
+    main_character_id = models.PositiveIntegerField(null=True)
     updated = models.DateTimeField(auto_now_add=True)
 
-    API_CACHE_TIMER = datetime.timedelta(days=3)
+    objects = CharacterAssociationManager()
 
     @property
     def character_name(self):
@@ -465,7 +742,7 @@ class CharacterAssociation(models.Model):
         Character name property for character_id
         :return: str character name
         """
-        name = EveNameCache.get_name(self.character_id)
+        name = EveEntity.objects.get_name(self.character_id)
         return name
 
     @property
@@ -475,196 +752,60 @@ class CharacterAssociation(models.Model):
         :return: str character name
         """
         if self.main_character_id:
-            name = EveNameCache.get_name(self.main_character_id)
+            name = EveEntity.objects.get_name(self.main_character_id)
         else:
             name = None
         return name
 
-    @classmethod
-    def get_api_expired_items(cls, items_in=None):
-        """
-        Get all API timer expired items
-        :param items_in: list optional parameter to limit the results 
-        to character_ids in the list
-        :return: QuerySet of CharacterAssociation items 
-        that have expired their API timer
-        """
-        expired = cls.objects.filter(updated__lt=timezone.now() - cls.API_CACHE_TIMER)
-        if items_in is not None:
-            expired = expired.filter(character_id__in=items_in)
 
-        return expired
-
-
-class EveNameCache(models.Model):
-    """
-    Cache for all entity names (Characters, Corps, Alliances)
-
-    Keeping our own cache because allianceauth deletes characters with no API key
+class EveEntity(models.Model):
+    """An Eve Online entity like a character or a corporation
+    
+    A main function of this class is to enable name matching for Eve IDs
     """
 
-    entityID = models.IntegerField(primary_key=True)
+    CACHE_TIME = timedelta(days=30)
+
+    CATEGORY_ALLIANCE = "alliance"
+    CATEGORY_CHARACTER = "character"
+    CATEGORY_CONSTELLATION = "constellation"
+    CATEGORY_CORPORATION = "corporation"
+    CATEGORY_FACTION = "faction"
+    CATEGORY_INVENTORY_TYPE = "inventory_type"
+    CATEGORY_REGION = "region"
+    CATEGORY_SOLAR_SYSTEM = "solar_system"
+    CATEGORY_STATION = "station"
+
+    CATEGORY_CHOICES = (
+        (CATEGORY_ALLIANCE, "alliance"),
+        (CATEGORY_CHARACTER, "character"),
+        (CATEGORY_CONSTELLATION, "constellation"),
+        (CATEGORY_CORPORATION, "corporation"),
+        (CATEGORY_FACTION, "faction"),
+        (CATEGORY_INVENTORY_TYPE, "inventory_type"),
+        (CATEGORY_REGION, "region"),
+        (CATEGORY_SOLAR_SYSTEM, "solar_system"),
+        (CATEGORY_STATION, "station"),
+    )
+
+    entity_id = models.PositiveIntegerField(primary_key=True)
     name = models.CharField(max_length=254)
-    updated = models.DateTimeField(auto_now_add=True)
+    category = models.CharField(
+        max_length=16, choices=CATEGORY_CHOICES, default=None, null=True
+    )
+    updated = models.DateTimeField(auto_now=True, db_index=True)
 
-    cache_time = datetime.timedelta(days=30)
+    objects = EveEntityManager()
 
-    @classmethod
-    def get_names(cls, entity_ids):
-        """
-        Get the names of the given entity ids from catch or other locations
-        :param eve_entity_ids: array of int entity ids who's names to fetch
-        :return: dict with entity_id as key and name as value
-        """
-        # make sure there are no duplicates
-        entity_ids = set(entity_ids)
-        name_info = {}
-        entities_need_update = []
-        entity_ids_not_found = []
-        for entity_id in entity_ids:
-            if cls.objects.filter(entityID=entity_id).exists():
-                # Cached
-                entity = cls.objects.get(entityID=entity_id)
-                if entity.cache_timeout():
-                    entities_need_update.append(entity)
-                else:
-                    name_info[entity.entityID] = entity.name
-            else:
-                entity_ids_not_found.append(entity_id)
-
-        entities_need_names = [
-            e.entityID for e in entities_need_update
-        ] + entity_ids_not_found
-
-        names_info_api = EveEntityManager.get_names(entities_need_names)
-
-        # update existing entities
-        for entity in entities_need_update:
-            if entity.entityID in names_info_api:
-                name = names_info_api[entity.entityID]
-                entity._set_name(name)
-            else:
-                entity._update_entity()
-
-            name_info[entity.entityID] = entity.name
-
-        # create new entities
-        for entity_id in entity_ids_not_found:
-            if entity_id in names_info_api:
-                entity = cls()
-                entity.entityID = entity_id
-                entity._set_name(names_info_api[entity_id])
-                name_info[entity_id] = entity.name
-
-        return name_info
-
-    @classmethod
-    def get_name(cls, entity_id):
-        """
-        Get the name for the given entity
-        :param entity_id: EVE id of the entity
-        :return: str name if it exists or None
-        """
-        if cls.objects.filter(entityID=entity_id).exists():
-            # Cached
-            entity = cls.objects.get(entityID=entity_id)
-            if entity.cache_timeout():
-                entity._update_entity()
+    def icon_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
+        map_category_2_other = {
+            self.CATEGORY_ALLIANCE: "alliance_logo_url",
+            self.CATEGORY_CHARACTER: "character_portrait_url",
+            self.CATEGORY_CORPORATION: "corporation_logo_url",
+            self.CATEGORY_INVENTORY_TYPE: "type_icon_url",
+        }
+        if self.category not in map_category_2_other:
+            return ""
         else:
-            # Fetch name/not cached
-            entity = cls()
-            entity.entityID = entity_id
-            entity._update_entity()
-            # If the name is updated it will be saved,
-            # otherwise this object will be discarded
-            # when it goes out of scope
-        return entity.name or None
-
-    def _update_entity(self, allow_api=True):
-        """
-        Update the entities name. Callers are responsible for checking cache timing.
-        :return: bool
-        """
-        # Try sources in order of preference, API call last
-
-        if self._update_from_contacts():
-            return True
-        elif self._update_from_auth():
-            return True
-        elif allow_api and self._update_from_api():
-            return True
-        return False
-
-    def _update_from_contacts(self):
-        """
-        Attempt to update the entity from the latest contacts data
-        :return: bool True if successful, False otherwise
-        """
-        contact = None
-        try:
-            contacts = ContactSet.objects.latest()
-            if contacts.pilotstanding_set.filter(contactID=self.entityID).exists():
-                contact = contacts.pilotstanding_set.get(contactID=self.entityID)
-
-            elif contacts.corpstanding_set.filter(contactID=self.entityID).exists():
-                contact = contacts.corpstanding_set.get(contactID=self.entityID)
-
-            elif contacts.alliancestanding_set.filter(contactID=self.entityID).exists():
-                contact = contacts.alliancestanding_set.get(contactID=self.entityID)
-
-        except ContactSet.DoesNotExist:
-            pass
-
-        if contact is not None:
-            self._set_name(contact.name)
-            return True
-        else:
-            return False
-
-    def _update_from_auth(self):
-        """
-        Attempt to update the entity from the parent auth installation
-        :return: bool True if successful, False otherwise
-        """
-        auth_name = EveEntityManager.get_name_from_auth(self.entityID)
-        if auth_name is not None:
-            self._set_name(auth_name)
-            return True
-        else:
-            return False
-
-    def _update_from_api(self):
-        """
-        Attempt to update the entity from the EVE API. 
-        Should be a last resort (because slow)
-        :return: bool True if successful, False otherwise
-        """
-        api_name = EveEntityManager.get_name_from_api(self.entityID)
-        if api_name is not None:
-            self._set_name(api_name)
-            return True
-        else:
-            return False
-
-    def _set_name(self, name):
-        """
-        Set the entities name to name
-        :param name: name to set the entities name to
-        :return:
-        """
-        self.name = name
-        self.updated = timezone.now()
-        self.save()
-
-    def cache_timeout(self):
-        """
-        Check if the cache timeout has been passed
-        :return: bool True if the cache timer has expired, False otherwise
-        """
-        return timezone.now() > self.updated + self.cache_time
-
-    @classmethod
-    def update_name(cls, entity_id, name):
-        cls.objects.update_or_create(
-            entityID=entity_id, defaults={"name": name, "updated": timezone.now(),}
-        )
+            func = map_category_2_other[self.category]
+            return getattr(eveimageserver, func)(self.entity_id, size=size)

@@ -1,146 +1,197 @@
-import logging
-
-from django.http import Http404, JsonResponse, HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.decorators import permission_required
-from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
-from django.core.cache import cache
-from django.utils.translation import gettext_lazy as _
-from django.db.models import Q
-
-from allianceauth.eveonline.models import EveCharacter
 from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.notifications import notify
+from allianceauth.services.hooks import get_extension_logger
+
+from django.contrib.auth.decorators import login_required, permission_required
+from django.http import Http404, HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
+from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 
 from esi.decorators import token_required
 
 from . import __title__
+from .app_settings import (
+    SR_CORPORATIONS_ENABLED,
+    SR_OPERATION_MODE,
+    STANDINGS_API_CHARID,
+    SR_NOTIFICATIONS_ENABLED,
+)
 from .decorators import token_required_by_state
-from .app_settings import STANDINGS_API_CHARID, SR_CORPORATIONS_ENABLED
 from .helpers.evecharacter import EveCharacterHelper
-from .helpers.writers import UnicodeWriter
 from .helpers.evecorporation import EveCorporation
-from .models import ContactSet, StandingsRequest, StandingsRevocation
-from .models import PilotStanding, CorpStanding, EveNameCache
-from .models import CharacterAssociation
-from .managers.standings import StandingsManager
-from .managers.eveentity import EveEntityManager
-from .utils import messages_plus
+from .helpers.eveentity import EveEntityHelper
+from .helpers.viewcache import cache_view_pilots_json, cache_view_groups_json
+from .helpers.writers import UnicodeWriter
+from .models import (
+    CharacterContact,
+    CorporationContact,
+    ContactSet,
+    EveEntity,
+    StandingRequest,
+    StandingRevocation,
+    models,
+)
+from .tasks import update_all
+from .utils import LoggerAddTag, messages_plus
 
-logger = logging.getLogger(__name__)
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+DEFAULT_ICON_SIZE = 32
+CACHED_PAGES_MINUTES = 10
+
+
+class HttpResponseNoContent(HttpResponse):
+    """Special HTTP response with no content, just headers.
+
+    The content operations are ignored.
+    """
+
+    def __init__(self, content="", mimetype=None, status=None, content_type=None):
+        super().__init__(status=204)
+
+        # although we don't define a content-type, base class sets a
+        # default one -- remove it, we're not returning content
+        if "content-type" in self._headers:
+            del self._headers["content-type"]
+
+    def _set_content(self, value):
+        pass
+
+    def _get_content(self, value):
+        pass
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def index_view(request):
     logger.debug("Start index_view request")
-    context = {"app_title": __title__, "corporations_enabled": SR_CORPORATIONS_ENABLED}
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "corporations_enabled": SR_CORPORATIONS_ENABLED,
+    }
     return render(request, "standingsrequests/index.html", context)
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def create_request_debug(request):
+    logger.debug("Start index_view request")
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "corporations_enabled": SR_CORPORATIONS_ENABLED,
+    }
+    return render(request, "standingsrequests/create_request_debug.html", context)
+
+
+@login_required
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def partial_request_entities(request):
     logger.debug("Start partial_request_entities request")
-
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
-        return render(request, "standingsrequests/error.html", {"app_title": __title__})
+        return render(
+            request,
+            "standingsrequests/error.html",
+            {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
+        )
 
-    characters = EveEntityManager.get_characters_by_user(request.user)
-    char_ids = [c.character_id for c in characters]
-    standings = contact_set.pilotstanding_set.filter(contactID__in=char_ids)
-
-    char_standings_data = list()
-    for character in characters:
+    eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
+    character_contacts_qs = contact_set.charactercontact_set.filter(
+        contact_id__in=eve_characters_qs.values_list("character_id", flat=True)
+    )
+    characters_data = list()
+    for character in eve_characters_qs:
         try:
-            standing = standings.get(contactID=character.character_id).standing
-        except ObjectDoesNotExist:
+            standing = character_contacts_qs.get(
+                contact_id=character.character_id
+            ).standing
+        except CharacterContact.DoesNotExist:
             standing = None
 
-        try:
-            standing_req = StandingsRequest.objects.get(
-                contactID=character.character_id
-            )
-        except ObjectDoesNotExist:
-            standing_req = None
-
-        char_standings_data.append(
+        characters_data.append(
             {
                 "character": character,
                 "standing": standing,
-                "pendingRequest": StandingsRequest.pending_request(
+                "pendingRequest": StandingRequest.objects.has_pending_request(
                     character.character_id
                 ),
-                "pendingRevocation": StandingsRevocation.pending_request(
+                "pendingRevocation": StandingRevocation.objects.has_pending_request(
                     character.character_id
                 ),
-                "requestActioned": StandingsRequest.actioned_request(
+                "requestActioned": StandingRequest.objects.has_actioned_request(
                     character.character_id
                 ),
-                "inOrganisation": StandingsManager.pilot_in_organisation(
-                    character.character_id
+                "inOrganisation": ContactSet.is_character_in_organisation(character),
+                "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
+                    character, user=request.user, quick_check=True
                 ),
-                "hasRequiredScopes": StandingsManager.has_required_scopes_for_request(
-                    character
-                ),
-                "standingReqExists": standing_req,
+                "hasStanding": StandingRequest.objects.filter(
+                    contact_id=character.character_id,
+                    user=request.user,
+                    is_effective=True,
+                ).exists(),
             }
         )
 
-    corp_standings_data = list()
+    corporations_data = list()
     if SR_CORPORATIONS_ENABLED:
-        corp_ids = set(
-            [
-                int(character.corporation_id)
-                for character in characters
-                if not StandingsManager.pilot_in_organisation(character.character_id)
-            ]
+        corporation_ids = set(
+            eve_characters_qs.exclude(
+                corporation_id__in=ContactSet.corporation_ids_in_organization()
+            )
+            .exclude(alliance_id__in=ContactSet.alliance_ids_in_organization())
+            .values_list("corporation_id", flat=True)
         )
-        standings = contact_set.corpstanding_set.filter(contactID__in=list(corp_ids))
-        for corp_id in corp_ids:
-            corporation = EveCorporation.get_corp_by_id(corp_id)
+        corporation_contacts_qs = contact_set.corporationcontact_set.filter(
+            contact_id__in=corporation_ids
+        )
+        for corporation in EveCorporation.get_many_by_id(corporation_ids):
             if corporation and not corporation.is_npc:
                 try:
-                    standing = standings.get(contactID=corp_id).standing
-                except ObjectDoesNotExist:
+                    standing = corporation_contacts_qs.get(
+                        contact_id=corporation.corporation_id
+                    ).standing
+                except CorporationContact.DoesNotExist:
                     standing = None
 
-                try:
-                    standing_req = StandingsRequest.objects.get(contactID=corp_id)
-                except ObjectDoesNotExist:
-                    standing_req = None
-
-                have_scopes = sum(
-                    [
-                        1
-                        for a in CharacterOwnership.objects.filter(
-                            user=request.user
-                        ).filter(character__corporation_id=corp_id)
-                        if StandingsManager.has_required_scopes_for_request(a.character)
-                    ]
-                )
-                corp_standings_data.append(
+                corporations_data.append(
                     {
-                        "have_scopes": have_scopes,
+                        "token_count": corporation.member_tokens_count_for_user(
+                            request.user, quick_check=True
+                        ),
                         "corp": corporation,
                         "standing": standing,
-                        "pendingRequest": StandingsRequest.pending_request(corp_id),
-                        "pendingRevocation": StandingsRevocation.pending_request(
-                            corp_id
+                        "pendingRequest": StandingRequest.objects.has_pending_request(
+                            corporation.corporation_id
                         ),
-                        "requestActioned": StandingsRequest.actioned_request(corp_id),
-                        "standingReqExists": standing_req,
+                        "pendingRevocation": StandingRevocation.objects.has_pending_request(
+                            corporation.corporation_id
+                        ),
+                        "requestActioned": StandingRequest.objects.has_actioned_request(
+                            corporation.corporation_id
+                        ),
+                        "hasStanding": StandingRequest.objects.filter(
+                            contact_id=corporation.corporation_id, is_effective=True,
+                        ).exists(),
                     }
                 )
 
+        corporations_data.sort(key=lambda x: x["corp"].corporation_name)
+
+    organization = ContactSet.standings_source_entity()
     render_items = {
         "app_title": __title__,
-        "characters": char_standings_data,
-        "corps": corp_standings_data,
+        "characters": characters_data,
+        "corps": corporations_data,
+        "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
+        "organization": organization,
+        "organization_image_url": organization.icon_url(size=DEFAULT_ICON_SIZE),
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
     return render(
@@ -149,171 +200,275 @@ def partial_request_entities(request):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
-def request_pilot_standings(request, character_id):
-    """
-    For a user to request standings for their own pilots
-    """
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def request_pilot_standing(request, character_id):
+    """For a user to request standings for their own pilots"""
+    ok = True
+    character_id = int(character_id)
     logger.debug(
         "Standings request from user %s for characterID %d", request.user, character_id
     )
-    if EveEntityManager.is_character_owned_by_user(character_id, request.user):
-        if not StandingsRequest.pending_request(
-            character_id
-        ) and not StandingsRevocation.pending_request(character_id):
-            StandingsRequest.add_request(
-                request.user, character_id, PilotStanding.get_contact_type(character_id)
-            )
-        else:
-            # Pending request, not allowed
-            logger.warning("Contact ID %d already has a pending request", character_id)
-    else:
+    character = EveCharacter.objects.get_character_by_id(character_id)
+    if not character or not EveEntityHelper.is_character_owned_by_user(
+        character_id, request.user
+    ):
         logger.warning(
             "User %s does not own Pilot ID %d, forbidden", request.user, character_id
         )
+        ok = False
+    elif StandingRequest.objects.has_pending_request(
+        character_id
+    ) or StandingRevocation.objects.has_pending_request(character_id):
+        logger.warning("Contact ID %d already has a pending request", character_id)
+        ok = False
+    elif not StandingRequest.has_required_scopes_for_request(
+        character=character, user=request.user
+    ):
+        ok = False
+    else:
+        sr = StandingRequest.objects.add_request(
+            user=request.user,
+            contact_id=character_id,
+            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+        )
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            ok = False
+        else:
+            if contact_set.character_has_satisfied_standing(character_id):
+                sr.mark_actioned(user=None)
+                sr.mark_effective()
+
+    if not ok:
+        messages_plus.warning(
+            request,
+            "An unexpected error occurred when trying to process "
+            "your standing request for %s. Please try again."
+            % EveEntity.objects.get_name(character_id),
+        )
+
     return redirect("standingsrequests:index")
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
-def remove_pilot_standings(request, character_id):
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def remove_pilot_standing(request, character_id):
     """
     Handles both removing requests and removing existing standings
     """
-    logger.debug("remove_pilot_standings called by %s", request.user)
-    if EveEntityManager.is_character_owned_by_user(character_id, request.user):
-        if (
-            not StandingsManager.pilot_in_organisation(character_id)
-            and (
-                StandingsRequest.pending_request(character_id)
-                or StandingsRequest.actioned_request(character_id)
-            )
-            and not StandingsRevocation.pending_request(character_id)
-        ):
+    character_id = int(character_id)
+    ok = True
+    logger.debug(
+        "remove_pilot_standing called by %s for character %d",
+        request.user,
+        character_id,
+    )
+    character = EveCharacter.objects.get_character_by_id(character_id)
+    if not character or not EveEntityHelper.is_character_owned_by_user(
+        character_id, request.user
+    ):
+        logger.warning(
+            "User %s does not own Pilot ID %d, forbidden", request.user, character_id
+        )
+        ok = False
+    elif ContactSet.is_character_in_organisation(character):
+        logger.warning(
+            "Character %d of user %s is in organization. Can not remove standing",
+            character_id,
+            request.user,
+        )
+        ok = False
+    elif not StandingRevocation.objects.has_pending_request(character_id):
+        if StandingRequest.objects.has_pending_request(
+            character_id
+        ) or StandingRequest.objects.has_actioned_request(character_id):
             logger.debug(
-                "Removing standings requests for characterID %d by user %d",
+                "Removing standings requests for character ID %d by user %s",
                 character_id,
                 request.user,
             )
-            StandingsRequest.remove_requests(character_id)
+            StandingRequest.objects.remove_requests(character_id)
         else:
-            standing = ContactSet.objects.latest().pilotstanding_set.filter(
-                contactID=character_id
-            )
-            if standing.exists() and standing[0].standing > 0:
-                # Manual revocation required
-                logger.debug(
-                    "Creating standings revocation for characterID %d by user %s",
-                    character_id,
-                    request.user,
-                )
-                StandingsRevocation.add_revocation(
-                    character_id, PilotStanding.get_contact_type(character_id)
-                )
+            try:
+                contact_set = ContactSet.objects.latest()
+            except ContactSet.DoesNotExist:
+                logger.warning("Failed to get a contact set")
+                ok = False
             else:
-                logger.debug("No standings exist for characterID %d", character_id)
-            logger.debug("Cannot remove standings for pilot %d", character_id)
+                if contact_set.character_has_satisfied_standing(character_id):
+                    logger.debug(
+                        "Creating standings revocation for character ID %d by user %s",
+                        character_id,
+                        request.user,
+                    )
+                    StandingRevocation.objects.add_revocation(
+                        contact_id=character_id,
+                        contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
+                        user=request.user,
+                    )
+                else:
+                    logger.debug("No standings exist for characterID %d", character_id)
     else:
-        logger.warning(
-            "User %s tried to remove standings for characterID %d "
-            "but was not permitted",
+        logger.debug(
+            "User %s already has a pending standing revocation for character %d",
             request.user,
             character_id,
         )
 
+    if not ok:
+        messages_plus.warning(
+            request,
+            "An unexpected error occurred when trying to process "
+            "your request to revoke standing for %s. Please try again."
+            % EveEntity.objects.get_name(character_id),
+        )
+
     return redirect("standingsrequests:index")
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
-def request_corp_standings(request, corp_id):
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def request_corp_standing(request, corporation_id):
     """
     For a user to request standings for their own corp
     """
-    logger.debug("Standings request from user %s for corpID %d", request.user, corp_id)
-
-    # Check the user has the required number of member keys for the corporation
-    if StandingsManager.all_corp_apis_recorded(corp_id, request.user):
-        if not StandingsRequest.pending_request(
-            corp_id
-        ) and not StandingsRevocation.pending_request(corp_id):
-            StandingsRequest.add_request(
-                request.user, corp_id, CorpStanding.get_contact_type(corp_id)
+    corporation_id = int(corporation_id)
+    ok = True
+    logger.debug(
+        "Standings request from user %s for corpID %d", request.user, corporation_id
+    )
+    if StandingRequest.can_request_corporation_standing(corporation_id, request.user):
+        if not StandingRequest.objects.has_pending_request(
+            corporation_id
+        ) and not StandingRevocation.objects.has_pending_request(corporation_id):
+            StandingRequest.objects.add_request(
+                user=request.user,
+                contact_id=corporation_id,
+                contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
             )
         else:
             # Pending request, not allowed
-            logger.warning("Contact ID %d already has a pending request", corp_id)
+            logger.warning(
+                "Contact ID %d already has a pending request", corporation_id
+            )
+            ok = False
     else:
         logger.warning(
             "User %s does not have enough keys for corpID %d, forbidden",
             request.user,
-            corp_id,
+            corporation_id,
         )
+        ok = False
+
+    if not ok:
+        messages_plus.warning(
+            request,
+            "An unexpected error occurred when trying to process "
+            "your standing request for %s. Please try again."
+            % EveEntity.objects.get_name(corporation_id),
+        )
+
     return redirect("standingsrequests:index")
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
-def remove_corp_standings(request, corp_id):
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def remove_corp_standing(request, corporation_id):
     """
     Handles both removing corp requests and removing existing standings
     """
-    logger.debug("remove_corp_standings called by %s", request.user)
-    # Need all corp APIs recorded to "own" the corp
-    st_req = get_object_or_404(StandingsRequest, contactID=corp_id)
-    if st_req.user == request.user:
-        if (
-            StandingsRequest.pending_request(corp_id)
-            or StandingsRequest.actioned_request(corp_id)
-        ) and not StandingsRevocation.pending_request(corp_id):
-            logger.debug(
-                "Removing standings requests for corpID %d by user %s",
-                corp_id,
-                request.user,
-            )
-            StandingsRequest.remove_requests(corp_id)
-        else:
-            standing = ContactSet.objects.latest().corpstanding_set.filter(
-                contactID=corp_id
-            )
-            if standing.exists() and standing[0].standing > 0:
-                # Manual revocation required
+    corporation_id = int(corporation_id)
+    ok = True
+    logger.debug("remove_corp_standing called by %s", request.user)
+    try:
+        st_req = StandingRequest.objects.get(contact_id=corporation_id)
+    except StandingRequest.DoesNotExist:
+        ok = False
+    else:
+        if st_req.user == request.user:
+            if (
+                StandingRequest.objects.has_pending_request(corporation_id)
+                or StandingRequest.objects.has_actioned_request(corporation_id)
+            ) and not StandingRevocation.objects.has_pending_request(corporation_id):
                 logger.debug(
-                    "Creating standings revocation for corpID %d by user %s",
-                    corp_id,
+                    "Removing standings requests for corpID %d by user %s",
+                    corporation_id,
                     request.user,
                 )
-                StandingsRevocation.add_revocation(
-                    corp_id, CorpStanding.get_contact_type(corp_id)
-                )
+                StandingRequest.objects.remove_requests(corporation_id)
             else:
-                logger.debug("No standings exist for corpID %d", corp_id)
-            logger.debug("Cannot remove standings for pilot %d", corp_id)
-    else:
-        logger.warning(
-            "User %s tried to remove standings for corpID %d but was not permitted",
-            request.user,
-            corp_id,
+                try:
+                    contact_set = ContactSet.objects.latest()
+                except ContactSet.DoesNotExist:
+                    logger.warning("Failed to get a contact set")
+                    ok = False
+                else:
+                    if contact_set.corporation_has_satisfied_standing(corporation_id):
+                        # Manual revocation required
+                        logger.debug(
+                            "Creating standings revocation for corpID %d by user %s",
+                            corporation_id,
+                            request.user,
+                        )
+                        StandingRevocation.objects.add_revocation(
+                            contact_id=corporation_id,
+                            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+                            user=request.user,
+                        )
+                    else:
+                        logger.debug(
+                            "Can remove standing - no standings exist for corpID %d",
+                            corporation_id,
+                        )
+                        ok = False
+
+        else:
+            logger.warning(
+                "User %s tried to remove standings for corpID %d but was not permitted",
+                request.user,
+                corporation_id,
+            )
+            ok = False
+
+    if not ok:
+        messages_plus.warning(
+            request,
+            "An unexpected error occurred when trying to process "
+            "your request to revoke standing for %s. Please try again."
+            % EveEntity.objects.get_name(corporation_id),
         )
 
     return redirect("standingsrequests:index")
 
 
-####################
-# Management views #
-####################
+###########################
+# Views character and groups #
+###########################
 @login_required
 @permission_required("standingsrequests.view")
 def view_pilots_standings(request):
     logger.debug("view_pilot_standings called by %s", request.user)
     try:
-        last_update = ContactSet.objects.latest().date
-    except (ObjectDoesNotExist, ContactSet.DoesNotExist):
-        last_update = None
+        contact_set = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contact_set = None
+    finally:
+        organization = ContactSet.standings_source_entity()
+        last_update = contact_set.date if contact_set else None
+        pilots_count = contact_set.charactercontact_set.count() if contact_set else None
+
     return render(
         request,
         "standingsrequests/view_pilots.html",
-        {"lastUpdate": last_update, "app_title": __title__},
+        {
+            "lastUpdate": last_update,
+            "app_title": __title__,
+            "operation_mode": SR_OPERATION_MODE,
+            "organization": organization,
+            "pilots_count": pilots_count,
+        },
     )
 
 
@@ -321,76 +476,69 @@ def view_pilots_standings(request):
 @permission_required("standingsrequests.view")
 def view_pilots_standings_json(request):
     logger.debug("view_pilot_standings_json called by %s", request.user)
-    try:
-        contacts = ContactSet.objects.latest()
-    except ContactSet.DoesNotExist:
-        contacts = ContactSet()
 
-    def get_pilots():
-        pilots = list()
-        # lets catch these in bulk
-        pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
-        contact_ids = [p.contactID for p in pilot_standings]
-        for p in pilot_standings:
+    def generate_characters_data():
+        try:
+            contacts = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            contacts = ContactSet()
+
+        characters_data = list()
+        character_contacts = contacts.charactercontact_set.all().order_by("name")
+        for p in character_contacts:
+            character = EveCharacter.objects.get_character_by_id(p.contact_id)
             try:
-                assoc = CharacterAssociation.objects.get(character_id=p.contactID)
-                if assoc.corporation_id is not None:
-                    contact_ids.append(assoc.corporation_id)
-                if assoc.alliance_id is not None:
-                    contact_ids.append(assoc.alliance_id)
-            except CharacterAssociation.DoesNotExist:
-                pass
-        EveNameCache.get_names(contact_ids)
-        for p in pilot_standings:
-            char = EveCharacter.objects.get_character_by_id(p.contactID)
-            if char is None:
-                char = EveCharacterHelper(p.contactID)
-
-            main = None
-            state = ""
-            try:
-                ownership = CharacterOwnership.objects.get(
-                    character__character_id=char.character_id
-                )
-                user = ownership.user
-                main = user.profile.main_character
-                if user.profile.state:
-                    state = user.profile.state.name
-            except CharacterOwnership.DoesNotExist:
-                pass
-
-            has_required_scopes = StandingsManager.has_required_scopes_for_request(char)
-            pilot = {
-                "character_id": p.contactID,
-                "character_name": p.name,
-                "corporation_id": char.corporation_id if char else None,
-                "corporation_name": char.corporation_name if char else None,
-                "corporation_ticker": char.corporation_ticker if char else None,
-                "alliance_id": char.alliance_id if char else None,
-                "alliance_name": char.alliance_name if char else None,
-                "has_required_scopes": has_required_scopes,
-                "state": state,
-                "main_character_ticker": main.corporation_ticker if main else None,
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
-            }
-
-            try:
-                pilot["main_character_name"] = (
-                    main.character_name if main else char.main_character.character_name
-                )
+                user = character.character_ownership.user
             except AttributeError:
-                pilot["main_character_name"] = None
+                character = EveCharacterHelper(p.contact_id)
+                main = None
+                state = ""
+                has_required_scopes = None
+            else:
+                user = character.character_ownership.user
+                main = user.profile.main_character
+                state = user.profile.state.name if user.profile.state else ""
+                has_required_scopes = StandingRequest.has_required_scopes_for_request(
+                    character=character, user=user, quick_check=True
+                )
+            finally:
+                character_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
+                corporation_id = character.corporation_id if character else None
+                corporation_name = character.corporation_name if character else None
+                corporation_ticker = character.corporation_ticker if character else None
+                alliance_id = character.alliance_id if character else None
+                alliance_name = character.alliance_name if character else None
+                main_character_name = main.character_name if main else None
+                main_character_ticker = main.corporation_ticker if main else None
+                main_character_icon_url = (
+                    main.portrait_url(DEFAULT_ICON_SIZE) if main else None
+                )
+                labels = [label.name for label in p.labels.all()]
 
-            pilots.append(pilot)
-        return pilots
+            characters_data.append(
+                {
+                    "character_id": p.contact_id,
+                    "character_name": p.name,
+                    "character_icon_url": character_icon_url,
+                    "corporation_id": corporation_id,
+                    "corporation_name": corporation_name,
+                    "corporation_ticker": corporation_ticker,
+                    "alliance_id": alliance_id,
+                    "alliance_name": alliance_name,
+                    "has_required_scopes": has_required_scopes,
+                    "state": state,
+                    "main_character_name": main_character_name,
+                    "main_character_ticker": main_character_ticker,
+                    "main_character_icon_url": main_character_icon_url,
+                    "standing": p.standing,
+                    "labels": labels,
+                }
+            )
 
-    # Cache result for 10 minutes,
-    # with a large number of standings this view can be very CPU intensive
-    pilots = cache.get_or_set(
-        "standings_requests_view_pilots_standings_json", get_pilots, timeout=60 * 10
-    )
-    return JsonResponse(pilots, safe=False)
+        return characters_data
+
+    my_characters_data = cache_view_pilots_json.get_or_set(generate_characters_data)
+    return JsonResponse(my_characters_data, safe=False)
 
 
 @login_required
@@ -399,9 +547,7 @@ def download_pilot_standings(request):
     logger.info("download_pilot_standings called by %s", request.user)
     response = HttpResponse(content_type="text/csv")
     response["Content-Disposition"] = 'attachment; filename="standings.csv"'
-
     writer = UnicodeWriter(response)
-
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -426,11 +572,11 @@ def download_pilot_standings(request):
     )
 
     # lets request make sure all info is there in bulk
-    pilot_standings = contacts.pilotstanding_set.all().order_by("-standing")
-    EveNameCache.get_names([p.contactID for p in pilot_standings])
+    character_contacts = contacts.charactercontact_set.all().order_by("name")
+    EveEntity.objects.get_names([p.contact_id for p in character_contacts])
 
-    for p in pilot_standings:
-        char = EveCharacter.objects.get_character_by_id(p.contactID)
+    for pilot_standing in character_contacts:
+        char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
         main = ""
         state = ""
         try:
@@ -446,19 +592,19 @@ def download_pilot_standings(request):
             main = None
 
         pilot = [
-            p.contactID,
-            p.name,
+            pilot_standing.contact_id,
+            pilot_standing.name,
             char.corporation_id if char else "",
             char.corporation_name if char else "",
             char.corporation_ticker if char else "",
             char.alliance_id if char else "",
             char.alliance_name if char else "",
-            StandingsManager.has_required_scopes_for_request(char),
+            StandingRequest.has_required_scopes_for_request(char),
             state,
             main_character_name,
             main.corporation_ticker if main else "",
-            p.standing,
-            ", ".join([label.name for label in p.labels.all()]),
+            pilot_standing.standing,
+            ", ".join([label.name for label in pilot_standing.labels.all()]),
         ]
 
         writer.writerow([str(v) if v is not None else "" for v in pilot])
@@ -470,13 +616,31 @@ def download_pilot_standings(request):
 def view_groups_standings(request):
     logger.debug("view_group_standings called by %s", request.user)
     try:
-        last_update = ContactSet.objects.latest().date
-    except (ObjectDoesNotExist, ContactSet.DoesNotExist):
-        last_update = None
+        contact_set = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contact_set = None
+    finally:
+        organization = ContactSet.standings_source_entity()
+        last_update = contact_set.date if contact_set else None
+
+    if contact_set:
+        groups_count = (
+            contact_set.corporationcontact_set.count()
+            + contact_set.alliancecontact_set.count()
+        )
+    else:
+        groups_count = None
+
     return render(
         request,
         "standingsrequests/view_groups.html",
-        {"lastUpdate": last_update, "app_title": __title__},
+        {
+            "lastUpdate": last_update,
+            "app_title": __title__,
+            "operation_mode": SR_OPERATION_MODE,
+            "organization": organization,
+            "groups_count": groups_count,
+        },
     )
 
 
@@ -484,34 +648,88 @@ def view_groups_standings(request):
 @permission_required("standingsrequests.view")
 def view_groups_standings_json(request):
     logger.debug("view_pilot_standings_json called by %s", request.user)
-    try:
-        contacts = ContactSet.objects.latest()
-    except ContactSet.DoesNotExist:
-        contacts = ContactSet()
 
-    corps = list()
-    for p in contacts.corpstanding_set.all().order_by("-standing"):
-        corps.append(
-            {
-                "corporation_id": p.contactID,
-                "corporation_name": p.name,
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
-            }
+    def generate_groups_data():
+        try:
+            contacts = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            contacts = ContactSet()
+
+        corporations_qs = contacts.corporationcontact_set.all().order_by("name")
+        eve_corporations = {
+            corporation.corporation_id: corporation
+            for corporation in EveCorporation.get_many_by_id(
+                corporations_qs.values_list("contact_id", flat=True)
+            )
+        }
+        corporations_data = list()
+        standing_requests_qs = StandingRequest.objects.filter(
+            contact_type_id=CorporationContact.get_contact_type_id()
         )
+        for contact in corporations_qs:
+            if contact.contact_id in eve_corporations:
+                corporation = eve_corporations[contact.contact_id]
+                try:
+                    standing_request = standing_requests_qs.get(
+                        contact_id=contact.contact_id,
+                    )
+                except StandingRequest.DoesNotExist:
+                    main = None
+                    has_required_scopes = None
+                    state_name = ""
+                else:
+                    user = standing_request.user
+                    main = user.profile.main_character
+                    state_name = user.profile.state.name
+                    has_required_scopes = (
+                        not corporation.is_npc
+                        and corporation.user_has_all_member_tokens(
+                            user=user, quick_check=True
+                        )
+                    )
+                finally:
+                    main_character_name = main.character_name if main else ""
+                    main_character_ticker = main.corporation_ticker if main else ""
+                    main_character_icon_url = (
+                        main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
+                    )
+                    labels = [label.name for label in contact.labels.all()]
 
-    alliances = list()
-    for p in contacts.alliancestanding_set.all().order_by("-standing"):
-        alliances.append(
-            {
-                "alliance_id": p.contactID,
-                "alliance_name": p.name,
-                "standing": p.standing,
-                "labels": [label.name for label in p.labels.all()],
-            }
-        )
+                corporations_data.append(
+                    {
+                        "corporation_id": corporation.corporation_id,
+                        "corporation_name": corporation.corporation_name,
+                        "corporation_icon_url": corporation.logo_url(DEFAULT_ICON_SIZE),
+                        "alliance_id": corporation.alliance_id,
+                        "alliance_name": corporation.alliance_name,
+                        "standing": contact.standing,
+                        "labels": labels,
+                        "has_required_scopes": has_required_scopes,
+                        "state": state_name,
+                        "main_character_name": main_character_name,
+                        "main_character_ticker": main_character_ticker,
+                        "main_character_icon_url": main_character_icon_url,
+                    }
+                )
 
-    return JsonResponse({"corps": corps, "alliances": alliances}, safe=False)
+        alliances_data = list()
+        for contact in contacts.alliancecontact_set.all().order_by("name"):
+            alliances_data.append(
+                {
+                    "alliance_id": contact.contact_id,
+                    "alliance_name": contact.name,
+                    "alliance_icon_url": EveAllianceInfo.generic_logo_url(
+                        contact.contact_id, DEFAULT_ICON_SIZE
+                    ),
+                    "standing": contact.standing,
+                    "labels": [label.name for label in contact.labels.all()],
+                }
+            )
+
+        return {"corps": corporations_data, "alliances": alliances_data}
+
+    my_groups_data = cache_view_groups_json.get_or_set(generate_groups_data)
+    return JsonResponse(my_groups_data, safe=False)
 
 
 ###################
@@ -523,366 +741,317 @@ def view_groups_standings_json(request):
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
     logger.debug("manage_standings called by %s", request.user)
-    return render(request, "standingsrequests/manage.html", {"app_title": __title__})
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "organization": ContactSet.standings_source_entity(),
+        "requests_count": _standing_requests_to_manage().count(),
+        "revocations_count": _revocations_to_manage().count(),
+    }
+    return render(request, "standingsrequests/manage.html", context,)
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_get_requests_json(request):
     logger.debug("manage_get_requests_json called by %s", request.user)
-    requests_qs = StandingsRequest.objects.filter(
-        Q(actionBy=None) & Q(effective=False)
-    ).order_by("requestDate")
-
-    response = list()
-    # precache missing names in bulk
-    entity_ids = [r.contactID for r in requests_qs]
-    for p in requests_qs:
-        try:
-            assoc = CharacterAssociation.objects.get(character_id=p.contactID)
-            if assoc.corporation_id is not None:
-                entity_ids.append(assoc.corporation_id)
-            if assoc.alliance_id is not None:
-                entity_ids.append(assoc.alliance_id)
-        except CharacterAssociation.DoesNotExist:
-            pass
-    EveNameCache.get_names(entity_ids)
-
-    for r in requests_qs:
-        # Dont forget that contact requests aren't strictly ALWAYS pilots
-        # (at least can potentially be corps/alliances)
-        main = r.user.profile.main_character
-        state = ""
-        pilot = None
-        corp = None
-
-        if PilotStanding.is_pilot(r.contactType):
-            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
-            if not pilot:
-                pilot = EveCharacterHelper(r.contactID)
-
-            state_name = EveEntityManager.get_state_of_character(pilot)
-            if state_name is not None:
-                state = state_name
-
-        elif CorpStanding.is_corp(r.contactType):
-            corp = EveCorporation.get_corp_by_id(r.contactID)
-
-        contact_name = (
-            pilot.character_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_id = (
-            pilot.corporation_id if pilot else corp.corporation_id if corp else None
-        )
-        corporation_name = (
-            pilot.corporation_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_ticker = (
-            pilot.corporation_ticker if pilot else corp.ticker if corp else None
-        )
-        has_scopes = (
-            StandingsManager.has_required_scopes_for_request(pilot)
-            if pilot
-            else StandingsManager.all_corp_apis_recorded(corp.corporation_id, r.user)
-            if corp
-            else False
-        )
-
-        response.append(
-            {
-                "contact_id": r.contactID,
-                "contact_name": contact_name,
-                "corporation_id": corporation_id,
-                "corporation_name": corporation_name,
-                "corporation_ticker": corporation_ticker,
-                "alliance_id": pilot.alliance_id if pilot else None,
-                "alliance_name": pilot.alliance_name if pilot else None,
-                "has_scopes": has_scopes,
-                "state": state,
-                "main_character_name": main.character_name if main else None,
-                "main_character_ticker": main.corporation_ticker if main else None,
-            }
-        )
-
-    return JsonResponse(response, safe=False)
-
-
-@login_required
-@permission_required("standingsrequests.affect_standings")
-def manage_requests_write(request, contact_id):
-    logger.debug("manage_requests_write called by %s", request.user)
-    if request.method == "PUT":
-        actioned = 0
-        for r in StandingsRequest.objects.filter(contactID=contact_id):
-            r.mark_standing_actioned(request.user)
-            actioned += 1
-        if actioned > 0:
-            return JsonResponse(dict(), status=204)
-        else:
-            return Http404
-    elif request.method == "DELETE":
-        StandingsRequest.remove_requests(contact_id)
-        # TODO: Notify user
-        # TODO: Error handling
-        return JsonResponse(dict(), status=204)
-    else:
-        return Http404
+    requests_qs = _standing_requests_to_manage()
+    requests_data = _compose_standing_requests_data(requests_qs)
+    return JsonResponse(requests_data, safe=False)
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_get_revocations_json(request):
     logger.debug("manage_get_revocations_json called by %s", request.user)
-    revocations_qs = StandingsRevocation.objects.filter(
-        Q(actionBy=None) & Q(effective=False)
-    ).order_by("requestDate")
+    revocations_qs = _revocations_to_manage()
+    requests_data = _compose_standing_requests_data(revocations_qs)
+    return JsonResponse(requests_data, safe=False)
 
-    response = list()
 
-    # precache names in bulk
-    entity_ids = [r.contactID for r in revocations_qs]
-    for p in revocations_qs:
-        try:
-            assoc = CharacterAssociation.objects.get(character_id=p.contactID)
-            if assoc.corporation_id is not None:
-                entity_ids.append(assoc.corporation_id)
-            if assoc.alliance_id is not None:
-                entity_ids.append(assoc.alliance_id)
-        except CharacterAssociation.DoesNotExist:
-            pass
-    EveNameCache.get_names(entity_ids)
-    for r in revocations_qs:
-        # Dont forget that contact requests aren't strictly ALWAYS pilots
-        # (at least can potentially be corps/alliances)
-        state = ""
+def _standing_requests_to_manage() -> models.QuerySet:
+    return (
+        StandingRequest.objects.filter(action_date__isnull=True, is_effective=False)
+        .select_related("user__profile")
+        .order_by("request_date")
+    )
 
-        pilot = None
-        corp = None
-        corp_user = None
-        main = None
-        if PilotStanding.is_pilot(r.contactType):
-            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
 
-            if not pilot:
-                pilot = EveCharacterHelper(r.contactID)
-            state_name = EveEntityManager.get_state_of_character(pilot)
-            if state_name is not None:
-                state = state_name
+def _revocations_to_manage() -> models.QuerySet:
+    return (
+        StandingRevocation.objects.filter(action_date__isnull=True, is_effective=False)
+        .select_related("user__profile")
+        .order_by("request_date")
+    )
 
-        elif CorpStanding.is_corp(r.contactType):
-            corp = EveCorporation.get_corp_by_id(r.contactID)
-            user_election = dict()
-            # Figure out which user has the most APIs for this corp, if any
-            for c in EveCharacter.objects.filter(corporation_id=r.contactID):
-                # get_or_set type increment
-                user_election[c.user.pk] = 1 + user_election.get(c.user.pk, 0)
 
-            if user_election:
-                # Py2 compatible??
-                corp_user = User.objects.get(
-                    pk=max(user_election.keys(), key=(lambda key: user_election[key]))
-                )
+def _compose_standing_requests_data(
+    requests_qs: models.QuerySet, quick_check: bool = False
+) -> list:
+    """composes list of standings requests or revocations based on queryset 
+    and returns it
+    """
+    requests_data = list()
 
-        if pilot or corp_user:
-            # Get member details if we found a user
-            try:
-                user = CharacterOwnership.objects.get(character=pilot).user
-                main = user.profile.main_character
-            except CharacterOwnership.DoesNotExist:
-                main = None
-
-        contact_name = (
-            pilot.character_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_id = (
-            pilot.corporation_id if pilot else corp.corporation_id if corp else None
-        )
-        corporation_name = (
-            pilot.corporation_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_ticker = (
-            pilot.corporation_ticker if pilot else corp.ticker if corp else None
-        )
-        has_scopes = (
-            StandingsManager.has_required_scopes_for_request(pilot)
-            if pilot
-            else StandingsManager.all_corp_apis_recorded(corp.corporation_id, corp_user)
-            if corp and corp_user
-            else False
-        )
-        revoke = {
-            "contact_id": r.contactID,
-            "contact_name": contact_name,
-            "corporation_id": corporation_id,
-            "corporation_name": corporation_name,
-            "corporation_ticker": corporation_ticker,
-            "alliance_id": pilot.alliance_id if pilot else None,
-            "alliance_name": pilot.alliance_name if pilot else None,
-            "has_scopes": has_scopes,
-            "state": state,
-            "main_character_name": main.character_name if main else None,
-            "main_character_ticker": main.corporation_ticker if main else None,
+    # preload characters in bulk
+    character_ids = requests_qs.exclude(
+        contact_type_id=CorporationContact.get_contact_type_id()
+    ).values_list("contact_id", flat=True)
+    if character_ids:
+        eve_characters = {
+            character.character_id: character
+            for character in EveCharacter.objects.filter(character_id__in=character_ids)
         }
-
+    else:
+        eve_characters = list()
+    # preload corporations in bulk
+    corporation_ids = requests_qs.filter(
+        contact_type_id=CorporationContact.get_contact_type_id()
+    ).values_list("contact_id", flat=True)
+    if corporation_ids:
+        eve_corporations = {
+            corporation.corporation_id: corporation
+            for corporation in EveCorporation.get_many_by_id(corporation_ids)
+        }
+    else:
+        eve_corporations = list()
+    for r in requests_qs:
         try:
-            revoke["main_character_name"] = (
-                main.character_name if main else pilot.main_character.character_name
-            )
+            main = r.user.profile.main_character
+            state_name = r.user.profile.state.name
         except AttributeError:
-            revoke["main_character_name"] = None
+            main = None
+            state_name = "(no main)"
+            main_character_name = ""
+            main_character_ticker = ""
+            main_character_icon_url = ""
+        else:
+            main_character_name = main.character_name
+            main_character_ticker = main.corporation_ticker
+            main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
 
-        response.append(revoke)
+        if r.is_character:
+            if r.contact_id in eve_characters:
+                character = eve_characters[r.contact_id]
+            else:
+                character = EveCharacterHelper(r.contact_id)
 
-    return JsonResponse(response, safe=False)
+            contact_name = character.character_name
+            contact_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
+            corporation_id = character.corporation_id
+            corporation_name = (
+                character.corporation_name if character.corporation_name else ""
+            )
+            corporation_ticker = (
+                character.corporation_ticker if character.corporation_ticker else ""
+            )
+            alliance_id = character.alliance_id
+            alliance_name = character.alliance_name if character.alliance_name else ""
+            has_scopes = StandingRequest.has_required_scopes_for_request(
+                character=character, user=r.user, quick_check=quick_check
+            )
+
+        elif r.is_corporation and r.contact_id in eve_corporations:
+            corporation = eve_corporations[r.contact_id]
+            contact_icon_url = corporation.logo_url(DEFAULT_ICON_SIZE)
+            contact_name = corporation.corporation_name
+            corporation_id = corporation.corporation_id
+            corporation_name = corporation.corporation_name
+            corporation_ticker = corporation.ticker
+            alliance_id = None
+            alliance_name = ""
+            has_scopes = (
+                not corporation.is_npc
+                and corporation.user_has_all_member_tokens(
+                    user=r.user, quick_check=quick_check
+                )
+            )
+
+        else:
+            contact_name = ""
+            contact_icon_url = ""
+            corporation_id = None
+            corporation_name = ""
+            corporation_ticker = ""
+            alliance_id = None
+            alliance_name = ""
+            has_scopes = False
+
+        requests_data.append(
+            {
+                "contact_id": r.contact_id,
+                "contact_name": contact_name,
+                "contact_icon_url": contact_icon_url,
+                "corporation_id": corporation_id,
+                "corporation_name": corporation_name,
+                "corporation_ticker": corporation_ticker,
+                "alliance_id": alliance_id,
+                "alliance_name": alliance_name,
+                "request_date": r.request_date.isoformat(),
+                "action_date": r.action_date.isoformat() if r.action_date else None,
+                "has_scopes": has_scopes,
+                "state": state_name,
+                "main_character_name": main_character_name,
+                "main_character_ticker": main_character_ticker,
+                "main_character_icon_url": main_character_icon_url,
+                "actioned": r.is_actioned,
+                "is_effective": r.is_effective,
+                "is_corporation": r.is_corporation,
+                "is_character": r.is_character,
+                "action_by": r.action_by.username if r.action_by else "(System)",
+            }
+        )
+
+    return requests_data
+
+
+@login_required
+@permission_required("standingsrequests.affect_standings")
+def manage_requests_write(request, contact_id):
+    contact_id = int(contact_id)
+    logger.debug("manage_requests_write called by %s", request.user)
+    if request.method == "PUT":
+        actioned = 0
+        for r in StandingRequest.objects.filter(contact_id=contact_id):
+            r.mark_actioned(request.user)
+            actioned += 1
+        if actioned > 0:
+            return HttpResponseNoContent()
+        else:
+            return Http404()
+    elif request.method == "DELETE":
+        try:
+            standing_request = StandingRequest.objects.get(contact_id=contact_id)
+        except StandingRequest.DoesNotExist:
+            return Http404()
+        else:
+            StandingRequest.objects.remove_requests(contact_id)
+            if SR_NOTIFICATIONS_ENABLED:
+                entity_name = EveEntity.objects.get_name(contact_id)
+                title = _("Standing request for %s rejected" % entity_name)
+                message = _(
+                    "Your standing request for '%s' "
+                    "has been rejected by %s." % (entity_name, request.user)
+                )
+                notify(user=standing_request.user, title=title, message=message)
+
+            return HttpResponseNoContent()
+    else:
+        return Http404()
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_revocations_write(request, contact_id):
-    logger.debug("manage_revocations_write called by %s", request.user)
+    contact_id = int(contact_id)
+    logger.debug(
+        "manage_revocations_write called by %s for contact_id %d",
+        request.user,
+        contact_id,
+    )
     if request.method == "PUT":
         actioned = 0
-        for r in StandingsRevocation.objects.filter(contactID=contact_id):
-            r.mark_standing_actioned(request.user)
+        for r in StandingRevocation.objects.filter(contact_id=contact_id):
+            r.mark_actioned(request.user)
             actioned += 1
         if actioned > 0:
-            return JsonResponse(dict(), status=204)
+            return HttpResponseNoContent()
         else:
             return Http404
     elif request.method == "DELETE":
-        StandingsRevocation.objects.filter(contactID=contact_id).delete()
-        # TODO: Error handling
-        return JsonResponse(dict(), status=204)
+        try:
+            standing_revocation = StandingRevocation.objects.get(contact_id=contact_id)
+        except StandingRevocation.DoesNotExist:
+            return Http404()
+        else:
+            StandingRevocation.objects.filter(contact_id=contact_id).delete()
+            if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
+                entity_name = EveEntity.objects.get_name(contact_id)
+                title = _("Standing revocation for %s rejected" % entity_name)
+                message = _(
+                    "Your standing revocation for '%s' "
+                    "has been rejected by %s." % (entity_name, request.user)
+                )
+                notify(user=standing_revocation.user, title=title, message=message)
+
+            return HttpResponseNoContent()
+
     else:
-        return Http404
+        return Http404()
 
 
-@login_required
-@permission_required("standingsrequests.affect_standings")
-def manage_revocations_undo(request, contact_id):
-    logger.debug("manage_revocations_undo called by %s", request.user)
-    if StandingsRevocation.objects.filter(contactID=contact_id).exists():
-        owner = EveEntityManager.get_owner_from_character_id(contact_id)
-        if owner is None:
-            return JsonResponse(
-                {
-                    "Success": False,
-                    "Message": "Cannot find an owner for that contact ID",
-                },
-                status=404,
-            )
-
-        result = StandingsRevocation.undo_revocation(contact_id, owner)
-        if result:
-            return JsonResponse(dict(), status=204)
-
-    return JsonResponse(
-        {"Success": False, "Message": "Cannot find a revocation for that contact ID"},
-        status=404,
-    )
+###################
+# View requests #
+###################
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def view_active_requests(request):
-    return render(request, "standingsrequests/requests.html", {"app_title": __title__})
+    context = {
+        "app_title": __title__,
+        "operation_mode": SR_OPERATION_MODE,
+        "organization": ContactSet.standings_source_entity(),
+        "requests_count": _standing_requests_to_view().count(),
+    }
+    return render(request, "standingsrequests/requests.html", context)
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def view_active_requests_json(request):
+def view_requests_json(request):
 
-    requests_qs = StandingsRequest.objects.all().order_by("requestDate")
-    response = list()
-    # pre cache names in bulk
-    entity_ids = [r.contactID for r in requests_qs]
-    for p in requests_qs:
-        try:
-            assoc = CharacterAssociation.objects.get(character_id=p.contactID)
-            if assoc.corporation_id is not None:
-                entity_ids.append(assoc.corporation_id)
-            if assoc.alliance_id is not None:
-                entity_ids.append(assoc.alliance_id)
-        except CharacterAssociation.DoesNotExist:
-            pass
-    EveNameCache.get_names(entity_ids)
-    for r in requests_qs:
-        # Dont forget that contact requests aren't strictly ALWAYS pilots
-        # (at least can potentially be corps/alliances)
-        state = ""
-        if r.user.profile.state:
-            state = r.user.profile.state.name
+    response_data = _compose_standing_requests_data(
+        _standing_requests_to_view(), quick_check=True
+    )
+    return JsonResponse(response_data, safe=False)
 
-        main = r.user.profile.main_character
-        pilot = None
-        corp = None
-        if PilotStanding.is_pilot(r.contactType):
-            pilot = EveCharacter.objects.get_character_by_id(r.contactID)
-            if not pilot:
-                pilot = EveCharacterHelper(r.contactID)
 
-        elif CorpStanding.is_corp(r.contactType):
-            corp = EveCorporation.get_corp_by_id(r.contactID)
-
-        contact_name = (
-            pilot.character_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_id = (
-            pilot.corporation_id if pilot else corp.corporation_id if corp else None
-        )
-        corporation_name = (
-            pilot.corporation_name if pilot else corp.corporation_name if corp else None
-        )
-        corporation_ticker = (
-            pilot.corporation_ticker if pilot else corp.ticker if corp else None
-        )
-        has_scopes = (
-            StandingsManager.has_required_scopes_for_request(pilot)
-            if pilot
-            else StandingsManager.all_corp_apis_recorded(corp.corporation_id, r.user)
-            if corp
-            else False
-        )
-        response.append(
-            {
-                "contact_id": r.contactID,
-                "contact_name": contact_name,
-                "corporation_id": corporation_id,
-                "corporation_name": corporation_name,
-                "corporation_ticker": corporation_ticker,
-                "alliance_id": pilot.alliance_id if pilot else None,
-                "alliance_name": pilot.alliance_name if pilot else None,
-                "has_scopes": has_scopes,
-                "state": state,
-                "main_character_name": main.character_name if main else None,
-                "main_character_ticker": main.corporation_ticker if main else None,
-                "actioned": r.actionBy is not None,
-                "effective": r.effective,
-                "is_corp": CorpStanding.is_corp(r.contactType),
-                "is_pilot": PilotStanding.is_pilot(r.contactType),
-                "action_by": r.actionBy.username if r.actionBy is not None else None,
-            }
-        )
-
-    return JsonResponse(response, safe=False)
+def _standing_requests_to_view() -> models.QuerySet:
+    return (
+        StandingRequest.objects.filter(is_effective=True)
+        .select_related("user__profile")
+        .order_by("-request_date")
+    )
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-@token_required(new=False, scopes="esi-alliances.read_contacts.v1")
+@token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
-    char_name = EveNameCache.get_name(STANDINGS_API_CHARID)
-    if token.character_id == STANDINGS_API_CHARID:
+    source_entity = ContactSet.standings_source_entity()
+    char_name = EveEntity.objects.get_name(STANDINGS_API_CHARID)
+    if not source_entity:
+        messages_plus.error(
+            request,
+            format_html(
+                _(
+                    "The configured character <strong>%s</strong> does not belong "
+                    "to an alliance and can therefore not be used "
+                    "to setup alliance standings. "
+                    "Please configure a character that has an alliance."
+                )
+                % char_name,
+            ),
+        )
+    elif token.character_id == STANDINGS_API_CHARID:
+        update_all.delay(user_pk=request.user.pk)
         messages_plus.success(
             request,
-            _("Successfully setup alliance token for configured character %s")
-            % char_name,
+            format_html(
+                _(
+                    "Token for character <strong>%s</strong> has been setup "
+                    "successfully and the app has started pulling standings "
+                    "from <strong>%s</strong>."
+                )
+                % (char_name, source_entity.name),
+            ),
         )
     else:
         messages_plus.error(
             request,
             _(
-                "Failed to setup alliance token for configured character "
+                "Failed to setup token for configured character "
                 "%(char_name)s (id:%(standings_api_char_id)s). "
                 "Instead got token for different character: "
                 "%(token_char_name)s (id:%(token_char_id)s)"
@@ -890,7 +1059,7 @@ def view_auth_page(request, token):
             % {
                 "char_name": char_name,
                 "standings_api_char_id": STANDINGS_API_CHARID,
-                "token_char_name": EveNameCache.get_name(token.character_id),
+                "token_char_name": EveEntity.objects.get_name(token.character_id),
                 "token_char_id": token.character_id,
             },
         )
@@ -898,12 +1067,12 @@ def view_auth_page(request, token):
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
     messages_plus.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
-        % {"char_name": EveNameCache.get_name(token.character_id)},
+        % {"char_name": EveEntity.objects.get_name(token.character_id)},
     )
     return redirect("standingsrequests:index")

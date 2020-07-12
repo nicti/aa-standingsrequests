@@ -15,11 +15,11 @@ from ..utils import set_test_logger, NoSocketsTestCase
 
 
 MODULE_PATH = "standingsrequests.decorators"
-PATH_STANDINGS_MANAGER = "standingsrequests.managers.standings.StandingsManager"
+PATH_MODELS = "standingsrequests.models"
 logger = set_test_logger(MODULE_PATH, __file__)
 
 
-@patch(PATH_STANDINGS_MANAGER + ".get_required_scopes_for_state")
+@patch(PATH_MODELS + ".StandingRequest.get_required_scopes_for_state")
 @patch(MODULE_PATH + ".select_token", spec=True)
 @patch(MODULE_PATH + ".sso_redirect", spec=True)
 @patch(MODULE_PATH + "._check_callback")

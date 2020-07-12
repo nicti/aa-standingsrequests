@@ -17,14 +17,14 @@ setup(
         "App for managing character standing requests, made for Alliance Auth"
     ),
     url="https://github.com/basraah/standingsrequests",
-    author="Basraah",
-    author_email="basraaheve@gmail.com",
+    author="Basraah, Erik Kalkoken",
+    author_email="kaloken87@gmail.com",
     license="GPL-3.0",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires=">=3.6",
-    install_requires=["future>=0.16.0", "requests>=2.18.4", "django-esi<2.0",],
+    python_requires="~=3.6",
+    install_requires=["requests>=2.18.4", "django-esi>=1.5<3",],
     zip_safe=False,
     include_package_data=True,
     classifiers=[

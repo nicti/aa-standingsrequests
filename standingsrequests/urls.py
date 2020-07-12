@@ -8,23 +8,23 @@ local_urlpatterns = [
     url(r"^$", views.index_view, name="index"),
     url(r"^request_entities$", views.partial_request_entities, name="request_entities"),
     url(
-        r"^request_pilot_standings/(?P<character_id>\d+)/",
-        views.request_pilot_standings,
+        r"^request_pilot_standing/(?P<character_id>\d+)/",
+        views.request_pilot_standing,
         name="request_pilot_standing",
     ),
     url(
-        r"^remove_pilot_standings/(?P<character_id>\d+)/",
-        views.remove_pilot_standings,
+        r"^remove_pilot_standing/(?P<character_id>\d+)/",
+        views.remove_pilot_standing,
         name="remove_pilot_standing",
     ),
     url(
-        r"^request_corp_standings/(?P<corp_id>\d+)/",
-        views.request_corp_standings,
+        r"^request_corp_standing/(?P<corporation_id>\d+)/",
+        views.request_corp_standing,
         name="request_corp_standing",
     ),
     url(
-        r"^remove_corp_standings/(?P<corp_id>\d+)/",
-        views.remove_corp_standings,
+        r"^remove_corp_standing/(?P<corporation_id>\d+)/",
+        views.remove_corp_standing,
         name="remove_corp_standing",
     ),
     url(r"^view/pilots/$", views.view_pilots_standings, name="view_pilots"),
@@ -62,19 +62,10 @@ local_urlpatterns = [
     url(
         r"^manage/revocations/(?P<contact_id>\d+)/$",
         views.manage_revocations_write,
-        name="manage_get_revocations_write",
-    ),
-    url(
-        r"^manage/revocations/(?P<contact_id>\d+)/undo/$",
-        views.manage_revocations_undo,
-        name="manage_get_revocations_undo",
+        name="manage_revocations_write",
     ),
     url(r"^view/requests/$", views.view_active_requests, name="view_requests"),
-    url(
-        r"^view/requests/json/$",
-        views.view_active_requests_json,
-        name="view_requests_json",
-    ),
+    url(r"^view/requests/json/$", views.view_requests_json, name="view_requests_json",),
     url(r"^manage/setuptoken/$", views.view_auth_page, name="view_auth_page"),
     url(
         r"^requester_add_scopes/$",

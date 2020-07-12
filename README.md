@@ -17,10 +17,11 @@ App for managing character standing requests, made for [Alliance Auth](https://g
 
 ## Features
 
-- User can requests alliance standings for their characters
+- User can requests standings for their characters
 - Standing managers can approve / deny standings requests from users
 - Automatic verification that approved / revoked standings are added / removed in-game
-- When user leaves alliance app will automatically identify and suggest required standing revocations
+- When user leaves the corporation or alliance, the app will automatically suggest to revoke the standing in-game
+- Either an alliance or a corporation can be defined as master for in-game standings
 - Tool for researching all current alliance standing incl. link to their owners
 
 ## Screenshots
@@ -37,31 +38,50 @@ Here are some example screenshots:
 
 ## Installation
 
-1. Activate your virtual environment and install this app with: `pip install aa-standingsrequests`
+### Step 1: Update Eve Online scopes
 
-1. Add the scope `esi-alliances.read_contacts.v1` to your Eve Online app
+Add the following scopes to the Eve Online app used by Auth on [developers.eveonline.com](https://developers.eveonline.com/):
 
-1. Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
+```plain
+esi-alliances.read_contacts.v1
+esi-corporations.read_contacts.v1
+```
 
-1. Run database migrations: `python manage.py migrate standingsrequests`
+### Step 2: Python installation
 
-1. Copy static files to your webserver: `python manage.py collectstatic`
+Activate your virtual environment and install this app with:
 
-1. Restart Django and Celery.
+```bash
+pip install aa-standingsrequests
+```
 
-1. Open the standingsrequests app in Alliance Auth and add your alliance token
+### Step 3: Django Installation
 
-1. Do the initial pull of standings data: `celery -A myauth call standings_requests.standings_update`
+Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
 
-1. When that's completed, pull all the name data available locally: `celery -A myauth call standings_requests.update_associations_auth`
+The most important part of the settings is `STANDINGS_API_CHARID`, which need to be the Eve Online ID of the character that will be used to sync standings with your alliance or corporation.
 
-1. When *that's* completed, pull the rest of the data from API: `celery -A myauth call standings_requests.update_associations_api`
+Run database migrations:
 
-1. Add permissions to groups where required.
+```bash
+python manage.py migrate standingsrequests
+```
+
+Copy static files to your webserver:
+
+```bash
+python manage.py collectstatic
+```
+
+Finally restart Django and Celery.
+
+### Step 4: Setup app within Auth
+
+Open the standingsrequests app in Alliance Auth and add the token for the configured standings character. This will initiate the first pull of standings. You will get a notification once the standings pull is completed (Usually within a few minutes).
+
+Last, but not least make sure to add [permissions](#permissions) to groups / states as required to make the new app available to users.
 
 That's it, you should be ready to roll.
-
-**Note on celery commands:** The celery commands will only work correctly if you run them from with your AA project folder (the one that has `manage.py`).
 
 ## Settings Example
 
@@ -70,8 +90,8 @@ Here is a complete example of all settings that goes into your local settings fi
 ```Python
 # id of character to use for updating alliance contacts
 STANDINGS_API_CHARID = 1234
-STR_CORP_IDS = ['CORP1ID', 'CORP2ID', '...']
-STR_ALLIANCE_IDS = ['YOUR_ALLIANCE_ID', '...']
+STR_CORP_IDS = [CORP1ID, CORP2ID, ...]
+STR_ALLIANCE_IDS = [YOUR_ALLIANCE_ID, ...]
 
 # This is a map, where the key is the State the user is in
 # and the value is a list of required scopes to check
@@ -111,13 +131,16 @@ Here is a brief explanation of all available settings:
 
 Name | Description | Default
 -- | -- | --
-`STANDINGS_API_CHARID` | id of character to use for updating alliance contacts (Mandatory) | N/A
-`STR_ALLIANCE_IDS` | id of standing alliances (Mandatory) | N/A
-`STR_CORP_IDS` | id of standing corporations (Mandatory, can be []) | N/A
-`SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | N/A
-`SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations |True
-`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is |48
-`SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | 7
+`SR_CORPORATIONS_ENABLED` | switch to enable/disable ability to request standings for corporations | `True`
+`SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests and standing changes of their characters | `True`
+`SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
+`SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
+`SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`
+`SR_STANDING_TIMEOUT_HOURS` | Max hours to wait for a standing to be effective after being marked actioned. Non effective standing requests will be reset when this timeout expires. | `24`
+`SR_SYNC_BLUE_ALTS_ENABLED` | Automatically sync standing of alts known to Auth that have standing in game  | `True`
+`STANDINGS_API_CHARID` | Eve Online ID of character to use for fetching alliance contacts from ESI (Mandatory) | -
+`STR_ALLIANCE_IDS` | Eve Online ID of alliances. Characters belonging to one of those alliances are considered "in organization". Your main alliance goes here when in alliance mode. (Mandatory, can be []) | -
+`STR_CORP_IDS` | Eve Online ID of corporations. Characters belonging to one of those corporations are considered "in organization". Your main corporation goes here when in corporation mode. (Mandatory, can be []) | -
 
 ## Permissions
 
@@ -136,8 +159,10 @@ These are the requirements to be able to request and maintain blue standings. If
 
 Request Type | Requirements
 -- | --
-Character | • Valid Member-level API key on record. <br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permissions.
-Corporation | • ALL Corporation member API keys recorded in auth.<br>• Users main character is a member of one of the tenant corps.<br>• User has the `request_standings` permission.
+Character | • Character has been added to Auth and is owned by the requesting user.<br> • User has the `request_standings` permissions.
+Corporation | • All member characters of the corporation have been added to Auth and are owned by the requesting user<br>• User has the `request_standings` permission.
+
+Note that all characters need to maintain valid tokens in Auth or there standing will automatically be revoked.
 
 ## Manual for Standing Managers
 
@@ -177,3 +202,19 @@ Turns the standing revocation into a standings request again. Useful if someone 
 #### Actioned
 
 Same as for Standings Requests. The system will hold the revocation in the background until it sees it removed in game. If the standing has still not been unset (or set to neutral or below) in 24 hours then it will appear as a standings revocation again.
+
+## Management Commands
+
+This app comes with management commands that provide special features for admins.
+
+You can run any management command from the command. Make sure you are in the folder that also contains `manage.py` and that you have activate your venv:
+
+```bash
+python manage.py NAME_OF_COMMAND
+```
+
+### `standingsrequests_sync_blue_alts`
+
+This command automatically creates accepted standing requests for alt characters on Auth that already have blue standing in game. This can be useful when this app is first installed to avoid having all users manually request standing for alts that are already blue.
+
+Standings created by this command will not have an actioner name set.
