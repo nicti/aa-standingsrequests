@@ -11,7 +11,6 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import (
-    SR_REVOCATIONS_STALE_DAYS,
     SR_STANDINGS_STALE_HOURS,
     SR_SYNC_BLUE_ALTS_ENABLED,
 )
@@ -117,7 +116,7 @@ def purge_stale_data():
     """Delete all the data which is beyond its useful life. 
     There is no harm in disabling this if you wish to keep everything.
     """
-    my_chain = chain([purge_stale_standings_data.si(), purge_stale_revocations.si(),])
+    my_chain = chain([purge_stale_standings_data.si()])
     my_chain.delay()
 
 
@@ -150,16 +149,3 @@ def purge_stale_standings_data():
 
     except ContactSet.DoesNotExist:
         logger.warn("No ContactSets available, nothing to delete")
-
-
-@shared_task
-def purge_stale_revocations():
-    """removes revocations older than threshold"""
-    logger.info("Purging stale revocations data")
-    cutoff_date = now() - timedelta(days=SR_REVOCATIONS_STALE_DAYS)
-    revocations_qs = StandingRevocation.objects.exclude(is_effective=False).filter(
-        effective_date__lt=cutoff_date
-    )
-    count = revocations_qs.count()
-    revocations_qs.delete()
-    logger.debug("Deleted %d standings revocations", count)

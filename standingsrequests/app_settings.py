@@ -28,10 +28,6 @@ SR_REQUIRED_SCOPES = getattr(
     {"Member": ["publicData"], "Blue": [], "": []},  # no state
 )
 
-# Standings revocations will be considered stale and removed
-# from the local database after the configured days
-SR_REVOCATIONS_STALE_DAYS = clean_setting("SR_REVOCATIONS_STALE_DAYS", 7)
-
 # Standing data will be considered stale and removed from the local
 # database after the configured hours.
 # The latest standings data will never be purged, no matter how old it is

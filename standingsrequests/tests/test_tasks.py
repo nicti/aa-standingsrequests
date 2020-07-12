@@ -13,7 +13,6 @@ from standingsrequests.tasks import (
     update_associations_auth,
     purge_stale_data,
     purge_stale_standings_data,
-    purge_stale_revocations,
 )
 from standingsrequests.utils import NoSocketsTestCase, set_test_logger
 
@@ -83,16 +82,12 @@ class TestOtherTasks(NoSocketsTestCase):
 
 class TestPurgeTasks(NoSocketsTestCase):
     @patch(MODULE_PATH + ".purge_stale_standings_data")
-    @patch(MODULE_PATH + ".purge_stale_revocations")
-    def test_purge_stale_data(
-        self, mock_purge_stale_standings_data, mock_purge_stale_revocations
-    ):
+    def test_purge_stale_data(self, mock_purge_stale_standings_data):
         app.conf.task_always_eager = True
         purge_stale_data()
         app.conf.task_always_eager = False
 
         self.assertTrue(mock_purge_stale_standings_data.si.called)
-        self.assertTrue(mock_purge_stale_revocations.si.called)
 
 
 @patch(MODULE_PATH + ".SR_STANDINGS_STALE_HOURS", 48)
@@ -147,74 +142,4 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
         purge_stale_standings_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_2.pk}
-        self.assertSetEqual(current_pks, expected)
-
-
-@patch(MODULE_PATH + ".SR_REVOCATIONS_STALE_DAYS", 7)
-class TestPurgeStaleRevocations(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        create_contacts_set
-
-    def setUp(self):
-        StandingRevocation.objects.all().delete()
-
-    def test_no_revocation_exists_no_purge(self):
-        purge_stale_revocations()
-
-    def test_one_younger_revocation_exists_no_purge(self):
-        revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_1.mark_standing_effective()
-        purge_stale_revocations()
-        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
-        expected = {revocation_1.pk}
-        self.assertSetEqual(current_pks, expected)
-
-    def test_one_older_revocation_is_purged(self):
-        revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
-        revocation_1.is_effective = True
-        revocation_1.save()
-        purge_stale_revocations()
-        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
-        expected = set()
-        self.assertSetEqual(current_pks, expected)
-
-    def test_one_younger_one_older_revocation_purge_older_only(self):
-        revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
-        revocation_1.is_effective = True
-        revocation_1.save()
-        revocation_2 = StandingRevocation.objects.add_revocation(
-            1002, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_2.mark_standing_effective()
-        purge_stale_revocations()
-        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
-        expected = {revocation_2.pk}
-        self.assertSetEqual(current_pks, expected)
-
-    def test_two_older_revocations_are_both_purged(self):
-        revocation_1 = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_1.effective_date = now() - timedelta(days=7, seconds=1)
-        revocation_1.is_effective = True
-        revocation_1.save()
-        revocation_2 = StandingRevocation.objects.add_revocation(
-            1002, StandingRevocation.CHARACTER_CONTACT_TYPE
-        )
-        revocation_2.effective_date = now() - timedelta(days=7, seconds=1)
-        revocation_2.is_effective = True
-        revocation_2.save()
-        purge_stale_revocations()
-        current_pks = set(StandingRevocation.objects.values_list("pk", flat=True))
-        expected = set()
         self.assertSetEqual(current_pks, expected)

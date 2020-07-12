@@ -39,6 +39,7 @@ This release is a big overhaul with many changes including new functionality and
 - Standings can currently not be revoked by managers through the app (will be re-added later). Workaround: Reset standing in game or remove permission for user.
 - IDs in settings can now also be integers
 - Timeout before actioned standings are reset can now be configured via setting
+- Revocations will can no longer be stale and will not be purged automatically
 - Improved maintainability (refactored database and code structure)
 - Icons upgraded to Font Awesome v5
 - Logging directed to extensions logger

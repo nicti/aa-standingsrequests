@@ -441,8 +441,8 @@ class TestRemovePilotStanding(TestViewPagesBase):
         sr = StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-        sr.mark_standing_actioned(self.user_manager)
-        sr.mark_standing_effective()
+        sr.mark_actioned(self.user_manager)
+        sr.mark_effective()
 
         self.make_request(character_id)
         self.assertEqual(
@@ -469,7 +469,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
         sr = StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-        sr.mark_standing_actioned(self.user_manager)
+        sr.mark_actioned(self.user_manager)
         self.make_request(character_id)
         self.assertEqual(
             StandingRequest.objects.filter(contact_id=character_id).count(), 0
@@ -483,8 +483,8 @@ class TestRemovePilotStanding(TestViewPagesBase):
         sr = StandingRequest.objects.add_request(
             self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-        sr.mark_standing_actioned(self.user_manager)
-        sr.mark_standing_effective()
+        sr.mark_actioned(self.user_manager)
+        sr.mark_effective()
         StandingRevocation.objects.add_revocation(
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,

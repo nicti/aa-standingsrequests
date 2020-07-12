@@ -340,54 +340,54 @@ class TestStandingsRequest(TestCase):
         my_request = StandingRequest(
             user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
-        self.assertTrue(my_request.process_standing(check_only=True))
+        self.assertTrue(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1002,
             contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertTrue(my_request.process_standing(check_only=True))
+        self.assertTrue(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1003,
             contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertTrue(my_request.process_standing(check_only=True))
+        self.assertTrue(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1005,
             contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertFalse(my_request.process_standing(check_only=True))
+        self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1009,
             contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
         )
-        self.assertFalse(my_request.process_standing(check_only=True))
+        self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 
     def test_check_standing_satisfied_no_standing(self):
         my_request = StandingRequest.objects.create(
             user=self.user_requestor, contact_id=1999, contact_type_id=CHARACTER_TYPE_ID
         )
-        self.assertFalse(my_request.process_standing(check_only=True))
+        self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 
     def test_mark_standing_effective(self):
         my_request = StandingRequest.objects.create(
             user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
 
-        my_request.mark_standing_effective()
+        my_request.mark_effective()
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertIsInstance(my_request.effective_date, datetime)
 
         my_date = now() - timedelta(days=5, hours=4)
-        my_request.mark_standing_effective(date=my_date)
+        my_request.mark_effective(date=my_date)
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertEqual(my_request.effective_date, my_date)
@@ -396,7 +396,7 @@ class TestStandingsRequest(TestCase):
         my_request = StandingRequest.objects.create(
             user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
-        self.assertTrue(my_request.process_standing())
+        self.assertTrue(my_request.evaluate_effective_standing())
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertIsInstance(my_request.effective_date, datetime)
@@ -407,7 +407,7 @@ class TestStandingsRequest(TestCase):
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
         )
-        my_request.mark_standing_actioned(self.user_manager)
+        my_request.mark_actioned(self.user_manager)
         my_request.refresh_from_db()
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsInstance(my_request.action_date, datetime)
@@ -421,7 +421,7 @@ class TestStandingsRequest(TestCase):
             action_date=now(),
             is_effective=True,
         )
-        self.assertIsNone(my_request.check_standing_actioned_timeout())
+        self.assertIsNone(my_request.check_actioned_timeout())
 
     def test_check_standing_actioned_timeout_not_actioned(self):
         my_request = StandingRequest(
@@ -430,7 +430,7 @@ class TestStandingsRequest(TestCase):
             contact_type_id=CHARACTER_TYPE_ID,
             is_effective=False,
         )
-        self.assertIsNone(my_request.check_standing_actioned_timeout())
+        self.assertIsNone(my_request.check_actioned_timeout())
 
     def test_check_standing_actioned_timeout_no_contact_set(self):
         ContactSet.objects.all().delete()
@@ -442,7 +442,7 @@ class TestStandingsRequest(TestCase):
             action_date=now(),
             is_effective=False,
         )
-        self.assertIsNone(my_request.check_standing_actioned_timeout())
+        self.assertIsNone(my_request.check_actioned_timeout())
 
     def test_check_standing_actioned_timeout_after_deadline(self):
         my_request = StandingRequest.objects.create(
@@ -453,9 +453,7 @@ class TestStandingsRequest(TestCase):
             action_date=now() - timedelta(hours=25),
             is_effective=False,
         )
-        self.assertEqual(
-            my_request.check_standing_actioned_timeout(), self.user_manager
-        )
+        self.assertEqual(my_request.check_actioned_timeout(), self.user_manager)
         my_request.refresh_from_db()
         self.assertIsNone(my_request.action_by)
         self.assertIsNone(my_request.action_date)
@@ -469,7 +467,7 @@ class TestStandingsRequest(TestCase):
             action_date=now(),
             is_effective=False,
         )
-        self.assertFalse(my_request.check_standing_actioned_timeout())
+        self.assertFalse(my_request.check_actioned_timeout())
 
     def test_reset_to_initial(self):
         my_request = StandingRequest.objects.create(

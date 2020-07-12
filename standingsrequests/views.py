@@ -238,8 +238,8 @@ def request_pilot_standing(request, character_id):
             ok = False
         else:
             if contact_set.character_has_satisfied_standing(character_id):
-                sr.mark_standing_actioned(user=None)
-                sr.mark_standing_effective()
+                sr.mark_actioned(user=None)
+                sr.mark_effective()
 
     if not ok:
         messages_plus.warning(
@@ -913,7 +913,7 @@ def manage_requests_write(request, contact_id):
     if request.method == "PUT":
         actioned = 0
         for r in StandingRequest.objects.filter(contact_id=contact_id):
-            r.mark_standing_actioned(request.user)
+            r.mark_actioned(request.user)
             actioned += 1
         if actioned > 0:
             return HttpResponseNoContent()
@@ -952,7 +952,7 @@ def manage_revocations_write(request, contact_id):
     if request.method == "PUT":
         actioned = 0
         for r in StandingRevocation.objects.filter(contact_id=contact_id):
-            r.mark_standing_actioned(request.user)
+            r.mark_actioned(request.user)
             actioned += 1
         if actioned > 0:
             return HttpResponseNoContent()

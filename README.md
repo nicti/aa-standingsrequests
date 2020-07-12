@@ -135,7 +135,6 @@ Name | Description | Default
 `SR_NOTIFICATIONS_ENABLED` | Send notifications to users about the results of standings requests and standing changes of their characters | `True`
 `SR_OPERATION_MODE` | Select the entity type of your standings master. Can be: `"alliance"` or `"corporation"` | `"alliance"`
 `SR_REQUIRED_SCOPES` | map of required scopes per state (Mandatory, can be [] per state) | -
-`SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`
 `SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`
 `SR_STANDING_TIMEOUT_HOURS` | Max hours to wait for a standing to be effective after being marked actioned. Non effective standing requests will be reset when this timeout expires. | `24`
 `SR_SYNC_BLUE_ALTS_ENABLED` | Automatically sync standing of alts known to Auth that have standing in game  | `True`

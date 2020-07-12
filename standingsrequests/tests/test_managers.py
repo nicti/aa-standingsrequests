@@ -437,13 +437,13 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
         my_revocation = StandingRevocation.objects.add_revocation(
             1999, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
-        self.assertTrue(my_revocation.process_standing(check_only=True))
+        self.assertTrue(my_revocation.evaluate_effective_standing(check_only=True))
 
     def test_check_standing_satisfied_but_deleted_for_neutral(self):
         my_revocation = StandingRevocation.objects.add_revocation(
             1999, StandingRevocation.CHARACTER_CONTACT_TYPE
         )
-        self.assertTrue(my_revocation.process_standing())
+        self.assertTrue(my_revocation.evaluate_effective_standing())
         self.assertTrue(my_revocation.is_effective)
 
 

@@ -221,7 +221,7 @@ class AbstractStandingsRequestManager(models.Manager):
         for standing_request in self.all():
             contact = EveEntity.objects.get_object(standing_request.contact_id)
             is_currently_effective = standing_request.is_effective
-            is_satisfied_standing = standing_request.process_standing()
+            is_satisfied_standing = standing_request.evaluate_effective_standing()
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
                     # send notification to user about standing change if enabled
@@ -290,7 +290,7 @@ class AbstractStandingsRequestManager(models.Manager):
             else:
                 # Check the standing hasn't been set actioned
                 # and not updated in game
-                actioned_timeout = standing_request.check_standing_actioned_timeout()
+                actioned_timeout = standing_request.check_actioned_timeout()
                 if actioned_timeout is not None and actioned_timeout:
                     logger.info(
                         "Standing request for contact ID %d has timedout "

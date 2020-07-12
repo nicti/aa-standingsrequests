@@ -248,8 +248,8 @@ class ContactSet(models.Model):
                     contact_id=alt.character_id,
                     contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
                 )
-                sr.mark_standing_actioned(None)
-                sr.mark_standing_effective()
+                sr.mark_actioned(None)
+                sr.mark_effective()
                 logger.info(
                     "Generated standings request for blue alt %s "
                     "belonging to user %s.",
@@ -489,7 +489,7 @@ class AbstractStandingsRequest(models.Model):
         else:
             raise ValueError("Invalid contact type")
 
-    def process_standing(self, check_only: bool = False) -> bool:
+    def evaluate_effective_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
         :param check_only: Check the standing only, take no action        
@@ -502,7 +502,7 @@ class AbstractStandingsRequest(models.Model):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)
                 if not check_only:
-                    self.mark_standing_effective()
+                    self.mark_effective()
                 return True
 
         except exceptions.ObjectDoesNotExist:
@@ -515,14 +515,14 @@ class AbstractStandingsRequest(models.Model):
                     "Standing satisfied but deleted (neutral) for %d", self.contact_id
                 )
                 if not check_only:
-                    self.mark_standing_effective()
+                    self.mark_effective()
                 return True
 
         # Standing not satisfied
         logger.debug("Standing NOT satisfied for %d", self.contact_id)
         return False
 
-    def mark_standing_effective(self, date=None):
+    def mark_effective(self, date=None):
         """
         Marks a standing as effective (standing exists in game) 
         from the current or supplied TZ aware datetime
@@ -534,7 +534,7 @@ class AbstractStandingsRequest(models.Model):
         self.effective_date = date if date else now()
         self.save()
 
-    def mark_standing_actioned(self, user, date=None):
+    def mark_actioned(self, user, date=None):
         """
         Marks a standing as actioned (user has made the change in game) 
         with the current or supplied TZ aware datetime
@@ -547,7 +547,7 @@ class AbstractStandingsRequest(models.Model):
         self.action_date = date if date else now()
         self.save()
 
-    def check_standing_actioned_timeout(self):
+    def check_actioned_timeout(self):
         """
         Check that a standing hasn't been marked as actioned 
         and is still not effective ~24hr later
