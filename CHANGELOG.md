@@ -7,16 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.5.0] - alpha, tbd
+### [0.5.0] - alpha, tbd
 
 This release is a big overhaul with many changes including new functionality and changes to the UI.
 
-IMPORTANT: Please make sure you do not have any pending standing requests or standing revocations before updating to this version (e.g. manage requests page should be empty.)
+#### Please read before upgrading
+
+1. Please make sure you do not have any pending standing requests or pending standing revocations before updating to this version (e.g. manage requests page should be empty.)
+
+1. The app will now automatically sync in-game standing with Auth for all known alts. This means that users who already have standing in-game no longer need to request it. This also means that the app will automatically suggest to revoke a standing if an alt has standing in-game, but does not meet the requirements (e.g. scopes / permission). Note that you can deactivate this behavior through settings if you prefer to sync standings manually.
 
 ### Added
 
 - You can now also define a corporation as standings source
-- It is no longer required to create standing requests for characters that already have standing in game and that fullfil all requirements. This wil be done automatically.
+- The app will automatically sync standing for alts known to Auth with in-game standing (can be turned off).
 - User are now always notified when their standings change, e.g. once their standing request becomes effective or in case it gets revoked. (can be deactivated)
 - Standing organization is now shown on the "create request" page
 - Added icons for character, corporations and alliances to most pages

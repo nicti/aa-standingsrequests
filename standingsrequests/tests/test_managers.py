@@ -377,7 +377,7 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         )
         self.assertEqual(my_request_1, my_request_2)
 
-    def test_remove_requests_1(self):
+    def test_remove_requests(self):
         StandingRequest.objects.create(
             user=self.user_requestor,
             contact_id=1001,
@@ -391,22 +391,6 @@ class TestStandingsRequestManager(NoSocketsTestCase):
             ).exists()
         )
         self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
-
-    @patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-    def test_remove_requests_2(self):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        StandingRequest.objects.remove_requests(1001, self.user_manager)
-        self.assertFalse(
-            StandingRequest.objects.filter(
-                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
-            ).exists()
-        )
-        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
 
 class TestStandingsRevocationManager(NoSocketsTestCase):

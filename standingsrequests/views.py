@@ -1,5 +1,6 @@
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
 from django.contrib.auth.decorators import login_required, permission_required
@@ -15,6 +16,7 @@ from .app_settings import (
     SR_CORPORATIONS_ENABLED,
     SR_OPERATION_MODE,
     STANDINGS_API_CHARID,
+    SR_NOTIFICATIONS_ENABLED,
 )
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
@@ -916,11 +918,24 @@ def manage_requests_write(request, contact_id):
         if actioned > 0:
             return HttpResponseNoContent()
         else:
-            return Http404
+            return Http404()
     elif request.method == "DELETE":
-        StandingRequest.objects.remove_requests(contact_id, request.user)
-        # TODO: Error handling
-        return HttpResponseNoContent()
+        try:
+            standing_request = StandingRequest.objects.get(contact_id=contact_id)
+        except StandingRequest.DoesNotExist:
+            return Http404()
+        else:
+            StandingRequest.objects.remove_requests(contact_id)
+            if SR_NOTIFICATIONS_ENABLED:
+                entity_name = EveEntity.objects.get_name(contact_id)
+                title = _("Standing request for %s rejected" % entity_name)
+                message = _(
+                    "Your standing request for '%s' "
+                    "has been rejected by %s." % (entity_name, request.user)
+                )
+                notify(user=standing_request.user, title=title, message=message)
+
+            return HttpResponseNoContent()
     else:
         return Http404()
 
@@ -944,9 +959,23 @@ def manage_revocations_write(request, contact_id):
         else:
             return Http404
     elif request.method == "DELETE":
-        StandingRevocation.objects.filter(contact_id=contact_id).delete()
-        # TODO: Error handling
-        return HttpResponseNoContent()
+        try:
+            standing_revocation = StandingRevocation.objects.get(contact_id=contact_id)
+        except StandingRevocation.DoesNotExist:
+            return Http404()
+        else:
+            StandingRevocation.objects.filter(contact_id=contact_id).delete()
+            if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
+                entity_name = EveEntity.objects.get_name(contact_id)
+                title = _("Standing revocation for %s rejected" % entity_name)
+                message = _(
+                    "Your standing revocation for '%s' "
+                    "has been rejected by %s." % (entity_name, request.user)
+                )
+                notify(user=standing_revocation.user, title=title, message=message)
+
+            return HttpResponseNoContent()
+
     else:
         return Http404()
 
@@ -982,7 +1011,7 @@ def _standing_requests_to_view() -> models.QuerySet:
     return (
         StandingRequest.objects.filter(is_effective=True)
         .select_related("user__profile")
-        .order_by("request_date")
+        .order_by("-request_date")
     )
 
 

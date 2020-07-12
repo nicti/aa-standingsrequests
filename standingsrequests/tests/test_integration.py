@@ -20,6 +20,7 @@ from .my_test_data import (
     create_eve_objects,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
+    TEST_STANDINGS_ALLIANCE_ID,
 )
 from ..models import (
     ContactSet,
@@ -36,12 +37,17 @@ MODULE_PATH_MANAGERS = "standingsrequests.managers"
 MODULE_PATH_TASKS = "standingsrequests.tasks"
 logger = set_test_logger(MODULE_PATH_MANAGERS, __file__)
 
-TEST_SCOPE = "publicData"
+TEST_REQUIRED_SCOPE = "publicData"
 
 
+@patch(
+    MODULE_PATH_MODELS + ".SR_REQUIRED_SCOPES",
+    {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
+)
 @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODULE_PATH_MODELS + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
 
     csrf_checks = False
@@ -62,26 +68,32 @@ class TestMainUseCases(WebTest):
         cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
         cls.user_requestor = AuthUtils.create_user(cls.main_character_1.character_name)
         add_character_to_user(
-            cls.user_requestor, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_requestor,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_REQUIRED_SCOPE,],
         )
         cls.member_state.member_characters.add(cls.main_character_1)
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_1, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.alt_character_1, scopes=[TEST_REQUIRED_SCOPE,],
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
             corporation_id=cls.alt_character_1.corporation_id
         )
         cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_2, scopes=[TEST_SCOPE],
+            cls.user_requestor, cls.alt_character_2, scopes=[TEST_REQUIRED_SCOPE,],
         )
 
         # Standing manager
         cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
         cls.user_manager = AuthUtils.create_user(cls.main_character_2.character_name)
         add_character_to_user(
-            cls.user_manager, cls.main_character_2, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_manager,
+            cls.main_character_2,
+            is_main=True,
+            scopes=[TEST_REQUIRED_SCOPE,],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
         AuthUtils.add_permission_to_user_by_name(
@@ -571,6 +583,66 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+    @patch("standingsrequests.helpers.esi_fetch._esi_client")
+    def test_user_requests_revocation_for_his_alt_character_but_refused(
+        self, mock_esi_client
+    ):
+        """
+        given user's alt has standing and user has permission
+        when user requests revocation and request is actioned by manager
+        then alt's standing is removed and user gets change notification
+        """
+        # setup
+        self._setup_mocks(mock_esi_client)
+        alt_id = self.alt_character_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_character_1)
+        my_request = self._create_standing_for_alt(self.alt_character_1)
+
+        # user opens create requests page
+        self.app.set_user(self.user_requestor)
+        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        self.assertEqual(create_page_1.status_code, 200)
+        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        self.assertEqual(create_page_2.status_code, 200)
+
+        # user requests standing for alt
+        request_standing_url = reverse(
+            "standingsrequests:remove_pilot_standing", args=[alt_id],
+        )
+        response = create_page_2.click(href=request_standing_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:index"))
+
+        # validate new state
+        self.assertTrue(my_request.is_effective)
+        self.assertEqual(my_request.user, self.user_requestor)
+        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
+        self.assertFalse(my_revocation.is_effective)
+
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
+        # Manage refused request
+        response = self.app.delete(
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+        )
+        self.assertEqual(response.status_code, 204)
+
+        # validate final state
+        self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
+        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+
     def test_automatic_standing_revocation_when_standing_is_reset_in_game(self):
         """
         given user's alt has standing and user has permission
@@ -592,7 +664,7 @@ class TestMainUseCases(WebTest):
 
     def test_automatically_create_standing_revocation_for_invalid_alts(self):
         """
-        given user's alt has standing
+        given user's alt has standing record
         when user has lost permission
         then standing revocation is automatically created
         and standing is removed after actioned by manager
@@ -616,11 +688,45 @@ class TestMainUseCases(WebTest):
         # run task
         tasks.validate_requests()
 
-        # validate
+        # validate new state
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
+        # remove standing for alt in game and mark as actioned
+        self._remove_standing_for_alt_in_game(self.alt_character_1)
+        response = self.app.put(
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+        )
+        self.assertEqual(response.status_code, 204)
+
+        # validate new state
+        my_revocation.refresh_from_db()
+        self.assertEqual(my_revocation.action_by, self.user_manager)
+        self.assertIsNotNone(my_revocation.action_date)
+        self.assertFalse(my_revocation.is_effective)
+
+        # run process standing results task
+        self._process_standing_requests()
+
+        # validate final state
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
+        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
     @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_requests_for_valid_alts(self):
@@ -642,3 +748,70 @@ class TestMainUseCases(WebTest):
         )
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
+
+    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    def test_automatically_create_standing_revocation_for_invalid_alts_2(self):
+        """
+        given user's alt has no standing record
+        and alt has standing in game
+        when user has no permission
+        then standing revocation is automatically created
+        and standing is removed after actioned by manager
+        and user is notified
+        """
+
+        # setup
+        alt_id = self.alt_character_1.character_id
+        self._set_standing_for_alt_in_game(self.alt_character_1)
+        self.member_state.member_characters.remove(self.main_character_1)
+        permission = AuthUtils.get_permission_by_name(
+            StandingRequest.REQUEST_PERMISSION_NAME
+        )
+        self.user_requestor.user_permissions.remove(permission)
+        self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
+        self.assertFalse(
+            self.user_requestor.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
+        )
+
+        # run tasks
+        self._process_standing_requests()
+        tasks.validate_requests()
+
+        # validate new state
+        self.assertTrue(StandingRequest.objects.has_effective_request(alt_id))
+        my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
+        self.assertFalse(my_revocation.is_effective)
+
+        # manager opens manage page
+        self.app.set_user(self.user_manager)
+        manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
+        self.assertEqual(manage_page_1.status_code, 200)
+        manage_page_2 = self.app.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        self.assertEqual(manage_page_2.status_code, 200)
+
+        # make sure standing request is visible to manager
+        data = self._parse_json_response(manage_page_2)
+        self.assertSetEqual(set(data.keys()), {alt_id})
+
+        # remove standing for alt in game and mark as actioned
+        self._remove_standing_for_alt_in_game(self.alt_character_1)
+        response = self.app.put(
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+        )
+        self.assertEqual(response.status_code, 204)
+
+        # validate new state
+        my_revocation.refresh_from_db()
+        self.assertEqual(my_revocation.action_by, self.user_manager)
+        self.assertIsNotNone(my_revocation.action_date)
+        self.assertFalse(my_revocation.is_effective)
+
+        # run process standing results task
+        self._process_standing_requests()
+
+        # validate final state
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
+        self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
+        self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())

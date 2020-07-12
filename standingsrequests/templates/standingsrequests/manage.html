@@ -16,7 +16,7 @@
             <h2 style="margin-top:0;">
                 {% trans "Pending Requests" %} ({{requests_count|default:"-"}})                
             </h2>
-            <p>Standing requests pending action for <strong>{{organization.name}}</strong></p>
+            <p>Standing requests with pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
                 
                 <div id="div_spinner_requests" class="row">                    
@@ -62,12 +62,12 @@
                                     {{contact.state}}
                                 </td>
                                 <td>                                    
-                                    <button class="btn btn-success" ng-click="actionRequest(contact)" title="Standing added in game">
-                                        <i class="far fa-thumbs-up"></i>
+                                    <button class="btn btn-success" ng-click="actionRequest(contact)" title="Confirm the standing was ADDED in game">
+                                        Confirm
                                     </button>
                                     &nbsp;&nbsp;&nbsp;&nbsp;                                                 
-                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject standing request">
-                                        <i class="far fa-thumbs-down"></i>
+                                    <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject this standing request">
+                                        Reject
                                     </button>
                                     
                                 </td>
@@ -91,7 +91,7 @@
             <h2 style="margin-top:0;">
                 {% trans "Pending Revocations" %} ({{revocations_count|default:"-"}})
             </h2>
-            <p>Standing revocations pending action for <strong>{{organization.name}}</strong></p>
+            <p>Standing revocations with pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
 
                 <div id="div_spinner_revocations" class="row">                    
@@ -138,12 +138,12 @@
                                     {{contact.state}}
                                 </td>
                                 <td>                                                                        
-                                    <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Standing removed in game">
-                                        <i class="far fa-thumbs-up"></i>
+                                    <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Confirm the standing was REMOVED in game">
+                                        Confirm
                                     </button>
                                     &nbsp;&nbsp;&nbsp;&nbsp;                                    
-                                    <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Reject revocation request">
-                                        <i class="far fa-thumbs-down"></i>
+                                    <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Reject this revocation request">
+                                        Reject
                                     </button>
                                 </td>
                             </tr>

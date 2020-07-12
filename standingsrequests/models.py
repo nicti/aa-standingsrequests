@@ -221,7 +221,7 @@ class ContactSet(models.Model):
         return entity
 
     def generate_standing_requests_for_blue_alts(self) -> int:
-        """Automatically create accepted standings requests for
+        """Automatically creates effective standings requests for
         alt characters on Auth that already have blue standing in-game.
 
         return count of generated standings requests
@@ -241,9 +241,7 @@ class ContactSet(models.Model):
                 and not StandingRevocation.objects.filter(
                     contact_id=alt.character_id
                 ).exists()
-                and StandingRequest.has_required_scopes_for_request(alt, user)
                 and self.character_has_satisfied_standing(alt.character_id)
-                and user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME)
             ):
                 sr = StandingRequest.objects.add_request(
                     user=user,

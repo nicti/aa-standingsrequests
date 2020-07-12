@@ -138,7 +138,7 @@ Name | Description | Default
 `SR_REVOCATIONS_STALE_DAYS` | Standings revocations will be considered stale and removed from the local database after the configured days | `7`
 `SR_STANDINGS_STALE_HOURS` | Standing data will be considered stale and removed from the local database after the configured hours. The latest standings data will never be purged, no matter how old it is | `48`
 `SR_STANDING_TIMEOUT_HOURS` | Max hours to wait for a standing to be effective after being marked actioned. Non effective standing requests will be reset when this timeout expires. | `24`
-`SR_SYNC_BLUE_ALTS_ENABLED` | Automatically create standing requests for existing alts that have standing in game  | `False`
+`SR_SYNC_BLUE_ALTS_ENABLED` | Automatically sync standing of alts known to Auth that have standing in game  | `True`
 `STANDINGS_API_CHARID` | Eve Online ID of character to use for fetching alliance contacts from ESI (Mandatory) | -
 `STR_ALLIANCE_IDS` | Eve Online ID of alliances. Characters belonging to one of those alliances are considered "in organization". Your main alliance goes here when in alliance mode. (Mandatory, can be []) | -
 `STR_CORP_IDS` | Eve Online ID of corporations. Characters belonging to one of those corporations are considered "in organization". Your main corporation goes here when in corporation mode. (Mandatory, can be []) | -

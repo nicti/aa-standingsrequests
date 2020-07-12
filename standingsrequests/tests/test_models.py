@@ -187,12 +187,10 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
 
 
 @patch(
-    "standingsrequests.models.STR_ALLIANCE_IDS", [str(TEST_STANDINGS_ALLIANCE_ID)],
-)
-@patch(
-    "standingsrequests.models.SR_REQUIRED_SCOPES",
+    MODULE_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
+@patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -205,15 +203,13 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         StandingRequest.objects.all().delete()
 
     def test_creates_new_request_for_blue_alt(self):
-        AuthUtils.add_permission_to_user_by_name(
-            StandingRequest.REQUEST_PERMISSION_NAME, self.user
-        )
-        alt = create_entity(EveCharacter, 1010)
-        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+        alt_id = 1010
+        alt = create_entity(EveCharacter, alt_id)
+        add_character_to_user(self.user, alt, scopes=["dummy"])
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
-        self.assertEqual(StandingRequest.objects.count(), 1)
+        self.assertTrue(StandingRequest.objects.has_effective_request(alt_id))
         request = StandingRequest.objects.first()
         self.assertEqual(request.user, self.user)
         self.assertEqual(request.contact_id, 1010)
@@ -223,62 +219,34 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.assertAlmostEqual((now() - request.effective_date).seconds, 0, delta=30)
 
     def test_does_not_create_requests_for_blue_alt_if_request_already_exists(self):
-        AuthUtils.add_permission_to_user_by_name(
-            StandingRequest.REQUEST_PERMISSION_NAME, self.user
-        )
-        alt = create_entity(EveCharacter, 1010)
-        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+        alt_id = 1010
+        alt = create_entity(EveCharacter, alt_id)
+        add_character_to_user(self.user, alt, scopes=["dummy"])
         StandingRequest.objects.add_request(
-            self.user, alt.character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user, alt_id, StandingRequest.CHARACTER_CONTACT_TYPE,
         )
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
-        self.assertEqual(StandingRequest.objects.count(), 1)
+        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
 
     def test_does_not_create_requests_for_non_blue_alts(self):
-        AuthUtils.add_permission_to_user_by_name(
-            StandingRequest.REQUEST_PERMISSION_NAME, self.user
-        )
-        alt = create_entity(EveCharacter, 1009)
-        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
+        alt_id = 1009
+        alt = create_entity(EveCharacter, alt_id)
+        add_character_to_user(self.user, alt, scopes=["dummy"])
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
-        self.assertEqual(StandingRequest.objects.count(), 0)
+        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
 
     def test_does_not_create_requests_for_alts_in_organization(self):
-        AuthUtils.add_permission_to_user_by_name(
-            StandingRequest.REQUEST_PERMISSION_NAME, self.user
-        )
-        main = create_entity(EveCharacter, 1002)
-        add_character_to_user(
-            self.user, main, is_main=True, scopes=[TEST_REQUIRED_SCOPE]
-        )
+        alt_id = 1002
+        main = create_entity(EveCharacter, alt_id)
+        add_character_to_user(self.user, main, is_main=True, scopes=["dummy"])
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
-        self.assertEqual(StandingRequest.objects.count(), 0)
-
-    def test_does_not_create_requests_for_alts_without_matching_scopes(self):
-        AuthUtils.add_permission_to_user_by_name(
-            StandingRequest.REQUEST_PERMISSION_NAME, self.user
-        )
-        user = AuthUtils.create_member("John Doe")
-        alt = create_entity(EveCharacter, 1010)
-        add_character_to_user(user, alt)
-
-        self.contacts_set.generate_standing_requests_for_blue_alts()
-
-        self.assertEqual(StandingRequest.objects.count(), 0)
-
-    def test_does_not_create_requests_for_alts_without_permission(self):
-        alt = create_entity(EveCharacter, 1010)
-        add_character_to_user(self.user, alt, scopes=[TEST_REQUIRED_SCOPE])
-
-        self.contacts_set.generate_standing_requests_for_blue_alts()
-
-        self.assertEqual(StandingRequest.objects.count(), 0)
+        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
 
 
 class TestAbstractStanding(TestCase):

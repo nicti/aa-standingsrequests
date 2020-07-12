@@ -343,6 +343,12 @@ class AbstractStandingsRequestManager(models.Manager):
             .exists()
         )
 
+    def has_effective_request(self, contact_id: int) -> bool:
+        """return True if an effective request exists for given contact_id, 
+        else False
+        """
+        return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
+
 
 class StandingsRequestManager(AbstractStandingsRequestManager):
     def delete_for_user(self, user):
@@ -427,7 +433,7 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         )
         return instance
 
-    def remove_requests(self, contact_id: int, user_responsible: User = None):
+    def remove_requests(self, contact_id: int):
         """
         Remove the requests for the given contact_id. If any of these requests 
         have been actioned or are effective
@@ -438,30 +444,11 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
         - user_responsible: User responsible for removing. 
         When provided will sent notification to requestor.
         """
-        from .models import EveEntity
-
         logger.debug("Removing requests for contact_id %d", contact_id)
         standing_requests = self.filter(contact_id=contact_id)
         if standing_requests:
-            if user_responsible and SR_NOTIFICATIONS_ENABLED:
-                for standing_request in standing_requests:
-                    entity_name = EveEntity.objects.get_name(
-                        standing_request.contact_id
-                    )
-                    title = _("Standing request for %s rejected" % entity_name)
-                    message = _(
-                        "Your standing request for '%s' "
-                        "has been rejected by %s." % (entity_name, user_responsible)
-                    )
-                    notify(user=standing_request.user, title=title, message=message)
-            logger.debug("%d requests to be removed", len(standing_requests))
+            logger.debug("%d requests to be removed", standing_requests.count())
             standing_requests.delete()
-
-    def has_effective_request(self, contact_id: int) -> bool:
-        """return True if an effective standing request exists for given contact_id, 
-        else False
-        """
-        return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
 
 
 class StandingsRevocationManager(AbstractStandingsRequestManager):
