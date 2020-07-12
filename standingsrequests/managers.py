@@ -45,7 +45,7 @@ class ContactSetManager(models.Manager):
             return None
         try:
             contacts = _ContactsWrapper(token, STANDINGS_API_CHARID)
-        except Exception as ex:
+        except HTTPError as ex:
             logger.exception(
                 "APIError occurred while trying to query api server: %s", ex
             )

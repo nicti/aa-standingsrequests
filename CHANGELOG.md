@@ -7,25 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-### [0.5.0] - alpha, tbd
+### [0.5.0] - tbd
 
 This release is a big overhaul with many changes including new functionality and changes to the UI.
 
 #### Please read before upgrading
 
-1. Please make sure you do not have any pending standing requests or pending standing revocations before updating to this version (e.g. manage requests page should be empty.)
-
-1. The app will now automatically sync in-game standing with Auth for all known alts. This means that users who already have standing in-game no longer need to request it. This also means that the app will automatically suggest to revoke a standing if an alt has standing in-game, but does not meet the requirements (e.g. scopes / permission). Note that you can deactivate this behavior through settings if you prefer to sync standings manually.
+- Please make sure you do not have any pending standing requests or pending standing revocations before updating to this version (e.g. manage requests page should be empty.)
+- The app will now automatically sync in-game standing with Auth for all known alts. This means that: <br>a) users who already have standing in-game no longer need to request it.<br>b) app will automatically suggest to revoke a standing if an alt has standing in-game, but does not meet the requirements (e.g. scopes / permission) on Auth.<br>Note that you can deactivate this behavior through settings should you prefer to sync standings manually.
 
 ### Added
 
-- You can now also define a corporation as standings source
-- The app will automatically sync standing for alts known to Auth with in-game standing (can be turned off).
-- User are now always notified when their standings change, e.g. once their standing request becomes effective or in case it gets revoked. (can be deactivated)
-- Standing organization is now shown on the "create request" page
-- Added icons for character, corporations and alliances to most pages
-- Character who has received corp standing shown on "Group standings" page
-- Corporations on groups page now also show to which alliance they belong
+- You can now also define a corporation as standing organization
+- The app will automatically sync standing for alts known to Auth with in-game standing (can be deactivated).
+- Users are now always notified when their standings change or their requests are rejected, e.g. once their standing request becomes effective or in case it gets revoked. (can be deactivated)
+- The standing organization is now shown on the "create request" page
+- Most pages now show icons for characters, corporations and alliances
+- "Group standings" page now also shows which main has standing (if any)
+- Corporations on "groups standings" page now also show to which alliance they belong
 - First standings pull and updates now done automatically after adding a new token. No need to do this manually anymore.
 - Added new tests and improved existing tests
 - Added support for django-esi 2.x and backwards compatibility for 1.x
@@ -35,7 +34,7 @@ This release is a big overhaul with many changes including new functionality and
 - User's main no longer has to be outside the main organization to be allowed to request standing for an alt corporation ([#7](https://gitlab.com/basraah/standingsrequests/issues/7))
 - UI improvements
 - Performance improvements
-- Removed undo feature for revocation
+- Removed undo feature for revocation (no longer relevant)
 - Standings can currently not be revoked by managers through the app (will be re-added later). Workaround: Reset standing in game or remove permission for user.
 - IDs in settings can now also be integers
 - Timeout before actioned standings are reset can now be configured via setting

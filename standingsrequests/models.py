@@ -127,7 +127,7 @@ class ContactSet(models.Model):
                 return False
 
         else:
-            raise ValueError("Invalid contact type ID: %s", contact_type_id)
+            raise ValueError("Invalid contact type ID: %s" % contact_type_id)
 
         return StandingRequest.is_standing_satisfied(contact.standing)
 
@@ -139,7 +139,7 @@ class ContactSet(models.Model):
             return CorporationContact
         elif contact_type_id in AllianceContact.contact_type_ids:
             return AllianceContact
-        raise ValueError("Invalid contact type ID: %s", contact_type_id)
+        raise ValueError("Invalid contact type ID: %s" % contact_type_id)
 
     @classmethod
     def is_character_in_organisation(cls, character: EveCharacter) -> bool:

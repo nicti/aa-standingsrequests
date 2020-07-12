@@ -5,7 +5,7 @@ from celery import Celery
 
 from django.utils.timezone import now
 
-from standingsrequests.models import ContactSet, StandingRevocation
+from standingsrequests.models import ContactSet
 from standingsrequests.tasks import (
     standings_update,
     validate_requests,
@@ -45,18 +45,6 @@ class TestStandingsUpdate(NoSocketsTestCase):
         mock_revocations_process_standings,
     ):
         mock_create_new_from_api.return_value = None
-        standings_update()
-        self.assertTrue(mock_create_new_from_api.called)
-        self.assertFalse(mock_requests_process_standings.called)
-        self.assertFalse(mock_revocations_process_standings.called)
-
-    def test_can_handle_exception(
-        self,
-        mock_create_new_from_api,
-        mock_requests_process_standings,
-        mock_revocations_process_standings,
-    ):
-        mock_create_new_from_api.side_effect = RuntimeError
         standings_update()
         self.assertTrue(mock_create_new_from_api.called)
         self.assertFalse(mock_requests_process_standings.called)

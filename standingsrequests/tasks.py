@@ -69,23 +69,19 @@ def report_result_to_user(user_pk: int = None):
 def standings_update():
     """Updates standings from ESI"""
     logger.info("Standings API update started")
-    try:
-        contact_set = ContactSet.objects.create_new_from_api()
-        if not contact_set:
-            logger.warn(
-                "Standings API update returned None (API error probably),"
-                "aborting standings update"
-            )
-        else:
-            if SR_SYNC_BLUE_ALTS_ENABLED:
-                contact_set.generate_standing_requests_for_blue_alts()
-            StandingRequest.objects.process_requests()
-            StandingRevocation.objects.process_requests()
-            cache_view_pilots_json.clear()
-            cache_view_groups_json.clear()
-
-    except Exception as ex:
-        logger.exception("Failed to execute standings_update: %s", ex)
+    contact_set = ContactSet.objects.create_new_from_api()
+    if not contact_set:
+        logger.warn(
+            "Standings API update returned None (API error probably),"
+            "aborting standings update"
+        )
+    else:
+        if SR_SYNC_BLUE_ALTS_ENABLED:
+            contact_set.generate_standing_requests_for_blue_alts()
+        StandingRequest.objects.process_requests()
+        StandingRevocation.objects.process_requests()
+        cache_view_pilots_json.clear()
+        cache_view_groups_json.clear()
 
 
 @shared_task(name="standings_requests.validate_requests")
