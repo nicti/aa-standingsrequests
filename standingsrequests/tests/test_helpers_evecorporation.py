@@ -104,3 +104,11 @@ class TestEveCorporation(NoSocketsTestCase):
             member_count=22,
         )
         self.assertTrue(normal_corp.is_npc)
+
+    def test_corp_without_members(self, mock_esi_client, mock_cache):
+        normal_corp = EveCorporation(
+            corporation_id=98397665,
+            corporation_name="Rancid Rabid Rabis",
+            ticker="RANCI",
+        )
+        self.assertIsNone(normal_corp.alliance_name)
