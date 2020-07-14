@@ -27,7 +27,7 @@ class EveCorporation:
         self.corporation_id = int(kwargs.get("corporation_id"))
         self.corporation_name = kwargs.get("corporation_name")
         self.ticker = kwargs.get("ticker")
-        self.member_count = kwargs["member_count"]
+        self.member_count = kwargs.get("member_count")
         self.ceo_id = kwargs.get("ceo_id")
         self.alliance_id = kwargs.get("alliance_id")
         self.alliance_name = kwargs.get("alliance_name")
