@@ -40,11 +40,11 @@
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
-                                    {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
+                                    {{ contact.request_date | date:'yyyy-MM-dd HH:mm' }}
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    <clipboard-copy copy="contact.contact_name"></clipboard-copy>
+                                    {{ contact.contact_name }}                                    
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
