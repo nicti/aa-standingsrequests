@@ -107,8 +107,8 @@ if 'standingsrequests' in INSTALLED_APPS:
         'task': 'standings_requests.standings_update',
         'schedule': crontab(minute='*/30'),
     }
-    CELERYBEAT_SCHEDULE['standings_requests_validate_standings_requests'] = {
-        'task': 'standings_requests.validate_standings_requests',
+    CELERYBEAT_SCHEDULE['standings_requests_validate_requests'] = {
+        'task': 'standings_requests.validate_requests',
         'schedule': crontab(hour='*/6'),
     }
     CELERYBEAT_SCHEDULE['standings_requests.update_associations_auth'] = {
