@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-### [0.5.0] - tbd
+### [0.5.0] - 2020-07-22
 
 This release is a big overhaul with many changes including new functionality and changes to the UI.
 
@@ -15,6 +15,7 @@ This release is a big overhaul with many changes including new functionality and
 
 - Please make sure you do not have any pending standing requests or pending standing revocations before updating to this version (e.g. manage requests page should be empty.)
 - The app will now automatically sync in-game standing with Auth for all known alts. This means that: <br>a) users who already have standing in-game no longer need to request it.<br>b) app will automatically suggest to revoke a standing if an alt has standing in-game, but does not meet the requirements (e.g. scopes / permission) on Auth.<br>Note that you can deactivate this behavior through settings should you prefer to sync standings manually.
+- The name of the periodic task `standings_requests.validate_standings_requests` has changed to `standings_requests.validate_requests`. Please make sure to update your settings accordingly.
 
 ### Added
 
