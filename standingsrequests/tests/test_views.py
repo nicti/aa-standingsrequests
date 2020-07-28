@@ -278,6 +278,13 @@ class TestViewPagesBase(TestCase):
         )
         cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
+        # Old user - has no main and no rights
+        cls.user_former_member = AuthUtils.create_user("Lex Luthor")
+        cls.alt_character_3 = EveCharacter.objects.get(character_id=1010)
+        add_character_to_user(
+            cls.user_former_member, cls.alt_character_3, scopes=[TEST_SCOPE],
+        )
+
     def setUp(self):
         StandingRequest.objects.all().delete()
         StandingRevocation.objects.all().delete()
@@ -648,7 +655,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
 
-        data_alt_1 = data[self.alt_character_1.character_id]
+        data_alt_1 = data[alt_id]
         expected_alt_1 = {
             "contact_id": 1007,
             "contact_name": "James Gordon",
@@ -732,6 +739,58 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "action_by": "(System)",
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
+
+    def test_can_show_user_without_main(self, mock_esi_client, mock_cache):
+        # setup
+        alt_id = self.alt_character_3.character_id
+        self._create_standing_for_alt(self.alt_character_3)
+        standing_request = StandingRevocation.objects.add_revocation(
+            alt_id,
+            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            user=self.user_former_member,
+        )
+
+        # make request
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_revocations_json(request)
+
+        # validate
+        self.assertEqual(response.status_code, 200)
+        data = {
+            x["contact_id"]: x
+            for x in json.loads(response.content.decode(response.charset))
+        }
+        expected = {alt_id}
+        self.assertSetEqual(set(data.keys()), expected)
+        self.maxDiff = None
+
+        data_alt_1 = data[alt_id]
+        expected_alt_1 = {
+            "contact_id": 1010,
+            "contact_name": "Natasha Romanoff",
+            "contact_icon_url": "https://images.evetech.net/characters/1010/portrait?size=32",
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX",
+            "alliance_id": None,
+            "alliance_name": "",
+            "has_scopes": False,
+            "request_date": standing_request.request_date.isoformat(),
+            "action_date": None,
+            "state": "Guest",
+            "main_character_name": "",
+            "main_character_ticker": "",
+            "main_character_icon_url": "",
+            "actioned": False,
+            "is_effective": False,
+            "is_corporation": False,
+            "is_character": True,
+            "action_by": "(System)",
+        }
+        self.assertDictEqual(data_alt_1, expected_alt_1)
 
 
 @patch("standingsrequests.helpers.evecorporation.cache")
