@@ -815,17 +815,20 @@ def _compose_standing_requests_data(
         }
     else:
         eve_corporations = list()
+
     for r in requests_qs:
-        state_name = r.user.profile.state.name
-        main = r.user.profile.main_character
-        if main:
-            main_character_name = main.character_name
-            main_character_ticker = main.corporation_ticker
-            main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+        main_character_name = ""
+        main_character_ticker = ""
+        main_character_icon_url = ""
+        if r.user:
+            state_name = r.user.profile.state.name
+            main = r.user.profile.main_character
+            if main:
+                main_character_name = main.character_name
+                main_character_ticker = main.corporation_ticker
+                main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
         else:
-            main_character_name = ""
-            main_character_ticker = ""
-            main_character_icon_url = ""
+            state_name = "(no user)"
 
         if r.is_character:
             if r.contact_id in eve_characters:
