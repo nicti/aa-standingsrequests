@@ -792,6 +792,57 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
+    def test_can_handle_requests_without_user(self, mock_esi_client, mock_cache):
+        # setup
+        alt_id = 1006
+        my_alt = EveCharacter.objects.get(character_id=alt_id)
+        self._create_standing_for_alt(my_alt)
+        standing_request = StandingRevocation.objects.add_revocation(
+            alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE
+        )
+
+        # make request
+        request = self.factory.get(
+            reverse("standingsrequests:manage_get_revocations_json")
+        )
+        request.user = self.user_manager
+        response = views.manage_get_revocations_json(request)
+
+        # validate
+        self.assertEqual(response.status_code, 200)
+        data = {
+            x["contact_id"]: x
+            for x in json.loads(response.content.decode(response.charset))
+        }
+        expected = {alt_id}
+        self.assertSetEqual(set(data.keys()), expected)
+        self.maxDiff = None
+
+        data_alt_1 = data[alt_id]
+        expected_alt_1 = {
+            "contact_id": alt_id,
+            "contact_name": "Steven Roger",
+            "contact_icon_url": f"https://images.evetech.net/characters/{alt_id}/portrait?size=32",
+            "corporation_id": 2003,
+            "corporation_name": "CatCo Worldwide Media",
+            "corporation_ticker": "CC",
+            "alliance_id": None,
+            "alliance_name": "",
+            "has_scopes": False,
+            "request_date": standing_request.request_date.isoformat(),
+            "action_date": None,
+            "state": "(no user)",
+            "main_character_name": "",
+            "main_character_ticker": "",
+            "main_character_icon_url": "",
+            "actioned": False,
+            "is_effective": False,
+            "is_corporation": False,
+            "is_character": True,
+            "action_by": "(System)",
+        }
+        self.assertDictEqual(data_alt_1, expected_alt_1)
+
 
 @patch("standingsrequests.helpers.evecorporation.cache")
 @patch("standingsrequests.helpers.esi_fetch._esi_client")

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### [0.5.2] - 2020-07-28
+
+### Fixes
+
+- Another internal error on "Manage requests" page and Revocations is not loading.
+
 ### [0.5.1] - 2020-07-28
 
 ### Fixes
