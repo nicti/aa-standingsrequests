@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### [0.5.1] - 2020-07-28
+
+### Fixes
+
+- Internal error on "Manage requests" page and Revocations is not loading.
+
 ### [0.5.0] - 2020-07-22
 
 This release is a big overhaul with many changes including new functionality and changes to the UI.
