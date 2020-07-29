@@ -118,7 +118,7 @@
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    <clipboard-copy copy="contact.contact_name"></clipboard-copy>
+                                    {{ contact.contact_name }}
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">

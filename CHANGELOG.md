@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### [0.5.3] - 2020-07-29
+
+### Fixes
+
+- Character name in revocations where hard to read in dark mode
+- Minor bugfixes
+
 ### [0.5.2] - 2020-07-28
 
 ### Fixes
