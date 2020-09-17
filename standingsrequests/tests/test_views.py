@@ -152,11 +152,16 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
         cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
         add_character_to_user(
-            cls.user_1, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_1,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_SCOPE],
         )
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_1, cls.alt_character_1, scopes=[TEST_SCOPE],
+            cls.user_1,
+            cls.alt_character_1,
+            scopes=[TEST_SCOPE],
         )
 
     def setUp(self):
@@ -224,7 +229,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
 
 class TestViewPagesBase(TestCase):
     """Base TestClass for all tests that deal with standing requests
-    
+
     Defines common test data
     """
 
@@ -250,25 +255,35 @@ class TestViewPagesBase(TestCase):
             cls.main_character_1.character_name
         )
         add_character_to_user(
-            cls.user_requestor, cls.main_character_1, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_requestor,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_SCOPE],
         )
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_1, scopes=[TEST_SCOPE],
+            cls.user_requestor,
+            cls.alt_character_1,
+            scopes=[TEST_SCOPE],
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
             corporation_id=cls.alt_character_1.corporation_id
         )
         cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_2, scopes=[TEST_SCOPE],
+            cls.user_requestor,
+            cls.alt_character_2,
+            scopes=[TEST_SCOPE],
         )
 
         # Standing manager - can do everything
         cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
         cls.user_manager = AuthUtils.create_member(cls.main_character_2.character_name)
         add_character_to_user(
-            cls.user_manager, cls.main_character_2, is_main=True, scopes=[TEST_SCOPE],
+            cls.user_manager,
+            cls.main_character_2,
+            is_main=True,
+            scopes=[TEST_SCOPE],
         )
         AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
@@ -282,7 +297,9 @@ class TestViewPagesBase(TestCase):
         cls.user_former_member = AuthUtils.create_user("Lex Luthor")
         cls.alt_character_3 = EveCharacter.objects.get(character_id=1010)
         add_character_to_user(
-            cls.user_former_member, cls.alt_character_3, scopes=[TEST_SCOPE],
+            cls.user_former_member,
+            cls.alt_character_3,
+            scopes=[TEST_SCOPE],
         )
 
     def setUp(self):
@@ -316,7 +333,10 @@ class TestViewPagesBase(TestCase):
             CharacterContact.objects.update_or_create(
                 contact_set=self.contact_set,
                 contact_id=contact_id,
-                defaults={"name": contact_name, "standing": 10,},
+                defaults={
+                    "name": contact_name,
+                    "standing": 10,
+                },
             )
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
@@ -324,7 +344,10 @@ class TestViewPagesBase(TestCase):
             CorporationContact.objects.update_or_create(
                 contact_set=self.contact_set,
                 contact_id=contact_id,
-                defaults={"name": contact_name, "standing": 10,},
+                defaults={
+                    "name": contact_name,
+                    "standing": 10,
+                },
             )
         else:
             raise NotImplementedError()
@@ -382,7 +405,10 @@ class TestViewsBasics(TestViewPagesBase):
 class TestRequestStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
-            reverse("standingsrequests:request_pilot_standing", args=[character_id],)
+            reverse(
+                "standingsrequests:request_pilot_standing",
+                args=[character_id],
+            )
         )
         request.user = self.user_requestor
         response = views.request_pilot_standing(request, character_id)
@@ -405,7 +431,9 @@ class TestRequestStanding(TestViewPagesBase):
         character_id = self.alt_character_1.character_id
 
         StandingRequest.objects.add_request(
-            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         self.make_request(character_id)
         self.assertEqual(
@@ -432,7 +460,10 @@ class TestRequestStanding(TestViewPagesBase):
 class TestRemovePilotStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
-            reverse("standingsrequests:remove_pilot_standing", args=[character_id],)
+            reverse(
+                "standingsrequests:remove_pilot_standing",
+                args=[character_id],
+            )
         )
         request.user = self.user_requestor
         response = views.remove_pilot_standing(request, character_id)
@@ -446,7 +477,9 @@ class TestRemovePilotStanding(TestViewPagesBase):
         character_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_actioned(self.user_manager)
         sr.mark_effective()
@@ -466,7 +499,9 @@ class TestRemovePilotStanding(TestViewPagesBase):
 
         # default standing request
         StandingRequest.objects.add_request(
-            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         self.make_request(character_id)
         self.assertEqual(
@@ -474,7 +509,9 @@ class TestRemovePilotStanding(TestViewPagesBase):
         )
         # actioned standing request
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_actioned(self.user_manager)
         self.make_request(character_id)
@@ -488,7 +525,9 @@ class TestRemovePilotStanding(TestViewPagesBase):
         character_id = self.alt_character_1.character_id
 
         sr = StandingRequest.objects.add_request(
-            self.user_requestor, character_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
         sr.mark_actioned(self.user_manager)
         sr.mark_effective()
@@ -524,7 +563,9 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 
         alt_id = self.alt_character_1.character_id
         standing_request = StandingRequest.objects.add_request(
-            self.user_requestor, alt_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user_requestor,
+            alt_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
 
         # make request
@@ -581,7 +622,9 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         mock_cache.get.return_value = None
         alt_id = self.alt_character_1.corporation_id
         standing_request = StandingRequest.objects.add_request(
-            self.user_requestor, alt_id, StandingRequest.CORPORATION_CONTACT_TYPE,
+            self.user_requestor,
+            alt_id,
+            StandingRequest.CORPORATION_CONTACT_TYPE,
         )
 
         # make request

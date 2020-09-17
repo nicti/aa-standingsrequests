@@ -17,9 +17,9 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 def token_required_by_state(new=False):
     """
-    Decorator for views which supplies a single, 
+    Decorator for views which supplies a single,
     user-selected token for the view to process.
-    No scopes can be provided instead scopes are selected 
+    No scopes can be provided instead scopes are selected
     from the scopes that are set as
     required for a specific state in the settings.
     param: new if a new token should be aquired
@@ -64,15 +64,11 @@ def token_required_by_state(new=False):
                         token = Token.objects.get(pk=token_pk)
                         # ensure token belongs to this user and has required scopes
                         if (
-                            (
-                                (token.user and token.user == request.user)
-                                or not token.user
-                            )
-                            and Token.objects.filter(pk=token_pk)
-                            .require_scopes(scopes)
-                            .require_valid()
-                            .exists()
-                        ):
+                            (token.user and token.user == request.user)
+                            or not token.user
+                        ) and Token.objects.filter(pk=token_pk).require_scopes(
+                            scopes
+                        ).require_valid().exists():
                             logger.debug(
                                 "Selected token fulfills requirements of view."
                                 " Returning."

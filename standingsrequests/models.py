@@ -27,8 +27,8 @@ from .managers import (
     CharacterAssociationManager,
     ContactSetManager,
     EveEntityManager,
-    StandingsRequestManager,
-    StandingsRevocationManager,
+    StandingRequestManager,
+    StandingRevocationManager,
 )
 from .utils import LoggerAddTag
 
@@ -36,7 +36,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ContactSet(models.Model):
-    """Set of contacts from configured alliance or corporation 
+    """Set of contacts from configured alliance or corporation
     which defines its current standings
     """
 
@@ -60,12 +60,12 @@ class ContactSet(models.Model):
 
     def get_contact_by_id(self, contact_id: int, contact_type_id: int) -> object:
         """Attempts to fetch the contact for the given ID and type
-        
+
         Params:
         - contact_id: Integer contact ID
-        - contact_type_id: Integer contact type from the contact_type_ids attribute 
+        - contact_type_id: Integer contact type from the contact_type_ids attribute
         in concrete models
-        
+
         Returns concrete contact Object or ObjectDoesNotExist exception
         """
         if contact_type_id in CharacterContact.contact_type_ids:
@@ -87,7 +87,10 @@ class ContactSet(models.Model):
         """creates new contact"""
         StandingType = self.get_class_for_contact_type(contact_type_id)
         contact = StandingType.objects.create(
-            contact_set=self, contact_id=contact_id, name=name, standing=standing,
+            contact_set=self,
+            contact_id=contact_id,
+            name=name,
+            standing=standing,
         )
         for label in labels:
             contact.labels.add(label)
@@ -144,7 +147,7 @@ class ContactSet(models.Model):
     @classmethod
     def is_character_in_organisation(cls, character: EveCharacter) -> bool:
         """Check if the Pilot is in the auth instances organisation
-        
+
         character: EveCharacter
 
         returns True if the character is in the organisation, False otherwise
@@ -192,7 +195,7 @@ class ContactSet(models.Model):
     @classmethod
     def standings_source_entity(cls) -> object:
         """returns the entity that all standings are fetched from
-        
+
         returns None when in alliance mode, but character has no alliance
         """
         character = cls.standings_character()
@@ -259,7 +262,8 @@ class ContactSet(models.Model):
                 created_counter += 1
 
         logger.info(
-            "Completed generating %d standings request for blue alts.", created_counter,
+            "Completed generating %d standings request for blue alts.",
+            created_counter,
         )
         return created_counter
 
@@ -492,7 +496,7 @@ class AbstractStandingsRequest(models.Model):
     def evaluate_effective_standing(self, check_only: bool = False) -> bool:
         """
         Check and mark a standing as satisfied
-        :param check_only: Check the standing only, take no action        
+        :param check_only: Check the standing only, take no action
         """
         try:
             logger.debug("Checking standing for %d", self.contact_id)
@@ -524,7 +528,7 @@ class AbstractStandingsRequest(models.Model):
 
     def mark_effective(self, date=None):
         """
-        Marks a standing as effective (standing exists in game) 
+        Marks a standing as effective (standing exists in game)
         from the current or supplied TZ aware datetime
         :param date: TZ aware datetime object of when the standing became effective
         :return:
@@ -536,7 +540,7 @@ class AbstractStandingsRequest(models.Model):
 
     def mark_actioned(self, user, date=None):
         """
-        Marks a standing as actioned (user has made the change in game) 
+        Marks a standing as actioned (user has made the change in game)
         with the current or supplied TZ aware datetime
         :param user: Actioned By django User
         :param date: TZ aware datetime object of when the action was taken
@@ -549,9 +553,9 @@ class AbstractStandingsRequest(models.Model):
 
     def check_actioned_timeout(self):
         """
-        Check that a standing hasn't been marked as actioned 
+        Check that a standing hasn't been marked as actioned
         and is still not effective ~24hr later
-        :return: User if the actioned has timed out, False if it has not, 
+        :return: User if the actioned has timed out, False if it has not,
         None if the check was unsuccessful
         """
         logger.debug("Checking standings request timeout")
@@ -584,7 +588,7 @@ class AbstractStandingsRequest(models.Model):
 
     def reset_to_initial(self) -> None:
         """
-        Reset a standing back to its initial creation state 
+        Reset a standing back to its initial creation state
         (Not actioned and not effective)
         :return:
         """
@@ -597,24 +601,24 @@ class AbstractStandingsRequest(models.Model):
 
 class StandingRequest(AbstractStandingsRequest):
     """A change request to get standing for a character or corporation
-    
-    OR a record representing that a character or corporation currently has standing     
-    
+
+    OR a record representing that a character or corporation currently has standing
+
     Standing Requests (SR) can have one of 3 states:
     - new: Newly created SRs represent a new request from a user. They are not actioned and not effective
     - actionied: A standing manager marks a SR as actionied, once he has set the new standing in-game
-    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.    
+    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.
     """
 
     EXPECT_STANDING_GTEQ = 0.01
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    objects = StandingsRequestManager()
+    objects = StandingRequestManager()
 
     def delete(self, using=None, keep_parents=False):
         """
-        Add a revocation before deleting if the standing has been 
+        Add a revocation before deleting if the standing has been
         actioned (pending) or is effective and
         doesn't already have a pending revocation request.
         """
@@ -653,11 +657,11 @@ class StandingRequest(AbstractStandingsRequest):
     def can_request_corporation_standing(cls, corporation_id: int, user: User) -> bool:
         """
         Checks if given user owns all of the required corp tokens for standings to be permitted
-        
+
         Params
         - corporation_id: corp to check for
         - user: User to check for
-        
+
         returns True if they can request standings, False if they cannot
         """
         corporation = EveCorporation.get_by_id(corporation_id)
@@ -671,7 +675,7 @@ class StandingRequest(AbstractStandingsRequest):
     def has_required_scopes_for_request(
         cls, character: EveCharacter, user: User = None, quick_check: bool = False
     ) -> bool:
-        """returns true if given character has the required scopes 
+        """returns true if given character has the required scopes
         for issueing a standings request else false
 
         Params:
@@ -717,7 +721,7 @@ class StandingRevocation(AbstractStandingsRequest):
         User, on_delete=models.SET_DEFAULT, default=None, null=True
     )
 
-    objects = StandingsRevocationManager()
+    objects = StandingRevocationManager()
 
 
 class CharacterAssociation(models.Model):
@@ -760,7 +764,7 @@ class CharacterAssociation(models.Model):
 
 class EveEntity(models.Model):
     """An Eve Online entity like a character or a corporation
-    
+
     A main function of this class is to enable name matching for Eve IDs
     """
 

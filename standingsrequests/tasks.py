@@ -109,7 +109,7 @@ def update_associations_api():
 
 @shared_task(name="standings_requests.purge_stale_data")
 def purge_stale_data():
-    """Delete all the data which is beyond its useful life. 
+    """Delete all the data which is beyond its useful life.
     There is no harm in disabling this if you wish to keep everything.
     """
     my_chain = chain([purge_stale_standings_data.si()])
@@ -118,7 +118,7 @@ def purge_stale_data():
 
 @shared_task
 def purge_stale_standings_data():
-    """Deletes all stale (=older than threshold hours) contact sets 
+    """Deletes all stale (=older than threshold hours) contact sets
     except the last remaining contact set
     """
     logger.info("Purging stale standings data")

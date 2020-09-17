@@ -58,7 +58,9 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=254)),
                 ("standing", models.FloatField()),
             ],
-            options={"abstract": False,},
+            options={
+                "abstract": False,
+            },
         ),
         migrations.CreateModel(
             name="CharacterAssociation",
@@ -136,7 +138,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={"abstract": False,},
+            options={
+                "abstract": False,
+            },
         ),
         migrations.CreateModel(
             name="EveNameCache",
@@ -171,7 +175,9 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            options={"abstract": False,},
+            options={
+                "abstract": False,
+            },
         ),
         migrations.CreateModel(
             name="StandingsRequest",

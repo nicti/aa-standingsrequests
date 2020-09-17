@@ -678,7 +678,13 @@ class TestEveEntityManagerGetNames(NoSocketsTestCase):
             esi_post_universe_names
         )
         entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
+        self.assertDictEqual(
+            entities,
+            {
+                1001: "Bruce Wayne",
+                1002: "Peter Parker",
+            },
+        )
 
     def test_get_names_from_cache(self, mock_esi_client):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
@@ -687,7 +693,13 @@ class TestEveEntityManagerGetNames(NoSocketsTestCase):
         EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
         EveEntity.objects.create(entity_id=1002, name="Peter Parker")
         entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
+        self.assertDictEqual(
+            entities,
+            {
+                1001: "Bruce Wayne",
+                1002: "Peter Parker",
+            },
+        )
 
     def test_get_names_from_cache_and_api(self, mock_esi_client):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
@@ -695,7 +707,13 @@ class TestEveEntityManagerGetNames(NoSocketsTestCase):
         )
         EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
         entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
+        self.assertDictEqual(
+            entities,
+            {
+                1001: "Bruce Wayne",
+                1002: "Peter Parker",
+            },
+        )
 
     def test_get_names_from_expired_cache_and_api(self, mock_esi_client):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
@@ -706,7 +724,13 @@ class TestEveEntityManagerGetNames(NoSocketsTestCase):
             updated=now() - timedelta(days=31)
         )
         entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(entities, {1001: "Bruce Wayne", 1002: "Peter Parker",})
+        self.assertDictEqual(
+            entities,
+            {
+                1001: "Bruce Wayne",
+                1002: "Peter Parker",
+            },
+        )
 
     def test_get_names_that_dont_exist(self, mock_esi_client):
         mock_esi_client.return_value.Universe.post_universe_names.side_effect = (

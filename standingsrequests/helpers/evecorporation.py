@@ -63,7 +63,7 @@ class EveCorporation:
     def member_tokens_count_for_user(
         self, user: User, quick_check: bool = False
     ) -> int:
-        """returns the number of character tokens the given user owns 
+        """returns the number of character tokens the given user owns
         for this corporation
 
         Params:
@@ -87,7 +87,7 @@ class EveCorporation:
         )
 
     def user_has_all_member_tokens(self, user: User, quick_check: bool = False) -> bool:
-        """returns True if given user owns same amount of token than there are 
+        """returns True if given user owns same amount of token than there are
         member characters in this corporation, else False
 
         Params:
@@ -104,11 +104,11 @@ class EveCorporation:
     def get_by_id(cls, corporation_id: int, ignore_cache: bool = False) -> object:
         """Get a corporation from the cache or ESI if not cached
         Corps are cached for 3 hours
-        
+
         Params
         - corporation_id: int corporation ID to get
         - ignore_cache: when true will always get fresh from API
-        
+
         Returns corporation object or None
         """
         logger.debug("Getting corporation by id %d", corporation_id)
@@ -167,8 +167,8 @@ class EveCorporation:
     @classmethod
     def get_many_by_id(cls, corporation_ids: list) -> list:
         """Returns multiple corporations by ID
-        
-        Fetches requested corporations from cache or API as needed. 
+
+        Fetches requested corporations from cache or API as needed.
         Uses threads to fetch them in parallel.
         """
         if len(corporation_ids) == 0:

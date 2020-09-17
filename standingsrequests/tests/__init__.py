@@ -54,7 +54,7 @@ def _generate_token(
 
 def _store_as_Token(token: dict, user: object) -> object:
     """Stores a generated token dict as Token object for given user
-    
+
     returns Token object
     """
     from esi.models import Scope, Token
@@ -88,7 +88,10 @@ def add_new_token(user: object, character: object, scopes: list) -> object:
 
 
 def add_character_to_user(
-    user: User, character: EveCharacter, is_main: bool = False, scopes: list = None,
+    user: User,
+    character: EveCharacter,
+    is_main: bool = False,
+    scopes: list = None,
 ) -> CharacterOwnership:
     if not scopes:
         scopes = "publicData"

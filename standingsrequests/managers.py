@@ -29,7 +29,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 class ContactSetManager(models.Manager):
     @transaction.atomic
     def create_new_from_api(self) -> object:
-        """fetches contacts with standings for configured alliance 
+        """fetches contacts with standings for configured alliance
         or corporation from ESI and stores them as newly created ContactSet
 
         Returns new ContactSet on success, else None
@@ -58,9 +58,9 @@ class ContactSetManager(models.Manager):
 
     def _add_labels_from_api(self, contact_set, labels):
         """Add the list of labels to the given ContactSet
-        
+
         contact_set: ContactSet instance
-        labels: Label dictionary        
+        labels: Label dictionary
         """
         from .models import ContactLabel
 
@@ -73,9 +73,9 @@ class ContactSetManager(models.Manager):
     def _add_contacts_from_api(self, contact_set, contacts):
         """Add all contacts to the given ContactSet
         Labels _MUST_ be added before adding contacts
-        
+
         :param contact_set: Django ContactSet to add contacts to
-        :param contacts: List of _ContactsWrapper.Contact to add        
+        :param contacts: List of _ContactsWrapper.Contact to add
         """
         for contact in contacts:
             flat_labels = [label.id for label in contact.labels]
@@ -316,9 +316,9 @@ class AbstractStandingsRequestManager(models.Manager):
 
     def has_pending_request(self, contact_id: int) -> bool:
         """Checks if a request is pending for the given contact_id
-        
+
         contact_id: int contact_id to check the pending request for
-        
+
         returns True if a request is already pending, False otherwise
         """
         return (
@@ -329,11 +329,11 @@ class AbstractStandingsRequestManager(models.Manager):
         )
 
     def has_actioned_request(self, contact_id: int) -> bool:
-        """Checks if an actioned request is pending API confirmation for 
+        """Checks if an actioned request is pending API confirmation for
         the given contact_id
-        
+
         contact_id: int contact_id to check the pending request for
-        
+
         returns True if a request is pending API confirmation, False otherwise
         """
         return (
@@ -344,23 +344,29 @@ class AbstractStandingsRequestManager(models.Manager):
         )
 
     def has_effective_request(self, contact_id: int) -> bool:
-        """return True if an effective request exists for given contact_id, 
+        """return True if an effective request exists for given contact_id,
         else False
         """
         return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
 
+    def pending_requests_count(self) -> int:
+        """returns the number of pending requests for this category"""
+        return (
+            self.filter(action_by__exact=None).filter(is_effective__exact=False).count()
+        )
 
-class StandingsRequestManager(AbstractStandingsRequestManager):
+
+class StandingRequestManager(AbstractStandingsRequestManager):
     def delete_for_user(self, user):
         self.filter(user=user).delete()
 
     def validate_requests(self) -> int:
-        """Validate all StandingsRequests and check 
+        """Validate all StandingsRequests and check
         that the user requesting them has permission and has API keys
-        associated with the character/corp. 
-        
+        associated with the character/corp.
+
         StandingRevocation are created for invalid standing requests
-        
+
         returns the number of invalid requests
         """
         from .models import CorporationContact, StandingRevocation
@@ -405,12 +411,12 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
     def add_request(self, user: User, contact_id: int, contact_type: str) -> object:
         """Add a new standings request
-        
+
         Params:
         - user: User the request and contact_id belongs to
         - contact_id: contact_id to request standings on
         - contact_type: type of this contact
-        
+
         Restuns the created StandingRequest instance
         """
         logger.debug(
@@ -435,13 +441,13 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
 
     def remove_requests(self, contact_id: int):
         """
-        Remove the requests for the given contact_id. If any of these requests 
+        Remove the requests for the given contact_id. If any of these requests
         have been actioned or are effective
         a Revocation request will automatically be generated
-        
+
         Params:
         - contact_id: contact_id to remove
-        - user_responsible: User responsible for removing. 
+        - user_responsible: User responsible for removing.
         When provided will sent notification to requestor.
         """
         logger.debug("Removing requests for contact_id %d", contact_id)
@@ -451,17 +457,17 @@ class StandingsRequestManager(AbstractStandingsRequestManager):
             standing_requests.delete()
 
 
-class StandingsRevocationManager(AbstractStandingsRequestManager):
+class StandingRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
         self, contact_id: int, contact_type: str, user: User = None
     ) -> object:
         """Add a new standings revocation
-        
+
         Params:
         - contact_id: contact_id to request standings on
         - contact_type_id: contact_type_id from AbstractContact concrete implementation
         - user: user making the request
-        
+
         Returns the created StandingRevocation instance
         """
         logger.debug(
@@ -517,11 +523,11 @@ class CharacterAssociationManager(models.Manager):
             EveEntity.objects.update_or_create_from_evecharacter(character)
 
     def update_from_api(self) -> None:
-        """Update all character corp associations we have standings for that 
+        """Update all character corp associations we have standings for that
         aren't being updated locally
-        Cache timeout should be longer than update_from_auth 
+        Cache timeout should be longer than update_from_auth
         update schedule to
-        prevent unnecessarily updating characters we already have local data for.        
+        prevent unnecessarily updating characters we already have local data for.
         """
         # gather character associations of pilots which meed to be updated
         from .models import ContactSet, EveEntity
@@ -587,10 +593,10 @@ class CharacterAssociationManager(models.Manager):
     def get_api_expired_items(self, items_in=None) -> models.QuerySet:
         """Get all API timer expired items
 
-        items_in: list optional parameter to limit the results 
+        items_in: list optional parameter to limit the results
         to character_ids in the list
-        
-        returns: QuerySet of CharacterAssociation items        
+
+        returns: QuerySet of CharacterAssociation items
         """
         expired = self.filter(updated__lt=now() - self.model.API_CACHE_TIMER)
         if items_in is not None:
@@ -602,9 +608,9 @@ class CharacterAssociationManager(models.Manager):
 class EveEntityManager(models.Manager):
     def get_names(self, entity_ids: list) -> dict:
         """Get the names of the given entity ids from catch or other locations
-        
+
         eve_entity_ids: array of int entity ids who's names to fetch
-        
+
         returns dict with entity_id as key and name as value
         """
         entity_ids = set(entity_ids)  # remove duplicates
@@ -695,10 +701,10 @@ class EveEntityManager(models.Manager):
             raise ObjectNotFound(eve_entity_ids, "universe_entities")
 
     def get_name(self, entity_id: int) -> str:
-        """ Get the name for the given entity
-        
+        """Get the name for the given entity
+
         entity_id: EVE id of the entity
-                
+
         returns name if it exists or None
         """
         if not entity_id:
@@ -713,7 +719,11 @@ class EveEntityManager(models.Manager):
 
     def update_name(self, entity_id, name, category=None):
         self.update_or_create(
-            entity_id=entity_id, defaults={"name": name, "category": category,}
+            entity_id=entity_id,
+            defaults={
+                "name": name,
+                "category": category,
+            },
         )
 
     def update_or_create_from_evecharacter(self, character: EveCharacter) -> None:

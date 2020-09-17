@@ -97,7 +97,10 @@ def partial_request_entities(request):
         return render(
             request,
             "standingsrequests/error.html",
-            {"app_title": __title__, "operation_mode": SR_OPERATION_MODE,},
+            {
+                "app_title": __title__,
+                "operation_mode": SR_OPERATION_MODE,
+            },
         )
 
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
@@ -176,7 +179,8 @@ def partial_request_entities(request):
                             corporation.corporation_id
                         ),
                         "hasStanding": StandingRequest.objects.filter(
-                            contact_id=corporation.corporation_id, is_effective=True,
+                            contact_id=corporation.corporation_id,
+                            is_effective=True,
                         ).exists(),
                     }
                 )
@@ -748,7 +752,11 @@ def manage_standings(request):
         "requests_count": _standing_requests_to_manage().count(),
         "revocations_count": _revocations_to_manage().count(),
     }
-    return render(request, "standingsrequests/manage.html", context,)
+    return render(
+        request,
+        "standingsrequests/manage.html",
+        context,
+    )
 
 
 @login_required
@@ -788,7 +796,7 @@ def _revocations_to_manage() -> models.QuerySet:
 def _compose_standing_requests_data(
     requests_qs: models.QuerySet, quick_check: bool = False
 ) -> list:
-    """composes list of standings requests or revocations based on queryset 
+    """composes list of standings requests or revocations based on queryset
     and returns it
     """
     requests_data = list()
