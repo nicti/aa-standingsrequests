@@ -223,7 +223,9 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         alt = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, alt, scopes=["dummy"])
         StandingRequest.objects.add_request(
-            self.user, alt_id, StandingRequest.CHARACTER_CONTACT_TYPE,
+            self.user,
+            alt_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
         )
 
         self.contacts_set.generate_standing_requests_for_blue_alts()
@@ -663,7 +665,9 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
             if character["corporation_id"] == 2001:
                 my_character = EveCharacter.objects.create(**character)
                 add_character_to_user(
-                    user_1, my_character, scopes=["publicData"],
+                    user_1,
+                    my_character,
+                    scopes=["publicData"],
                 )
 
         user_2 = AuthUtils.create_user("Mike Myers")

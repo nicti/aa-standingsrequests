@@ -46,33 +46,53 @@ class Migration(migrations.Migration):
             new_name="request_date",
         ),
         migrations.RenameField(
-            model_name="alliancestanding", old_name="contactID", new_name="contact_id",
+            model_name="alliancestanding",
+            old_name="contactID",
+            new_name="contact_id",
         ),
         migrations.RenameField(
-            model_name="alliancestanding", old_name="set", new_name="contact_set",
+            model_name="alliancestanding",
+            old_name="set",
+            new_name="contact_set",
         ),
         migrations.RenameField(
-            model_name="contactlabel", old_name="set", new_name="contact_set",
+            model_name="contactlabel",
+            old_name="set",
+            new_name="contact_set",
         ),
         migrations.RenameField(
-            model_name="contactlabel", old_name="labelID", new_name="label_id",
+            model_name="contactlabel",
+            old_name="labelID",
+            new_name="label_id",
         ),
         migrations.RenameField(
-            model_name="corpstanding", old_name="contactID", new_name="contact_id",
+            model_name="corpstanding",
+            old_name="contactID",
+            new_name="contact_id",
         ),
         migrations.RenameField(
-            model_name="corpstanding", old_name="set", new_name="contact_set",
+            model_name="corpstanding",
+            old_name="set",
+            new_name="contact_set",
         ),
         migrations.RenameField(
-            model_name="evenamecache", old_name="entityID", new_name="entity_id",
+            model_name="evenamecache",
+            old_name="entityID",
+            new_name="entity_id",
         ),
         migrations.RenameField(
-            model_name="pilotstanding", old_name="contactID", new_name="contact_id",
+            model_name="pilotstanding",
+            old_name="contactID",
+            new_name="contact_id",
         ),
         migrations.RenameField(
-            model_name="pilotstanding", old_name="set", new_name="contact_set",
+            model_name="pilotstanding",
+            old_name="set",
+            new_name="contact_set",
         ),
         migrations.RenameField(
-            model_name="pilotstanding", old_name="inWatchlist", new_name="is_watched",
+            model_name="pilotstanding",
+            old_name="inWatchlist",
+            new_name="is_watched",
         ),
     ]

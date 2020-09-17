@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### [0.6.0] - 2020-09-17
+
+### Added
+
+- Now shows a badge in the side menu with the number of pending requests to standing managers (requires Alliance Auth 2.8+)
+
 ### [0.5.3] - 2020-07-29
 
 ### Fixes

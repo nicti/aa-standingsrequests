@@ -24,7 +24,10 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(),
     python_requires="~=3.6",
-    install_requires=["requests>=2.18.4", "django-esi>=1.5<3",],
+    install_requires=[
+        "requests>=2.18.4",
+        "django-esi>=1.5<3",
+    ],
     zip_safe=False,
     include_package_data=True,
     classifiers=[

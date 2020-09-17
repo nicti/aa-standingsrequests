@@ -15,15 +15,27 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RenameModel(
-            old_name="AllianceStanding", new_name="AllianceContact",
-        ),
-        migrations.RenameModel(old_name="PilotStanding", new_name="CharacterContact",),
-        migrations.RenameModel(old_name="CorpStanding", new_name="CorporationContact",),
-        migrations.RenameModel(old_name="EveNameCache", new_name="EveEntity",),
-        migrations.RenameModel(
-            old_name="StandingsRequest", new_name="StandingRequest",
+            old_name="AllianceStanding",
+            new_name="AllianceContact",
         ),
         migrations.RenameModel(
-            old_name="StandingsRevocation", new_name="StandingRevocation",
+            old_name="PilotStanding",
+            new_name="CharacterContact",
+        ),
+        migrations.RenameModel(
+            old_name="CorpStanding",
+            new_name="CorporationContact",
+        ),
+        migrations.RenameModel(
+            old_name="EveNameCache",
+            new_name="EveEntity",
+        ),
+        migrations.RenameModel(
+            old_name="StandingsRequest",
+            new_name="StandingRequest",
+        ),
+        migrations.RenameModel(
+            old_name="StandingsRevocation",
+            new_name="StandingRevocation",
         ),
     ]

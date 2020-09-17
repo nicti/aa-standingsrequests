@@ -13,6 +13,8 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name="contactlabel", name="labelID", field=models.BigIntegerField(),
+            model_name="contactlabel",
+            name="labelID",
+            field=models.BigIntegerField(),
         ),
     ]

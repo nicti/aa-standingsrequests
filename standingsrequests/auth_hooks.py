@@ -5,7 +5,7 @@ from allianceauth import hooks
 from allianceauth.services.hooks import ServicesHook, MenuItemHook
 
 from . import __title__
-from .models import StandingRequest
+from .models import StandingRequest, StandingRevocation
 from .urls import urlpatterns
 
 logger = logging.getLogger(__name__)
@@ -46,6 +46,12 @@ class StandingsRequestMenuItem(MenuItemHook):
         )
 
     def render(self, request):
+        if request.user.has_perm("standingsrequests.affect_standings"):
+            app_count = (
+                StandingRequest.objects.pending_requests_count()
+                + StandingRevocation.objects.pending_requests_count()
+            )
+            self.count = app_count if app_count and app_count > 0 else None
         if request.user.has_perm(StandingRequest.REQUEST_PERMISSION_NAME):
             return MenuItemHook.render(self, request)
         return ""

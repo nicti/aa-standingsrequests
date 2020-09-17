@@ -71,19 +71,29 @@ class TestMainUseCases(WebTest):
             cls.user_requestor,
             cls.main_character_1,
             is_main=True,
-            scopes=[TEST_REQUIRED_SCOPE,],
+            scopes=[
+                TEST_REQUIRED_SCOPE,
+            ],
         )
         cls.member_state.member_characters.add(cls.main_character_1)
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_1, scopes=[TEST_REQUIRED_SCOPE,],
+            cls.user_requestor,
+            cls.alt_character_1,
+            scopes=[
+                TEST_REQUIRED_SCOPE,
+            ],
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
             corporation_id=cls.alt_character_1.corporation_id
         )
         cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
         add_character_to_user(
-            cls.user_requestor, cls.alt_character_2, scopes=[TEST_REQUIRED_SCOPE,],
+            cls.user_requestor,
+            cls.alt_character_2,
+            scopes=[
+                TEST_REQUIRED_SCOPE,
+            ],
         )
 
         # Standing manager
@@ -93,7 +103,9 @@ class TestMainUseCases(WebTest):
             cls.user_manager,
             cls.main_character_2,
             is_main=True,
-            scopes=[TEST_REQUIRED_SCOPE,],
+            scopes=[
+                TEST_REQUIRED_SCOPE,
+            ],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
         AuthUtils.add_permission_to_user_by_name(
@@ -116,7 +128,10 @@ class TestMainUseCases(WebTest):
             CharacterContact.objects.update_or_create(
                 contact_set=self.contact_set,
                 contact_id=contact_id,
-                defaults={"name": contact_name, "standing": 10,},
+                defaults={
+                    "name": contact_name,
+                    "standing": 10,
+                },
             )
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
@@ -124,7 +139,10 @@ class TestMainUseCases(WebTest):
             CorporationContact.objects.update_or_create(
                 contact_set=self.contact_set,
                 contact_id=contact_id,
-                defaults={"name": contact_name, "standing": 10,},
+                defaults={
+                    "name": contact_name,
+                    "standing": 10,
+                },
             )
         else:
             raise NotImplementedError()
@@ -212,7 +230,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_pilot_standing", args=[alt_id],
+            "standingsrequests:request_pilot_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -240,7 +259,10 @@ class TestMainUseCases(WebTest):
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_requests_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -282,7 +304,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing", args=[alt_id],
+            "standingsrequests:remove_pilot_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -310,7 +333,10 @@ class TestMainUseCases(WebTest):
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_revocations_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -350,7 +376,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing", args=[alt_id],
+            "standingsrequests:request_corp_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -378,7 +405,10 @@ class TestMainUseCases(WebTest):
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_requests_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -420,7 +450,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_corp_standing", args=[alt_id],
+            "standingsrequests:remove_corp_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -448,7 +479,10 @@ class TestMainUseCases(WebTest):
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_revocations_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -489,7 +523,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_pilot_standing", args=[alt_id],
+            "standingsrequests:request_pilot_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -516,7 +551,10 @@ class TestMainUseCases(WebTest):
 
         # Manage refused request
         response = self.app.delete(
-            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_requests_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -548,7 +586,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing", args=[alt_id],
+            "standingsrequests:request_corp_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -575,7 +614,10 @@ class TestMainUseCases(WebTest):
 
         # Manage refused request
         response = self.app.delete(
-            reverse("standingsrequests:manage_requests_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_requests_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -608,7 +650,8 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing", args=[alt_id],
+            "standingsrequests:remove_pilot_standing",
+            args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -635,7 +678,10 @@ class TestMainUseCases(WebTest):
 
         # Manage refused request
         response = self.app.delete(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_revocations_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -710,7 +756,10 @@ class TestMainUseCases(WebTest):
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_revocations_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
@@ -798,7 +847,10 @@ class TestMainUseCases(WebTest):
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse("standingsrequests:manage_revocations_write", args=[alt_id],)
+            reverse(
+                "standingsrequests:manage_revocations_write",
+                args=[alt_id],
+            )
         )
         self.assertEqual(response.status_code, 204)
 
