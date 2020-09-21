@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### [0.6.1] - 2020-09-21
+
+### Added
+
+- Now also shows a badge with the number of pending requests on the "Manager Request" menu
+
+### Changed
+
+- Removed dependency conflict with Auth regarding Django 3
+- Removed `staticfile` compatibility issues with Django 3 from templates
+
+Thank you Ariel Rin for your contribution!
+
 ### [0.6.0] - 2020-09-17
 
 ### Added

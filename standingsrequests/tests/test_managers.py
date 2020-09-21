@@ -392,6 +392,32 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         )
         self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
 
+    def test_pending_requests_empty(self):
+        self.assertEqual(StandingRequest.objects.pending_requests().count(), 0)
+
+    def test_pending_requests_normal(self):
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=True,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1003,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+            action_date=now(),
+        )
+        result = StandingRequest.objects.pending_requests()
+        self.assertEqual(result.count(), 1)
+
 
 class TestStandingsRevocationManager(NoSocketsTestCase):
     def setUp(self):
