@@ -25,8 +25,9 @@ setup(
     packages=find_packages(),
     python_requires="~=3.6",
     install_requires=[
-        "requests>=2.18.4",
+        "allianceauth>=2.7.3",
         "django-esi>=1.5<3",
+        "requests>=2.18.4",
     ],
     zip_safe=False,
     include_package_data=True,
