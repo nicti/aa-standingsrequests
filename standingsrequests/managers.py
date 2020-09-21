@@ -321,12 +321,7 @@ class AbstractStandingsRequestManager(models.Manager):
 
         returns True if a request is already pending, False otherwise
         """
-        return (
-            self.filter(contact_id=contact_id)
-            .filter(action_date=None)
-            .filter(is_effective=False)
-            .exists()
-        )
+        return self.pending_requests().filter(contact_id=contact_id).exists()
 
     def has_actioned_request(self, contact_id: int) -> bool:
         """Checks if an actioned request is pending API confirmation for
@@ -338,7 +333,7 @@ class AbstractStandingsRequestManager(models.Manager):
         """
         return (
             self.filter(contact_id=contact_id)
-            .exclude(action_by=None)
+            .exclude(action_date__isnull=True)
             .filter(is_effective=False)
             .exists()
         )
@@ -349,11 +344,9 @@ class AbstractStandingsRequestManager(models.Manager):
         """
         return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
 
-    def pending_requests_count(self) -> int:
-        """returns the number of pending requests for this category"""
-        return (
-            self.filter(action_by__exact=None).filter(is_effective__exact=False).count()
-        )
+    def pending_requests(self) -> models.QuerySet:
+        """returns all pending requests for this class"""
+        return self.filter(action_date__isnull=True).filter(is_effective=False)
 
 
 class StandingRequestManager(AbstractStandingsRequestManager):

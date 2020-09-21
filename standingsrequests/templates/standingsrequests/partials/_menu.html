@@ -20,7 +20,12 @@
                 
                  {% if perms.standingsrequests.affect_standings %}
                 <li class="{% navactive request 'standingsrequests:manage' %}">
-                    <a href="{% url 'standingsrequests:manage' %}">{% trans "Manage Requests" %}</a>
+                    <a href="{% url 'standingsrequests:manage' %}">
+                        {% trans "Manage Requests" %}                        
+                        {% if pending_total_count > 0 %}
+                            &nbsp;<span class="badge">{{ pending_total_count }}</span>
+                        {% endif %}
+                    </a>
                 </li>
                 <li class="{% navactive request 'standingsrequests:view_requests' %}">
                     <a href="{% url 'standingsrequests:view_requests' %}">{% trans "Effective Requests" %}</a>

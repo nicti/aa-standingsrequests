@@ -42,6 +42,22 @@ DEFAULT_ICON_SIZE = 32
 CACHED_PAGES_MINUTES = 10
 
 
+def add_common_context(request, context: dict) -> dict:
+    """adds the common context used by all view"""
+    new_context = {
+        **{
+            "app_title": __title__,
+            "operation_mode": SR_OPERATION_MODE,
+            "pending_total_count": (
+                StandingRequest.objects.pending_requests().count()
+                + StandingRevocation.objects.pending_requests().count()
+            ),
+        },
+        **context,
+    }
+    return new_context
+
+
 class HttpResponseNoContent(HttpResponse):
     """Special HTTP response with no content, just headers.
 
@@ -68,11 +84,11 @@ class HttpResponseNoContent(HttpResponse):
 def index_view(request):
     logger.debug("Start index_view request")
     context = {
-        "app_title": __title__,
-        "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
     }
-    return render(request, "standingsrequests/index.html", context)
+    return render(
+        request, "standingsrequests/index.html", add_common_context(request, context)
+    )
 
 
 @login_required
@@ -80,11 +96,13 @@ def index_view(request):
 def create_request_debug(request):
     logger.debug("Start index_view request")
     context = {
-        "app_title": __title__,
-        "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
     }
-    return render(request, "standingsrequests/create_request_debug.html", context)
+    return render(
+        request,
+        "standingsrequests/create_request_debug.html",
+        add_common_context(request, context),
+    )
 
 
 @login_required
@@ -95,12 +113,7 @@ def partial_request_entities(request):
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         return render(
-            request,
-            "standingsrequests/error.html",
-            {
-                "app_title": __title__,
-                "operation_mode": SR_OPERATION_MODE,
-            },
+            request, "standingsrequests/error.html", add_common_context(request, {})
         )
 
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
@@ -188,18 +201,18 @@ def partial_request_entities(request):
         corporations_data.sort(key=lambda x: x["corp"].corporation_name)
 
     organization = ContactSet.standings_source_entity()
-    render_items = {
-        "app_title": __title__,
+    context = {
         "characters": characters_data,
         "corps": corporations_data,
-        "operation_mode": SR_OPERATION_MODE,
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
         "organization_image_url": organization.icon_url(size=DEFAULT_ICON_SIZE),
         "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
     }
     return render(
-        request, "standingsrequests/partials/_request_entities.html", render_items
+        request,
+        "standingsrequests/partials/_request_entities.html",
+        add_common_context(request, context),
     )
 
 
@@ -463,16 +476,15 @@ def view_pilots_standings(request):
         last_update = contact_set.date if contact_set else None
         pilots_count = contact_set.charactercontact_set.count() if contact_set else None
 
+    context = {
+        "lastUpdate": last_update,
+        "organization": organization,
+        "pilots_count": pilots_count,
+    }
     return render(
         request,
         "standingsrequests/view_pilots.html",
-        {
-            "lastUpdate": last_update,
-            "app_title": __title__,
-            "operation_mode": SR_OPERATION_MODE,
-            "organization": organization,
-            "pilots_count": pilots_count,
-        },
+        add_common_context(request, context),
     )
 
 
@@ -635,16 +647,15 @@ def view_groups_standings(request):
     else:
         groups_count = None
 
+    context = {
+        "lastUpdate": last_update,
+        "organization": organization,
+        "groups_count": groups_count,
+    }
     return render(
         request,
         "standingsrequests/view_groups.html",
-        {
-            "lastUpdate": last_update,
-            "app_title": __title__,
-            "operation_mode": SR_OPERATION_MODE,
-            "organization": organization,
-            "groups_count": groups_count,
-        },
+        add_common_context(request, context),
     )
 
 
@@ -746,16 +757,12 @@ def view_groups_standings_json(request):
 def manage_standings(request):
     logger.debug("manage_standings called by %s", request.user)
     context = {
-        "app_title": __title__,
-        "operation_mode": SR_OPERATION_MODE,
         "organization": ContactSet.standings_source_entity(),
-        "requests_count": _standing_requests_to_manage().count(),
-        "revocations_count": _revocations_to_manage().count(),
+        "requests_count": StandingRequest.objects.pending_requests().count(),
+        "revocations_count": StandingRevocation.objects.pending_requests().count(),
     }
     return render(
-        request,
-        "standingsrequests/manage.html",
-        context,
+        request, "standingsrequests/manage.html", add_common_context(request, context)
     )
 
 
@@ -763,7 +770,7 @@ def manage_standings(request):
 @permission_required("standingsrequests.affect_standings")
 def manage_get_requests_json(request):
     logger.debug("manage_get_requests_json called by %s", request.user)
-    requests_qs = _standing_requests_to_manage()
+    requests_qs = StandingRequest.objects.pending_requests()
     requests_data = _compose_standing_requests_data(requests_qs)
     return JsonResponse(requests_data, safe=False)
 
@@ -772,25 +779,9 @@ def manage_get_requests_json(request):
 @permission_required("standingsrequests.affect_standings")
 def manage_get_revocations_json(request):
     logger.debug("manage_get_revocations_json called by %s", request.user)
-    revocations_qs = _revocations_to_manage()
+    revocations_qs = StandingRevocation.objects.pending_requests()
     requests_data = _compose_standing_requests_data(revocations_qs)
     return JsonResponse(requests_data, safe=False)
-
-
-def _standing_requests_to_manage() -> models.QuerySet:
-    return (
-        StandingRequest.objects.filter(action_date__isnull=True, is_effective=False)
-        .select_related("user__profile")
-        .order_by("request_date")
-    )
-
-
-def _revocations_to_manage() -> models.QuerySet:
-    return (
-        StandingRevocation.objects.filter(action_date__isnull=True, is_effective=False)
-        .select_related("user__profile")
-        .order_by("request_date")
-    )
 
 
 def _compose_standing_requests_data(
@@ -997,12 +988,12 @@ def manage_revocations_write(request, contact_id):
 @permission_required("standingsrequests.affect_standings")
 def view_active_requests(request):
     context = {
-        "app_title": __title__,
-        "operation_mode": SR_OPERATION_MODE,
         "organization": ContactSet.standings_source_entity(),
         "requests_count": _standing_requests_to_view().count(),
     }
-    return render(request, "standingsrequests/requests.html", context)
+    return render(
+        request, "standingsrequests/requests.html", add_common_context(request, context)
+    )
 
 
 @login_required
