@@ -1,7 +1,5 @@
 from functools import wraps
 
-from django.utils.decorators import available_attrs
-
 from allianceauth.services.hooks import get_extension_logger
 from esi.decorators import _check_callback
 from esi.models import Token
@@ -26,7 +24,7 @@ def token_required_by_state(new=False):
     """
 
     def decorator(view_func):
-        @wraps(view_func, assigned=available_attrs(view_func))
+        @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
             scopes = ""
             if request.user.profile.state is not None:

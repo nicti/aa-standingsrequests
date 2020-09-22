@@ -23,12 +23,6 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=find_packages(),
-    python_requires="~=3.6",
-    install_requires=[
-        "allianceauth>=2.7.3",
-        "django-esi>=1.5<3",
-        "requests>=2.18.4",
-    ],
     zip_safe=False,
     include_package_data=True,
     classifiers=[
@@ -36,6 +30,9 @@ setup(
         "Environment :: Web Environment",
         "Framework :: Django",
         "Framework :: Django :: 2.2",
+        "Framework :: Django :: 3.0",
+        "Framework :: Django :: 3.1",
+        "Intended Audience :: End Users/Desktop",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
@@ -44,4 +41,15 @@ setup(
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     ],
+    python_requires="~=3.6",
+    install_requires=[
+        "allianceauth>=2.7.3",
+        "django-esi>=1.5<3",
+        "requests>=2.18.4",
+    ],
+    extras_require={
+        "testing": [
+            "django-webtest",
+        ]
+    },
 )
