@@ -16,7 +16,7 @@ setup(
     description=(
         "App for managing character standing requests, made for Alliance Auth"
     ),
-    url="https://github.com/basraah/standingsrequests",
+    url="https://gitlab.com/basraah/standingsrequests",
     author="Basraah, Erik Kalkoken",
     author_email="kaloken87@gmail.com",
     license="GPL-3.0",

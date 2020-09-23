@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changes
 
-- Fixes for Django 3 and add Django 3 to test matrix
+- Enable compatibility with Django 3
+- Added Django 3 to test matrix
+
+### Fixed
+
+- No longer possible to click "Apply" when a character does not have the requested scoped
 
 ### [0.6.1] - 2020-09-21
 

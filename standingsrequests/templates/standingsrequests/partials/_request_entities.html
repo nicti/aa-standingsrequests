@@ -85,8 +85,12 @@
                                                     class="btn btn-primary"
                                                     role="button"
                                                     href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
-                                                    title="Request to get standing for this character">                                                    
-                                                    &nbsp;Apply&nbsp;
+                                                    title="Request to get standing for this character"
+                                                    {% if not std.hasRequiredScopes %}
+                                                    disabled
+                                                    {% endif %}
+                                                    > 
+                                                    &nbsp;Apply&nbsp;                                                    
                                                 </a>
                                             {% else %}
                                                 <a 

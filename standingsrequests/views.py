@@ -242,6 +242,7 @@ def request_pilot_standing(request, character_id):
         character=character, user=request.user
     ):
         ok = False
+        logger.warning("Contact ID %d does not have the required scopes", character_id)
     else:
         sr = StandingRequest.objects.add_request(
             user=request.user,
