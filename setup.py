@@ -29,8 +29,6 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Environment :: Web Environment",
         "Framework :: Django",
-        "Framework :: Django :: 2.2",
-        "Framework :: Django :: 3.0",
         "Framework :: Django :: 3.1",
         "Intended Audience :: End Users/Desktop",
         "Operating System :: OS Independent",
@@ -43,13 +41,8 @@ setup(
     ],
     python_requires="~=3.6",
     install_requires=[
-        "allianceauth>=2.7.3",
+        "allianceauth>=2.8.1",
         "django-esi>=1.5<3",
         "requests>=2.18.4",
     ],
-    extras_require={
-        "testing": [
-            "django-webtest",
-        ]
-    },
 )

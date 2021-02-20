@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changes
+
+- Removed support for Django 2.2 & 3.0
+
 ### Fixed
 
 - Some periodic tasks where called too often due an incorrect configuration
