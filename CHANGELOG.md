@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Fixed
+
+- Some periodic tasks where called too often due an incorrect configuration
+
 ### [0.6.2] - 2020-09-22
 
 ### Changes

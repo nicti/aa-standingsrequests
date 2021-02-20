@@ -109,19 +109,19 @@ if 'standingsrequests' in INSTALLED_APPS:
     }
     CELERYBEAT_SCHEDULE['standings_requests_validate_requests'] = {
         'task': 'standings_requests.validate_requests',
-        'schedule': crontab(hour='*/6'),
+        'schedule': crontab(minute='0', hour='*/6'),
     }
     CELERYBEAT_SCHEDULE['standings_requests.update_associations_auth'] = {
         'task': 'standings_requests.update_associations_auth',
-        'schedule': crontab(hour='*/12'),
+        'schedule': crontab(minute='0', hour='*/12'),
     }
     CELERYBEAT_SCHEDULE['standings_requests_update_associations_api'] = {
         'task': 'standings_requests.update_associations_api',
-        'schedule': crontab(hour='*/12', minute='30'),
+        'schedule': crontab(minute='30', hour='*/12'),
     }
     CELERYBEAT_SCHEDULE['standings_requests_purge_stale_data'] = {
         'task': 'standings_requests.purge_stale_data',
-        'schedule': crontab(hour='*/24'),
+        'schedule': crontab(minute='0', hour='*/24'),
     }
 ```
 
