@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory
+from django.test import RequestFactory, TestCase
 
 from allianceauth.tests.auth_utils import AuthUtils
 from esi.models import Token, CallbackRedirect
@@ -9,9 +9,7 @@ from esi.models import Token, CallbackRedirect
 from . import _generate_token, _store_as_Token, get_invalid_object_pk
 from .my_test_data import create_eve_objects
 from ..decorators import token_required_by_state
-
-
-from ..utils import set_test_logger, NoSocketsTestCase
+from ..utils import set_test_logger
 
 
 MODULE_PATH = "standingsrequests.decorators"
@@ -23,7 +21,7 @@ logger = set_test_logger(MODULE_PATH, __file__)
 @patch(MODULE_PATH + ".select_token", spec=True)
 @patch(MODULE_PATH + ".sso_redirect", spec=True)
 @patch(MODULE_PATH + "._check_callback")
-class TestTokenRequiredByState(NoSocketsTestCase):
+class TestTokenRequiredByState(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

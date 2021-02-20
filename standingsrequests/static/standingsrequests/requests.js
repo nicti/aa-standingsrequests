@@ -4,8 +4,8 @@ angular.module('standingsApp')
 
     getRequestData();
 
-    function getRequestData() {        
-        viewRequestsDataFactory.getRequests().then(function(response) {            
+    function getRequestData() {
+        viewRequestsDataFactory.getRequests().then(function(response) {
             // Success
             document.getElementById("div_spinner").style.display = 'none';
             document.getElementById("div_requests").style.visibility = 'visible';
