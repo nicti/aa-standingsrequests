@@ -5,11 +5,10 @@ from allianceauth.eveonline.models import EveCharacter
 from ..helpers.evecharacter import EveCharacterHelper
 from ..models import CharacterAssociation
 from .my_test_data import create_contacts_set, get_my_test_data, esi_post_universe_names
-from ..utils import set_test_logger, NoSocketsTestCase
+from app_utils.testing import NoSocketsTestCase
 
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 @patch("standingsrequests.helpers.esi_fetch._esi_client")

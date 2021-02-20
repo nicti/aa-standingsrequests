@@ -1,5 +1,5 @@
 from django.conf import settings
-from .utils import clean_setting
+from app_utils.django import clean_setting
 
 
 # switch to enable/disable ability to request standings for corporations

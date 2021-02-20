@@ -6,11 +6,9 @@ from allianceauth.tests.auth_utils import AuthUtils
 
 from .my_test_data import get_entity_names
 from ..helpers.eveentity import EveEntityHelper
-from ..utils import set_test_logger
 
 
 MODULE_PATH = "standingsrequests.helpers.eveentity"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 def get_names_from_api(entity_ids, count=1):

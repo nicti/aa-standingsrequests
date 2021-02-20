@@ -2,11 +2,9 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from ..helpers.viewcache import DataViewCache
-from ..utils import set_test_logger
 
 
 MODULE_PATH = "standingsrequests.helpers.viewcache"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 class TestDataViewCache(TestCase):

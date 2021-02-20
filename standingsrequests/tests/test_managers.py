@@ -9,7 +9,6 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import add_character_to_user
 from .entity_type_ids import (
     CHARACTER_TYPE_ID,
     CORPORATION_TYPE_ID,
@@ -34,12 +33,10 @@ from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
 )
-from ..utils import set_test_logger, NoSocketsTestCase
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
 MODULE_PATH = "standingsrequests.managers"
 MODULE_PATH_MODELS = "standingsrequests.models"
-logger = set_test_logger(MODULE_PATH, __file__)
-
 TEST_USER_NAME = "Peter Parker"
 
 

@@ -44,5 +44,6 @@ setup(
         "allianceauth>=2.8.1",
         "django-esi>=1.5<3",
         "requests>=2.18.4",
+        "allianceauth-app-utils>=1.0.0",
     ],
 )

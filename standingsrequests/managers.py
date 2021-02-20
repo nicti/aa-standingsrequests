@@ -11,6 +11,8 @@ from allianceauth.eveonline.providers import ObjectNotFound
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
+from app_utils.helpers import chunks
+from app_utils.logging import LoggerAddTag
 from esi.models import Token
 
 from . import __title__
@@ -20,7 +22,6 @@ from .app_settings import (
     SR_NOTIFICATIONS_ENABLED,
 )
 from .helpers.esi_fetch import esi_fetch
-from .utils import chunks, LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

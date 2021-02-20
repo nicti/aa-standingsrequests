@@ -9,6 +9,14 @@ from django.utils.timezone import now
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
+from app_utils.testing import (
+    NoSocketsTestCase,
+    _generate_token,
+    _store_as_Token,
+    add_character_to_user,
+    add_new_token,
+)
+
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
     AbstractContact,
@@ -23,8 +31,6 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
-from ..utils import NoSocketsTestCase, set_test_logger
-from . import _generate_token, _store_as_Token, add_character_to_user, add_new_token
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_ACHURA_TYPE_ID,
@@ -54,8 +60,6 @@ from .my_test_data import (
 )
 
 MODULE_PATH = "standingsrequests.models"
-logger = set_test_logger(MODULE_PATH, __file__)
-
 TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 

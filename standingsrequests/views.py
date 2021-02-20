@@ -34,7 +34,8 @@ from .models import (
     models,
 )
 from .tasks import update_all
-from .utils import LoggerAddTag, messages_plus
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

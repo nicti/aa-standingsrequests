@@ -12,7 +12,8 @@ from allianceauth.eveonline.models import EveCharacter, EveCorporationInfo
 from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import add_character_to_user
+from app_utils.testing import add_character_to_user
+
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     create_standings_char,
@@ -30,13 +31,10 @@ from ..models import (
     CorporationContact,
 )
 from .. import tasks
-from ..utils import set_test_logger
 
 MODULE_PATH_MODELS = "standingsrequests.models"
 MODULE_PATH_MANAGERS = "standingsrequests.managers"
 MODULE_PATH_TASKS = "standingsrequests.tasks"
-logger = set_test_logger(MODULE_PATH_MANAGERS, __file__)
-
 TEST_REQUIRED_SCOPE = "publicData"
 
 

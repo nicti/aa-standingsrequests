@@ -5,16 +5,14 @@ from django.test import RequestFactory, TestCase
 
 from allianceauth.tests.auth_utils import AuthUtils
 from esi.models import Token, CallbackRedirect
+from app_utils.testing import generate_invalid_pk, _generate_token, _store_as_Token
 
-from . import _generate_token, _store_as_Token, get_invalid_object_pk
 from .my_test_data import create_eve_objects
 from ..decorators import token_required_by_state
-from ..utils import set_test_logger
 
 
 MODULE_PATH = "standingsrequests.decorators"
 PATH_MODELS = "standingsrequests.models"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 @patch(PATH_MODELS + ".StandingRequest.get_required_scopes_for_state")
@@ -157,7 +155,7 @@ class TestTokenRequiredByState(TestCase):
         mock_check_callback.return_value = None
         mock_get_required_scopes_for_state.return_value = ["abc"]
 
-        data = {"_token": get_invalid_object_pk(Token)}
+        data = {"_token": generate_invalid_pk(Token)}
         response = my_view(self.generate_post_request(data))
 
         self.assertEqual(response, mock_sso_redirect())

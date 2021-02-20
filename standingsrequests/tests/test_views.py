@@ -14,9 +14,9 @@ from allianceauth.eveonline.models import (
     EveCorporationInfo,
 )
 from allianceauth.tests.auth_utils import AuthUtils
-from esi.models import Token
 
-from . import add_character_to_user
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
+from esi.models import Token
 
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
@@ -34,14 +34,11 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
-from ..utils import set_test_logger, NoSocketsTestCase
 from .. import views
 
 MODULE_PATH = "standingsrequests.views"
 MODULE_PATH_MODELS = "standingsrequests.models"
 MODULE_PATH_MANAGERS = "standingsrequests.managers"
-logger = set_test_logger(MODULE_PATH, __file__)
-
 TEST_SCOPE = "publicData"
 
 
