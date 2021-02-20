@@ -5,6 +5,7 @@
 
 {% block extra_css %}
     {% include "standingsrequests/bundles/angular.html" %}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}
 
 {% block page_content %}
@@ -27,7 +28,7 @@
 
                 <div id="div_requests" class="row" style="visibility: hidden">
                     <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">
+                        <table id="tab_requests" class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
@@ -43,7 +44,9 @@
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    {{ contact.contact_name }}
+                                    <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
+                                        {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
+                                    </span>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
@@ -102,7 +105,7 @@
 
                 <div id="div_revocations" class="row" style="visibility: hidden">
                     <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">
+                        <table id="tab_revocations" class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
@@ -118,7 +121,9 @@
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    {{ contact.contact_name }}
+                                    <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
+                                        {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
+                                    </span>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
@@ -171,4 +176,39 @@
     <script src="{% static 'standingsrequests/error.js' %}"></script>
     <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
     <script src="{% static 'standingsrequests/manage.js' %}"></script>
+
+    <script type="text/javascript">
+        function copyToClipboard(text) {
+            if (window.clipboardData && window.clipboardData.setData) {
+                // IE specific code path to prevent textarea being shown while dialog is visible.
+                return clipboardData.setData("Text", text);
+
+            } else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+                var textarea = document.createElement("textarea");
+                textarea.textContent = text;
+                textarea.style.position = "fixed";  // Prevent scrolling to bottom of page in MS Edge.
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    return document.execCommand("copy");  // Security exception may be thrown by some browsers.
+                } catch (ex) {
+                    console.warn("Copy to clipboard failed.", ex);
+                    return false;
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        $(document).ready(function () {
+            $('#tab_requests').on('click', '.copy_to_clipboard', function (event) {
+                var text = event.currentTarget.getAttribute("data-text")
+                copyToClipboard(text)
+            });
+            $('#tab_revocations').on('click', '.copy_to_clipboard', function (event) {
+                var text = event.currentTarget.getAttribute("data-text")
+                copyToClipboard(text)
+            });
+        });
+    </script>
 {% endblock extra_javascript %}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.0] - tbd
+
+### Added
+
+- It's now possible again to copy the name of characters to the clipboard with one click
+
 ### Changes
 
 - Removed support for Django 2.2 & 3.0
