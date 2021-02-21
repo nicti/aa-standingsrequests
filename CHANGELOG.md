@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changes
 
 - Removed support for Django 2.2 & 3.0
+- Migrated to allianceauth-app-utils
+- Improved protection against transaction timeouts
 
 ### Fixed
 
