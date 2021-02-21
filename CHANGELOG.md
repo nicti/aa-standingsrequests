@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.7.0] - 2021-02-21
 
+> **Update notes:** Please apply updated settings for all peridoc tasks to your local settings file in order to avoid unnecessary task spamming.
+
 ### Added
 
 - It's now possible again to copy the name of characters to the clipboard with one click
