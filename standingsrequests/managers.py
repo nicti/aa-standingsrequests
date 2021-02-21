@@ -11,6 +11,8 @@ from allianceauth.eveonline.providers import ObjectNotFound
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
+from app_utils.helpers import chunks
+from app_utils.logging import LoggerAddTag
 from esi.models import Token
 
 from . import __title__
@@ -20,14 +22,12 @@ from .app_settings import (
     SR_NOTIFICATIONS_ENABLED,
 )
 from .helpers.esi_fetch import esi_fetch
-from .utils import chunks, LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 class ContactSetManager(models.Manager):
-    @transaction.atomic
     def create_new_from_api(self) -> object:
         """fetches contacts with standings for configured alliance
         or corporation from ESI and stores them as newly created ContactSet
@@ -51,9 +51,11 @@ class ContactSetManager(models.Manager):
             )
             return None
 
-        contacts_set = self.create()
-        self._add_labels_from_api(contacts_set, contacts.allianceLabels)
-        self._add_contacts_from_api(contacts_set, contacts.alliance)
+        with transaction.atomic():
+            contacts_set = self.create()
+            self._add_labels_from_api(contacts_set, contacts.allianceLabels)
+            self._add_contacts_from_api(contacts_set, contacts.alliance)
+
         return contacts_set
 
     def _add_labels_from_api(self, contact_set, labels):

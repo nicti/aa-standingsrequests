@@ -3,7 +3,7 @@ package = standingsrequests
 pipname = aa-standingsrequests
 
 help:
-	@echo "Makefile for $(appname)"	
+	@echo "Makefile for $(appname)"
 
 makemessages:
 	cd $(package) && \
@@ -20,7 +20,7 @@ tx_push:
 tx_pull:
 	tx pull -f
 
-compilemessages:	
+compilemessages:
 	cd $(package) && \
 	django-admin compilemessages -l en  && \
 	django-admin compilemessages -l de  && \
@@ -31,7 +31,7 @@ compilemessages:
 
 coverage:
 	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast --debug-mode && coverage html && coverage report
-	
+
 test:
 	# runs a full test incl. re-creating of the test DB
 	python ../myauth/manage.py test $(package) --failfast --debug-mode -v 2

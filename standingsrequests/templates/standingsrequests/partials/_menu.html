@@ -10,18 +10,18 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="#">{% trans app_title %}</a>
+            <a class="navbar-brand" href="{% url 'standingsrequests:index' %}">{% trans app_title %}</a>
         </div>
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-            <ul class="nav navbar-nav">                
-                <li class="{% navactive request 'standingsrequests:index' %}">
-                    <a href="{% url 'standingsrequests:index' %}">{% trans "Create Requests" %}</a>
+            <ul class="nav navbar-nav">
+                <li class="{% navactive request 'standingsrequests:create_requests' %}">
+                    <a href="{% url 'standingsrequests:create_requests' %}">{% trans "Create Requests" %}</a>
                 </li>
-                
+
                  {% if perms.standingsrequests.affect_standings %}
                 <li class="{% navactive request 'standingsrequests:manage' %}">
                     <a href="{% url 'standingsrequests:manage' %}">
-                        {% trans "Manage Requests" %}                        
+                        {% trans "Manage Requests" %}
                         {% if pending_total_count > 0 %}
                             &nbsp;<span class="badge">{{ pending_total_count }}</span>
                         {% endif %}
@@ -31,7 +31,7 @@
                     <a href="{% url 'standingsrequests:view_requests' %}">{% trans "Effective Requests" %}</a>
                 </li>
                 {% endif %}
-                
+
                 {% if perms.standingsrequests.view %}
                 <li class="{% navactive request 'standingsrequests:view_pilots' %}">
                     <a href="{% url 'standingsrequests:view_pilots' %}">{% trans "Character Standings" %}</a>
@@ -39,18 +39,18 @@
                 <li class="{% navactive request 'standingsrequests:view_groups' %}">
                     <a href="{% url 'standingsrequests:view_groups' %}">{% trans "Group Standings" %}</a>
                 </li>
-                {% endif %}               
+                {% endif %}
             </ul>
-             <ul class="nav navbar-nav navbar-right"> 
+             <ul class="nav navbar-nav navbar-right">
                 {% if perms.standingsrequests.affect_standings %}
                     <a class="btn btn-default navbar-btn" href="{% url 'standingsrequests:view_auth_page' %}">
                         {% if operation_mode == "corporation" %}
-                            {% trans "Setup Corporation Token" %}                            
+                            {% trans "Setup Corporation Token" %}
                         {% else %}
                             {% trans "Setup Alliance Token" %}
                         {% endif %}
                     </a>
-                {% endif %}                
+                {% endif %}
             </ul>
         </div>
     </div>

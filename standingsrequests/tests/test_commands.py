@@ -7,7 +7,8 @@ from django.utils.timezone import now
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import add_character_to_user
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
+
 from ..models import StandingRequest
 from .my_test_data import (
     create_standings_char,
@@ -15,12 +16,9 @@ from .my_test_data import (
     create_contacts_set,
     TEST_STANDINGS_ALLIANCE_ID,
 )
-from ..utils import set_test_logger, NoSocketsTestCase
+
 
 PACKAGE_PATH = "standingsrequests.management.commands"
-logger = set_test_logger(PACKAGE_PATH, __file__)
-
-
 TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 

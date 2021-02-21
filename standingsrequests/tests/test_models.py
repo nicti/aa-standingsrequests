@@ -9,6 +9,14 @@ from django.utils.timezone import now
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
+from app_utils.testing import (
+    NoSocketsTestCase,
+    _generate_token,
+    _store_as_Token,
+    add_character_to_user,
+    add_new_token,
+)
+
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
     AbstractContact,
@@ -23,8 +31,6 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
-from ..utils import NoSocketsTestCase, set_test_logger
-from . import _generate_token, _store_as_Token, add_character_to_user, add_new_token
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_ACHURA_TYPE_ID,
@@ -54,8 +60,6 @@ from .my_test_data import (
 )
 
 MODULE_PATH = "standingsrequests.models"
-logger = set_test_logger(MODULE_PATH, __file__)
-
 TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
@@ -781,7 +785,7 @@ class TestEveEntity(TestCase):
 
     """
     @patch(MODULE_PATH + '.EveEntityHelper')
-    def test_get_names_from_contacts(self, mock_EveEntityHelper):        
+    def test_get_names_from_contacts(self, mock_EveEntityHelper):
         mock_EveEntityHelper.get_names.side_effect = \
             get_entity_names
 
@@ -793,16 +797,16 @@ class TestEveEntity(TestCase):
             contact_id=1001,
             name='Bruce Wayne',
             standing=0
-        )                
+        )
         entities = EveEntity.objects.get_names([1001])
         self.assertDictEqual(
             entities,
             {
                 1001: 'Bruce Wayne'
             }
-        ) 
+        )
         self.assertListEqual(
             mock_EveEntityHelper.get_names.call_args[0][0],
             []
-        )       
+        )
     """

@@ -5,21 +5,22 @@
 
 {% block extra_css %}
     {% include "standingsrequests/bundles/angular.html" %}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}
 
-{% block page_content %}    
+{% block page_content %}
     <div ng-app="standingsApp" ng-controller="ManageStandingsController">
         <error-messages></error-messages>
-        
+
         <!-- Requests -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
-                {% trans "Pending Requests" %} ({{requests_count|default:"-"}})                
+                {% trans "Pending Requests" %} ({{requests_count|default:"-"}})
             </h2>
             <p>Standing requests with pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
-                
-                <div id="div_spinner_requests" class="row">                    
+
+                <div id="div_spinner_requests" class="row">
                     <div class="col-md-12">
                         <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
@@ -27,15 +28,15 @@
 
                 <div id="div_requests" class="row" style="visibility: hidden">
                     <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">
+                        <table id="tab_requests" class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>                                
+                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "Scopes / State" %}</th>                                
-                                <th class="col-md-2">{% trans "Actions" %}</th>                                
-                            </tr>                            
+                                <th class="col-md-1">{% trans "Scopes / State" %}</th>
+                                <th class="col-md-2">{% trans "Actions" %}</th>
+                            </tr>
                             {% verbatim %}
                             <tr ng-repeat="contact in requests">
                                 <td>
@@ -43,12 +44,14 @@
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    {{ contact.contact_name }}                                    
+                                    <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
+                                        {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
+                                    </span>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
                                         [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
-                                    </span><br>                               
+                                    </span><br>
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
@@ -61,15 +64,15 @@
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
                                     {{contact.state}}
                                 </td>
-                                <td>                                    
+                                <td>
                                     <button class="btn btn-success" ng-click="actionRequest(contact)" title="Confirm the standing was ADDED in game">
                                         Confirm
                                     </button>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;                                                 
+                                    &nbsp;&nbsp;&nbsp;&nbsp;
                                     <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject this standing request">
                                         Reject
                                     </button>
-                                    
+
                                 </td>
                             </tr>
 
@@ -85,7 +88,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Revocations -->
         <div class="col-lg-12 container">
             <h2 style="margin-top:0;">
@@ -94,7 +97,7 @@
             <p>Standing revocations with pending action for <strong>{{organization.name}}</strong></p>
             <div class="col-lg-12 container">
 
-                <div id="div_spinner_revocations" class="row">                    
+                <div id="div_spinner_revocations" class="row">
                     <div class="col-md-12">
                         <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
@@ -102,15 +105,15 @@
 
                 <div id="div_revocations" class="row" style="visibility: hidden">
                     <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">
+                        <table id="tab_revocations" class="table table-condensed table-hover table-striped">
                             <tr>
                                 <th class="col-md-1">{% trans "Date" %}</th>
                                 <th class="col-md-2">{% trans "Contact Name" %}</th>
-                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>                                
+                                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
                                 <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "Scopes / State" %}</th>                                
+                                <th class="col-md-1">{% trans "Scopes / State" %}</th>
                                 <th class="col-md-2">{% trans "Actions" %}</th>
-                            </tr>                            
+                            </tr>
                             {% verbatim %}
                             <tr ng-repeat="contact in revocations">
                                 <td>
@@ -118,12 +121,14 @@
                                 </td>
                                 <td>
                                     <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    {{ contact.contact_name }}
+                                    <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
+                                        {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
+                                    </span>
                                 </td>
                                 <td>
                                     <span ng-show="contact.corporation_ticker">
                                         [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
-                                    </span><br>                               
+                                    </span><br>
                                     <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
                                 </td>
                                 <td>
@@ -131,17 +136,17 @@
                                     <span ng-show="contact.main_character_name">
                                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                                     </span>
-                                    
+
                                 </td>
                                 <td>
                                     <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
                                     {{contact.state}}
                                 </td>
-                                <td>                                                                        
+                                <td>
                                     <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Confirm the standing was REMOVED in game">
                                         Confirm
                                     </button>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;                                    
+                                    &nbsp;&nbsp;&nbsp;&nbsp;
                                     <button class="btn btn-danger" ng-click="deleteRevocation(contact)" title="Reject this revocation request">
                                         Reject
                                     </button>
@@ -171,4 +176,39 @@
     <script src="{% static 'standingsrequests/error.js' %}"></script>
     <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
     <script src="{% static 'standingsrequests/manage.js' %}"></script>
+
+    <script type="text/javascript">
+        function copyToClipboard(text) {
+            if (window.clipboardData && window.clipboardData.setData) {
+                // IE specific code path to prevent textarea being shown while dialog is visible.
+                return clipboardData.setData("Text", text);
+
+            } else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+                var textarea = document.createElement("textarea");
+                textarea.textContent = text;
+                textarea.style.position = "fixed";  // Prevent scrolling to bottom of page in MS Edge.
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    return document.execCommand("copy");  // Security exception may be thrown by some browsers.
+                } catch (ex) {
+                    console.warn("Copy to clipboard failed.", ex);
+                    return false;
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        $(document).ready(function () {
+            $('#tab_requests').on('click', '.copy_to_clipboard', function (event) {
+                var text = event.currentTarget.getAttribute("data-text")
+                copyToClipboard(text)
+            });
+            $('#tab_revocations').on('click', '.copy_to_clipboard', function (event) {
+                var text = event.currentTarget.getAttribute("data-text")
+                copyToClipboard(text)
+            });
+        });
+    </script>
 {% endblock extra_javascript %}

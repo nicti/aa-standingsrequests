@@ -20,8 +20,8 @@
                         </a>
                     </div>
                 {% endif %}
-            </h2>            
-            {% include "standingsrequests/partials/_contacts_legend.html" %}            
+            </h2>
+            {% include "standingsrequests/partials/_contacts_legend.html" %}
             <div class="pull-right form-inline">
                 <div class="form-group" style="padding-bottom:1.9em;">
                     <label for="userPageSize">Page size</label>
@@ -41,7 +41,7 @@
             </div>
             <div class="col-lg-12 container">
 
-                 <div id="div_spinner" class="row">                    
+                 <div id="div_spinner" class="row">
                     <div class="col-md-12">
                         <img src="{% static 'standingsrequests/Spinner-1s-64px.gif' %}" alt="Spinner"/>
                     </div>
@@ -59,11 +59,11 @@
                                 <th class="col-md-1">{% trans "Scopes" %}</th>
                                 <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
-                            </tr>                            
+                            </tr>
                             {% verbatim %}
                             <tr ng-repeat="character in filteredStandings = (pilots | filterStandings) | limitTo : pageSize : (currentPage-1) * pageSize as pilotsFiltered">
                                 <td>
-                                    <img ng-src="{{ character.character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;                                    
+                                    <img ng-src="{{ character.character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     {{ character.character_name }}
                                 </td>
                                 <td>
@@ -81,7 +81,7 @@
                                     <img ng-src="{{ character.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="character.main_character_ticker">
                                         [{{ character.main_character_ticker }}]
-                                    </span>                                    
+                                    </span>
                                     <span ng-show="character.main_character_name">
                                         {{ character.main_character_name }}
                                     </span>

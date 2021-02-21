@@ -5,8 +5,10 @@ from celery import Celery
 
 from django.utils.timezone import now
 
-from standingsrequests.models import ContactSet
-from standingsrequests.tasks import (
+from app_utils.testing import NoSocketsTestCase
+
+from ..models import ContactSet
+from ..tasks import (
     standings_update,
     validate_requests,
     update_associations_api,
@@ -14,12 +16,10 @@ from standingsrequests.tasks import (
     purge_stale_data,
     purge_stale_standings_data,
 )
-from standingsrequests.utils import NoSocketsTestCase, set_test_logger
-
 from .my_test_data import create_contacts_set
 
 MODULE_PATH = "standingsrequests.tasks"
-logger = set_test_logger(MODULE_PATH, __file__)
+
 app = Celery("myauth")
 
 

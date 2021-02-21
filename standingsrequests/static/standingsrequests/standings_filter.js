@@ -31,7 +31,7 @@ standingsApp.filter('filterStandings', ['FilterStandingsService', function(Filte
             } else if (svc.has_scopes === false && item.has_required_scopes === true) {
                 return;
             }
-            
+
             if (svc.searchState.length > 0) {
                 if (! item.state.includes(svc.searchState)){
                     return;

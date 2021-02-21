@@ -1,5 +1,5 @@
 """This module provides helper functions for smarter ESI requests with django-esi
-    
+
     Added features for all ESI requests:
     - Automatic page retry on 502, 503, 504 up to max retries with exponential backoff
     - Automatic retrieval of all pages
@@ -20,7 +20,7 @@ from esi.models import Token
 
 from .. import __title__
 from ..app_settings import SR_ESI_TIMEOUT_ENABLED
-from ..utils import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)

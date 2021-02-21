@@ -34,7 +34,8 @@ from .models import (
     models,
 )
 from .tasks import update_all
-from .utils import LoggerAddTag, messages_plus
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -82,12 +83,27 @@ class HttpResponseNoContent(HttpResponse):
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def index_view(request):
-    logger.debug("Start index_view request")
+    """index page is used as dispatcher"""
+    app_count = (
+        StandingRequest.objects.pending_requests().count()
+        + StandingRevocation.objects.pending_requests().count()
+    )
+    if app_count > 0 and request.user.has_perm("standingsrequests.affect_standings"):
+        return redirect("standingsrequests:manage")
+    else:
+        return redirect("standingsrequests:create_requests")
+
+
+@login_required
+@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
+def create_requests(request):
     context = {
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
     }
     return render(
-        request, "standingsrequests/index.html", add_common_context(request, context)
+        request,
+        "standingsrequests/create_requests.html",
+        add_common_context(request, context),
     )
 
 
@@ -267,7 +283,7 @@ def request_pilot_standing(request, character_id):
             % EveEntity.objects.get_name(character_id),
         )
 
-    return redirect("standingsrequests:index")
+    return redirect("standingsrequests:create_requests")
 
 
 @login_required
@@ -343,7 +359,7 @@ def remove_pilot_standing(request, character_id):
             % EveEntity.objects.get_name(character_id),
         )
 
-    return redirect("standingsrequests:index")
+    return redirect("standingsrequests:create_requests")
 
 
 @login_required
@@ -388,7 +404,7 @@ def request_corp_standing(request, corporation_id):
             % EveEntity.objects.get_name(corporation_id),
         )
 
-    return redirect("standingsrequests:index")
+    return redirect("standingsrequests:create_requests")
 
 
 @login_required
@@ -458,7 +474,7 @@ def remove_corp_standing(request, corporation_id):
             % EveEntity.objects.get_name(corporation_id),
         )
 
-    return redirect("standingsrequests:index")
+    return redirect("standingsrequests:create_requests")
 
 
 ###########################
@@ -1075,4 +1091,4 @@ def view_requester_add_scopes(request, token):
         _("Successfully added token with required scopes for %(char_name)s")
         % {"char_name": EveEntity.objects.get_name(token.character_id)},
     )
-    return redirect("standingsrequests:index")
+    return redirect("standingsrequests:create_requests")

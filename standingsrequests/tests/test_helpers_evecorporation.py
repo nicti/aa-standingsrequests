@@ -3,10 +3,10 @@ from unittest.mock import patch
 from ..helpers.evecorporation import EveCorporation
 from ..models import EveEntity
 from .my_test_data import esi_get_corporations_corporation_id
-from ..utils import set_test_logger, NoSocketsTestCase
+from app_utils.testing import NoSocketsTestCase
+
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
-logger = set_test_logger(MODULE_PATH, __file__)
 
 
 @patch(MODULE_PATH + ".cache")

@@ -4,10 +4,10 @@
 {% load evelinks %}
 
 <div class="col-lg-12">
-        <p>            
+        <p>
             On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
         </p>
-        
+
         <h2>{% trans "Your Characters" %}</h2>
 
         <div class="container">
@@ -18,7 +18,7 @@
             <div class="row">
                 <div class="table-responsive">
                     <table class="table table-condensed table-hover table-striped">
-                        <tr>                            
+                        <tr>
                             <th class="col-md-2">{% trans "Character" %}</th>
                             <th class="col-md-2">{% trans "Corporation" %}</th>
                             <th class="col-md-2">{% trans "Alliance" %}</th>
@@ -27,7 +27,7 @@
                             <th class="col-md-1">{% trans "Actions" %}</th>
                         </tr>
                         {% for std in characters %}
-                            <tr>                                
+                            <tr>
                                 <td>
                                     <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">&nbsp;&nbsp;&nbsp;{{ std.character.character_name }}
                                 </td>
@@ -71,9 +71,9 @@
                                             {% if std.inOrganisation == True %}
                                                 <!-- Already in organisation, No actions -->
                                             {% elif std.pendingRequest == True or std.requestActioned == True %}
-                                                <a 
-                                                    class="btn btn-warning" 
-                                                    role="button" 
+                                                <a
+                                                    class="btn btn-warning"
+                                                    role="button"
                                                     href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
                                                     title="Cancel Request">
                                                     Cancel
@@ -81,7 +81,7 @@
                                             {% elif std.pendingRevocation == True %}
                                                 <!-- Revoked, No actions -->
                                             {% elif not std.hasStanding %}
-                                                <a 
+                                                <a
                                                     class="btn btn-primary"
                                                     role="button"
                                                     href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
@@ -89,13 +89,13 @@
                                                     {% if not std.hasRequiredScopes %}
                                                     disabled
                                                     {% endif %}
-                                                    > 
-                                                    &nbsp;Apply&nbsp;                                                    
+                                                    >
+                                                    &nbsp;Apply&nbsp;
                                                 </a>
                                             {% else %}
-                                                <a 
-                                                    class="btn btn-danger" 
-                                                    role="button"                                                     
+                                                <a
+                                                    class="btn btn-danger"
+                                                    role="button"
                                                     href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
                                                     title="Request to revoke standing for this character">
                                                     Revoke
@@ -124,7 +124,7 @@
                 <div class="row">
                     <div class="table-responsive">
                         <table class="table table-condensed table-hover table-striped">
-                            <tr>                                
+                            <tr>
                                 <th class="col-md-4">{% trans "Corporation" %}</th>
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
                                 <th class="col-md-1">{% trans "Keys/Req" %}</th>
@@ -132,7 +132,7 @@
                                 <th class="col-md-1">{% trans "Actions" %}</th>
                             </tr>
                             {% for st in corps %}
-                                <tr>                                
+                                <tr>
                                     <td>
                                         <img src="{{ st.corp.corporation_id|corporation_logo_url:32 }}" class="img-circle">
                                         &nbsp;&nbsp;&nbsp;
@@ -167,9 +167,9 @@
                                         <p>
                                             <span style="font-size:2em;">
                                                 {% if st.pendingRequest == True or st.requestActioned == True %}
-                                                    <a 
-                                                        class="btn btn-warning" 
-                                                        role="button" 
+                                                    <a
+                                                        class="btn btn-warning"
+                                                        role="button"
                                                         href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
                                                         title="Cancel Request">
                                                         Cancel
@@ -178,20 +178,20 @@
                                                     <!-- Revoked, No actions -->
                                                 {% elif not st.hasStanding %}
                                                     {% if st.token_count >= st.corp.member_count %}
-                                                        <a 
-                                                            class="btn btn-primary" 
-                                                            role="button" 
+                                                        <a
+                                                            class="btn btn-primary"
+                                                            role="button"
                                                             href="{% url 'standingsrequests:request_corp_standing' corporation_id=st.corp.corporation_id %}"
-                                                            title="Request to get standing for this corporation">              
+                                                            title="Request to get standing for this corporation">
                                                             &nbsp;Apply&nbsp;
                                                         </a>
                                                     {% else %}
                                                         <i class="fas fa-info-circle text-info" title="{% trans 'More keys required to request standings' %}"></i>
                                                     {% endif %}
                                                 {% else %}
-                                                    <a 
-                                                        class="btn btn-danger" 
-                                                        role="button" 
+                                                    <a
+                                                        class="btn btn-danger"
+                                                        role="button"
                                                         href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
                                                         title="Request to revoke standing for this corporation">
                                                         Revoke

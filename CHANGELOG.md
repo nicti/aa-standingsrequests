@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.0] - 2021-02-21
+
+### Added
+
+- It's now possible again to copy the name of characters to the clipboard with one click
+
+### Changes
+
+- Now automatically redirects managers to manage page if there are open requests
+- Removed support for Django 2.2 & 3.0
+- Migrated to allianceauth-app-utils
+- Improved protection against transaction timeouts
+
+### Fixed
+
+- Some periodic tasks where called too often due an incorrect configuration
+
 ### [0.6.2] - 2020-09-22
 
 ### Changes

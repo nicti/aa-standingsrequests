@@ -7,4 +7,3 @@ minimum_perc = 0
 source_file = standingsrequests/locale/en/LC_MESSAGES/django.po
 source_lang = en_US
 type = PO
-
