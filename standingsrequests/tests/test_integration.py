@@ -221,7 +221,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -233,7 +233,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -295,7 +295,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -307,7 +307,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(my_request.is_effective)
@@ -367,7 +367,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -379,7 +379,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -441,7 +441,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -453,7 +453,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(my_request.is_effective)
@@ -514,7 +514,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -526,7 +526,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -577,7 +577,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -589,7 +589,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -641,7 +641,7 @@ class TestMainUseCases(WebTest):
 
         # user opens create requests page
         self.app.set_user(self.user_requestor)
-        create_page_1 = self.app.get(reverse("standingsrequests:index"))
+        create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
         create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
         self.assertEqual(create_page_2.status_code, 200)
@@ -653,7 +653,7 @@ class TestMainUseCases(WebTest):
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
         # validate new state
         self.assertTrue(my_request.is_effective)

@@ -371,6 +371,13 @@ class TestViewsBasics(TestViewPagesBase):
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
         response = views.index_view(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+    def test_user_can_open_create_requests_page(self, mock_esi_client):
+        request = self.factory.get(reverse("standingsrequests:create_requests"))
+        request.user = self.user_requestor
+        response = views.create_requests(request)
         self.assertEqual(response.status_code, 200)
 
     def test_user_can_open_pilots_standing(self, mock_esi_client):
@@ -410,7 +417,7 @@ class TestRequestStanding(TestViewPagesBase):
         request.user = self.user_requestor
         response = views.request_pilot_standing(request, character_id)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
         return response
 
     def test_when_no_pending_request_or_revocation_for_character_create_new_request(
@@ -465,7 +472,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
         request.user = self.user_requestor
         response = views.remove_pilot_standing(request, character_id)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
         return response
 
     def test_when_effective_standing_request_exists_create_revocation(

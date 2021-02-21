@@ -14,8 +14,8 @@
         </div>
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
-                <li class="{% navactive request 'standingsrequests:index' %}">
-                    <a href="{% url 'standingsrequests:index' %}">{% trans "Create Requests" %}</a>
+                <li class="{% navactive request 'standingsrequests:create_requests' %}">
+                    <a href="{% url 'standingsrequests:create_requests' %}">{% trans "Create Requests" %}</a>
                 </li>
 
                  {% if perms.standingsrequests.affect_standings %}
