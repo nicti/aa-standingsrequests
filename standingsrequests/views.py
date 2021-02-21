@@ -83,7 +83,15 @@ class HttpResponseNoContent(HttpResponse):
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def index_view(request):
-    return redirect("standingsrequests:create_requests")
+    """index page is used as dispatcher"""
+    app_count = (
+        StandingRequest.objects.pending_requests().count()
+        + StandingRevocation.objects.pending_requests().count()
+    )
+    if app_count > 0 and request.user.has_perm("standingsrequests.affect_standings"):
+        return redirect("standingsrequests:manage")
+    else:
+        return redirect("standingsrequests:create_requests")
 
 
 @login_required

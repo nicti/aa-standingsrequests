@@ -282,10 +282,10 @@ class TestViewPagesBase(TestCase):
             is_main=True,
             scopes=[TEST_SCOPE],
         )
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
         )
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.view", cls.user_manager
         )
         cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
@@ -367,12 +367,75 @@ class TestViewsBasics(TestViewPagesBase):
             esi_post_universe_names
         )
 
-    def test_user_can_open_index(self, mock_esi_client):
+    def test_should_redirect_to_create_requests_page_for_requestor_1(
+        self, mock_esi_client
+    ):
+        # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
+        # when
         response = views.index_view(request)
+        # then
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+    def test_should_redirect_to_create_requests_page_for_requestor_2(
+        self, mock_esi_client
+    ):
+        # given
+        request = self.factory.get(reverse("standingsrequests:index"))
+        request.user = self.user_requestor
+        StandingRequest.objects.add_request(
+            self.user_requestor,
+            self.alt_character_1.character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
+        )
+        # when
+        response = views.index_view(request)
+        # then
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+    def test_should_redirect_to_create_requests_page_for_manger(self, mock_esi_client):
+        # given
+        request = self.factory.get(reverse("standingsrequests:index"))
+        request.user = self.user_requestor
+        # when
+        response = views.index_view(request)
+        # then
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+    def test_should_redirect_to_manage_requests_page_1(self, mock_esi_client):
+        # given
+        request = self.factory.get(reverse("standingsrequests:index"))
+        request.user = self.user_manager
+        StandingRequest.objects.add_request(
+            self.user_requestor,
+            self.alt_character_1.character_id,
+            StandingRequest.CHARACTER_CONTACT_TYPE,
+        )
+        # when
+        response = views.index_view(request)
+        # then
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:manage"))
+
+    def test_should_redirect_to_manage_requests_page_2(self, mock_esi_client):
+        # given
+        request = self.factory.get(reverse("standingsrequests:index"))
+        request.user = self.user_manager
+        self._create_standing_for_alt(self.alt_character_1)
+        StandingRevocation.objects.add_revocation(
+            self.alt_character_1.character_id,
+            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
+        )
+        # when
+        response = views.index_view(request)
+        # then
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:manage"))
 
     def test_user_can_open_create_requests_page(self, mock_esi_client):
         request = self.factory.get(reverse("standingsrequests:create_requests"))
