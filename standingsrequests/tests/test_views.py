@@ -1,32 +1,23 @@
-from datetime import timedelta
 import json
-from unittest.mock import patch, Mock
+from datetime import timedelta
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
+from esi.models import Token
 
 from allianceauth.eveonline.models import (
-    EveCharacter,
     EveAllianceInfo,
+    EveCharacter,
     EveCorporationInfo,
 )
 from allianceauth.tests.auth_utils import AuthUtils
-
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
-from esi.models import Token
 
-from .my_test_data import (
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
-    create_standings_char,
-    create_contacts_set,
-    create_eve_objects,
-    esi_get_corporations_corporation_id,
-    esi_post_universe_names,
-)
+from .. import views
 from ..models import (
     CharacterContact,
     CorporationContact,
@@ -34,7 +25,15 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
-from .. import views
+from .my_test_data import (
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
+    create_contacts_set,
+    create_eve_objects,
+    create_standings_char,
+    esi_get_corporations_corporation_id,
+    esi_post_universe_names,
+)
 
 MODULE_PATH = "standingsrequests.views"
 MODULE_PATH_MODELS = "standingsrequests.models"

@@ -6,17 +6,15 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
 from ..models import StandingRequest
 from .my_test_data import (
-    create_standings_char,
-    create_entity,
-    create_contacts_set,
     TEST_STANDINGS_ALLIANCE_ID,
+    create_contacts_set,
+    create_entity,
+    create_standings_char,
 )
-
 
 PACKAGE_PATH = "standingsrequests.management.commands"
 TEST_USER_NAME = "Peter Parker"

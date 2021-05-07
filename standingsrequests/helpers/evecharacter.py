@@ -1,6 +1,6 @@
 from allianceauth.eveonline.evelinks import eveimageserver
 
-from ..models import EveEntity, CharacterAssociation
+from ..models import CharacterAssociation, EveEntity
 
 
 class EveCharacterHelper:

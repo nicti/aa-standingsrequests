@@ -8,15 +8,11 @@ from django.utils.translation import gettext_lazy as _
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_STANDINGS_STALE_HOURS,
-    SR_SYNC_BLUE_ALTS_ENABLED,
-)
-from .helpers.viewcache import cache_view_pilots_json, cache_view_groups_json
+from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
+from .helpers.viewcache import cache_view_groups_json, cache_view_pilots_json
 from .models import (
     AllianceContact,
     CharacterAssociation,
@@ -27,7 +23,6 @@ from .models import (
     StandingRequest,
     StandingRevocation,
 )
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

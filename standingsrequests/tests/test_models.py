@@ -8,7 +8,6 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-
 from app_utils.testing import (
     NoSocketsTestCase,
     _generate_token,

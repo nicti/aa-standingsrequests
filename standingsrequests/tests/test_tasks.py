@@ -9,12 +9,12 @@ from app_utils.testing import NoSocketsTestCase
 
 from ..models import ContactSet
 from ..tasks import (
-    standings_update,
-    validate_requests,
-    update_associations_api,
-    update_associations_auth,
     purge_stale_data,
     purge_stale_standings_data,
+    standings_update,
+    update_associations_api,
+    update_associations_auth,
+    validate_requests,
 )
 from .my_test_data import create_contacts_set
 

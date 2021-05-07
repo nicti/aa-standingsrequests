@@ -1,12 +1,11 @@
 from unittest.mock import patch
 
 from allianceauth.eveonline.models import EveCharacter
+from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecharacter import EveCharacterHelper
 from ..models import CharacterAssociation
-from .my_test_data import create_contacts_set, get_my_test_data, esi_post_universe_names
-from app_utils.testing import NoSocketsTestCase
-
+from .my_test_data import create_contacts_set, esi_post_universe_names, get_my_test_data
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
 

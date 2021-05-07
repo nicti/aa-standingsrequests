@@ -4,9 +4,8 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
-from .my_test_data import get_entity_names
 from ..helpers.eveentity import EveEntityHelper
-
+from .my_test_data import get_entity_names
 
 MODULE_PATH = "standingsrequests.helpers.eveentity"
 

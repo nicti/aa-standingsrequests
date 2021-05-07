@@ -2,27 +2,25 @@ from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
 from django.db import models, transaction
-from django.utils.translation import gettext_lazy as _
 from django.utils.timezone import now
+from django.utils.translation import gettext_lazy as _
+from esi.models import Token
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.providers import ObjectNotFound
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.helpers import chunks
 from app_utils.logging import LoggerAddTag
-from esi.models import Token
 
 from . import __title__
 from .app_settings import (
-    STANDINGS_API_CHARID,
-    SR_OPERATION_MODE,
     SR_NOTIFICATIONS_ENABLED,
+    SR_OPERATION_MODE,
+    STANDINGS_API_CHARID,
 )
 from .helpers.esi_fetch import esi_fetch
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -208,11 +206,11 @@ class AbstractStandingsRequestManager(models.Manager):
     def process_requests(self) -> None:
         """Process all the Standing requests/revocation objects"""
         from .models import (
+            AbstractStandingsRequest,
             ContactSet,
             EveEntity,
             StandingRequest,
             StandingRevocation,
-            AbstractStandingsRequest,
         )
 
         if self.model == AbstractStandingsRequest:

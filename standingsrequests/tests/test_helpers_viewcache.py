@@ -3,7 +3,6 @@ from django.test import TestCase
 
 from ..helpers.viewcache import DataViewCache
 
-
 MODULE_PATH = "standingsrequests.helpers.viewcache"
 
 

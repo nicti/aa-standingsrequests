@@ -1,41 +1,40 @@
-from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
-from allianceauth.notifications import notify
-from allianceauth.services.hooks import get_extension_logger
-
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-
 from esi.decorators import token_required
+
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.notifications import notify
+from allianceauth.services.hooks import get_extension_logger
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
 
 from . import __title__
 from .app_settings import (
     SR_CORPORATIONS_ENABLED,
+    SR_NOTIFICATIONS_ENABLED,
     SR_OPERATION_MODE,
     STANDINGS_API_CHARID,
-    SR_NOTIFICATIONS_ENABLED,
 )
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
-from .helpers.viewcache import cache_view_pilots_json, cache_view_groups_json
+from .helpers.viewcache import cache_view_groups_json, cache_view_pilots_json
 from .helpers.writers import UnicodeWriter
 from .models import (
     CharacterContact,
-    CorporationContact,
     ContactSet,
+    CorporationContact,
     EveEntity,
     StandingRequest,
     StandingRevocation,
     models,
 )
 from .tasks import update_all
-from app_utils.logging import LoggerAddTag
-from app_utils.messages import messages_plus
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

@@ -1,14 +1,14 @@
 from functools import wraps
 
-from allianceauth.services.hooks import get_extension_logger
 from esi.decorators import _check_callback
 from esi.models import Token
 from esi.views import select_token, sso_redirect
 
-from . import __title__
-from .models import StandingRequest
+from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
+from . import __title__
+from .models import StandingRequest
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

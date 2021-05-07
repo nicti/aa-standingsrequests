@@ -1,39 +1,37 @@
 from datetime import timedelta
-from unittest.mock import patch, Mock
-from allianceauth.notifications.models import Notification
+from unittest.mock import Mock, patch
+
 from bravado.exception import HTTPError
 
 from django.utils.timezone import now
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
-from .entity_type_ids import (
-    CHARACTER_TYPE_ID,
-    CORPORATION_TYPE_ID,
-)
 from ..models import (
-    ContactSet,
-    CharacterAssociation,
     AbstractStandingsRequest,
-    EveEntity,
+    CharacterAssociation,
     CharacterContact,
+    ContactSet,
+    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
+from .entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
 from .my_test_data import (
-    create_entity,
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
+    create_entity,
     create_standings_char,
-    esi_post_universe_names,
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
     esi_post_characters_affiliation,
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
+    esi_post_universe_names,
 )
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
 MODULE_PATH = "standingsrequests.managers"
 MODULE_PATH_MODELS = "standingsrequests.models"
