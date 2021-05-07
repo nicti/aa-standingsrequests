@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Fixed
+
+- Spinner now has correct colors in dark mode
+
 ## [0.7.0] - 2021-02-21
 
 > **Update notes:** Please apply updated settings for all peridoc tasks to your local settings file in order to avoid unnecessary task spamming.
