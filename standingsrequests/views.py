@@ -24,7 +24,7 @@ from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
-from .helpers.viewcache import cache_view_groups_json, cache_view_pilots_json
+from .helpers.viewcache import cache_view_pilots_json
 from .helpers.writers import UnicodeWriter
 from .models import (
     ContactSet,
@@ -676,88 +676,91 @@ def view_groups_standings(request):
 @login_required
 @permission_required("standingsrequests.view")
 def view_groups_standings_json(request):
-    logger.debug("view_pilot_standings_json called by %s", request.user)
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
 
-    def generate_groups_data():
-        try:
-            contacts = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            contacts = ContactSet()
-
-        corporations_qs = contacts.corporationcontact_set.all().order_by("name")
-        eve_corporations = {
-            corporation.corporation_id: corporation
-            for corporation in EveCorporation.get_many_by_id(
-                corporations_qs.values_list("contact_id", flat=True)
-            )
-        }
-        corporations_data = list()
-        standing_requests_qs = StandingRequest.objects.filter(
-            contact_type_id=CorporationContact.get_contact_type_id()
+    corporations_qs = (
+        contacts.corporationcontact_set.all()
+        .prefetch_related("labels")
+        .order_by("name")
+    )
+    eve_corporations = {
+        corporation.corporation_id: corporation
+        for corporation in EveCorporation.get_many_by_id(
+            corporations_qs.values_list("contact_id", flat=True)
         )
-        for contact in corporations_qs:
-            if contact.contact_id in eve_corporations:
-                corporation = eve_corporations[contact.contact_id]
-                try:
-                    standing_request = standing_requests_qs.get(
-                        contact_id=contact.contact_id,
+    }
+    corporations_data = list()
+    standing_requests_qs = StandingRequest.objects.filter(
+        contact_type_id=CorporationContact.get_contact_type_id()
+    )
+    standings_requests = {
+        obj.contact_id: obj
+        for obj in standing_requests_qs.filter(contact_id__in=eve_corporations.keys())
+    }
+    for contact in corporations_qs:
+        if contact.contact_id in eve_corporations:
+            corporation = eve_corporations[contact.contact_id]
+            try:
+                standing_request = standings_requests[contact.contact_id]
+            except KeyError:
+                main = None
+                has_required_scopes = None
+                state_name = ""
+            else:
+                user = standing_request.user
+                main = user.profile.main_character
+                state_name = user.profile.state.name
+                has_required_scopes = (
+                    not corporation.is_npc
+                    and corporation.user_has_all_member_tokens(
+                        user=user, quick_check=True
                     )
-                except StandingRequest.DoesNotExist:
-                    main = None
-                    has_required_scopes = None
-                    state_name = ""
-                else:
-                    user = standing_request.user
-                    main = user.profile.main_character
-                    state_name = user.profile.state.name
-                    has_required_scopes = (
-                        not corporation.is_npc
-                        and corporation.user_has_all_member_tokens(
-                            user=user, quick_check=True
-                        )
-                    )
-                finally:
-                    main_character_name = main.character_name if main else ""
-                    main_character_ticker = main.corporation_ticker if main else ""
-                    main_character_icon_url = (
-                        main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
-                    )
-                    labels = [label.name for label in contact.labels.all()]
-
-                corporations_data.append(
-                    {
-                        "corporation_id": corporation.corporation_id,
-                        "corporation_name": corporation.corporation_name,
-                        "corporation_icon_url": corporation.logo_url(DEFAULT_ICON_SIZE),
-                        "alliance_id": corporation.alliance_id,
-                        "alliance_name": corporation.alliance_name,
-                        "standing": contact.standing,
-                        "labels": labels,
-                        "has_required_scopes": has_required_scopes,
-                        "state": state_name,
-                        "main_character_name": main_character_name,
-                        "main_character_ticker": main_character_ticker,
-                        "main_character_icon_url": main_character_icon_url,
-                    }
                 )
+            finally:
+                main_character_name = main.character_name if main else ""
+                main_character_ticker = main.corporation_ticker if main else ""
+                main_character_icon_url = (
+                    main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
+                )
+                labels = [label.name for label in contact.labels.all()]
 
-        alliances_data = list()
-        for contact in contacts.alliancecontact_set.all().order_by("name"):
-            alliances_data.append(
+            corporations_data.append(
                 {
-                    "alliance_id": contact.contact_id,
-                    "alliance_name": contact.name,
-                    "alliance_icon_url": EveAllianceInfo.generic_logo_url(
-                        contact.contact_id, DEFAULT_ICON_SIZE
-                    ),
+                    "corporation_id": corporation.corporation_id,
+                    "corporation_name": corporation.corporation_name,
+                    "corporation_icon_url": corporation.logo_url(DEFAULT_ICON_SIZE),
+                    "alliance_id": corporation.alliance_id,
+                    "alliance_name": corporation.alliance_name,
                     "standing": contact.standing,
-                    "labels": [label.name for label in contact.labels.all()],
+                    "labels": labels,
+                    "has_required_scopes": has_required_scopes,
+                    "state": state_name,
+                    "main_character_name": main_character_name,
+                    "main_character_ticker": main_character_ticker,
+                    "main_character_icon_url": main_character_icon_url,
                 }
             )
 
-        return {"corps": corporations_data, "alliances": alliances_data}
+    alliances_data = list()
+    for contact in (
+        contacts.alliancecontact_set.all().prefetch_related("labels").order_by("name")
+    ):
+        alliances_data.append(
+            {
+                "alliance_id": contact.contact_id,
+                "alliance_name": contact.name,
+                "alliance_icon_url": EveAllianceInfo.generic_logo_url(
+                    contact.contact_id, DEFAULT_ICON_SIZE
+                ),
+                "standing": contact.standing,
+                "labels": [label.name for label in contact.labels.all()],
+            }
+        )
 
-    my_groups_data = cache_view_groups_json.get_or_set(generate_groups_data)
+    my_groups_data = {"corps": corporations_data, "alliances": alliances_data}
     return JsonResponse(my_groups_data, safe=False)
 
 
