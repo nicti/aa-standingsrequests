@@ -1,5 +1,7 @@
 {% extends 'allianceauth/base.html' %}
 {% load i18n %}
+{% load static %}
+
 {% block page_title %}{% trans app_title %}{% endblock %}
 
 {% block content %}
@@ -10,3 +12,8 @@
         </div>
     </div>
 {% endblock %}
+
+{% block extra_css %}
+    {% include "standingsrequests/bundles/angular.html" %}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/global.css' %}" type="text/css" media="screen">
+{% endblock extra_css %}

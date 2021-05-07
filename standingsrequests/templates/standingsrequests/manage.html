@@ -4,7 +4,7 @@
 {% load i18n %}
 
 {% block extra_css %}
-    {% include "standingsrequests/bundles/angular.html" %}
+    {{ block.super }}
     <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}
 

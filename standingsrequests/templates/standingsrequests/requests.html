@@ -3,10 +3,6 @@
 {% load static %}
 {% load i18n %}
 
-{% block extra_css %}
-    {% include "standingsrequests/bundles/angular.html" %}
-{% endblock extra_css %}
-
 {% block page_content %}
     <div ng-app="standingsApp" ng-controller="ViewRequestsController">
         <error-messages></error-messages>
