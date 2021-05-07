@@ -4,6 +4,7 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.cache import cache_page
 from esi.decorators import token_required
 
 from allianceauth.authentication.models import CharacterOwnership
@@ -24,7 +25,6 @@ from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
-from .helpers.viewcache import cache_view_pilots_json
 from .helpers.writers import UnicodeWriter
 from .models import (
     ContactSet,
@@ -502,73 +502,80 @@ def view_pilots_standings(request):
     )
 
 
+@cache_page(60 * CACHED_PAGES_MINUTES)
 @login_required
 @permission_required("standingsrequests.view")
 def view_pilots_standings_json(request):
-    logger.debug("view_pilot_standings_json called by %s", request.user)
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
 
-    def generate_characters_data():
+    character_contacts_qs = (
+        contacts.charactercontact_set.all().prefetch_related("labels").order_by("name")
+    )
+    character_contact_ids = set(
+        character_contacts_qs.values_list("contact_id", flat=True)
+    )
+    eve_characters = {
+        obj.character_id: obj
+        for obj in EveCharacter.objects.select_related(
+            "character_ownership__user",
+            "character_ownership__user__profile__main_character",
+            "character_ownership__user__profile__state",
+        ).filter(character_id__in=character_contact_ids)
+    }
+    characters_data = list()
+    for contact in character_contacts_qs:
+        character = eve_characters.get(contact.contact_id)
         try:
-            contacts = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            contacts = ContactSet()
-
-        characters_data = list()
-        character_contacts = contacts.charactercontact_set.all().order_by("name")
-        for p in character_contacts:
-            character = EveCharacter.objects.get_character_by_id(p.contact_id)
-            try:
-                user = character.character_ownership.user
-            except AttributeError:
-                character = EveCharacterHelper(p.contact_id)
-                main = None
-                state = ""
-                has_required_scopes = None
-            else:
-                user = character.character_ownership.user
-                main = user.profile.main_character
-                state = user.profile.state.name if user.profile.state else ""
-                has_required_scopes = StandingRequest.has_required_scopes_for_request(
-                    character=character, user=user, quick_check=True
-                )
-            finally:
-                character_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
-                corporation_id = character.corporation_id if character else None
-                corporation_name = character.corporation_name if character else None
-                corporation_ticker = character.corporation_ticker if character else None
-                alliance_id = character.alliance_id if character else None
-                alliance_name = character.alliance_name if character else None
-                main_character_name = main.character_name if main else None
-                main_character_ticker = main.corporation_ticker if main else None
-                main_character_icon_url = (
-                    main.portrait_url(DEFAULT_ICON_SIZE) if main else None
-                )
-                labels = [label.name for label in p.labels.all()]
-
-            characters_data.append(
-                {
-                    "character_id": p.contact_id,
-                    "character_name": p.name,
-                    "character_icon_url": character_icon_url,
-                    "corporation_id": corporation_id,
-                    "corporation_name": corporation_name,
-                    "corporation_ticker": corporation_ticker,
-                    "alliance_id": alliance_id,
-                    "alliance_name": alliance_name,
-                    "has_required_scopes": has_required_scopes,
-                    "state": state,
-                    "main_character_name": main_character_name,
-                    "main_character_ticker": main_character_ticker,
-                    "main_character_icon_url": main_character_icon_url,
-                    "standing": p.standing,
-                    "labels": labels,
-                }
+            user = character.character_ownership.user
+        except AttributeError:
+            character = EveCharacterHelper(contact.contact_id)
+            main = None
+            state = ""
+            has_required_scopes = None
+        else:
+            user = character.character_ownership.user
+            main = user.profile.main_character
+            state = user.profile.state.name if user.profile.state else ""
+            has_required_scopes = StandingRequest.has_required_scopes_for_request(
+                character=character, user=user, quick_check=True
             )
+        finally:
+            character_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
+            corporation_id = character.corporation_id if character else None
+            corporation_name = character.corporation_name if character else None
+            corporation_ticker = character.corporation_ticker if character else None
+            alliance_id = character.alliance_id if character else None
+            alliance_name = character.alliance_name if character else None
+            main_character_name = main.character_name if main else None
+            main_character_ticker = main.corporation_ticker if main else None
+            main_character_icon_url = (
+                main.portrait_url(DEFAULT_ICON_SIZE) if main else None
+            )
+            labels = [label.name for label in contact.labels.all()]
 
-        return characters_data
-
-    my_characters_data = cache_view_pilots_json.get_or_set(generate_characters_data)
-    return JsonResponse(my_characters_data, safe=False)
+        characters_data.append(
+            {
+                "character_id": contact.contact_id,
+                "character_name": contact.name,
+                "character_icon_url": character_icon_url,
+                "corporation_id": corporation_id,
+                "corporation_name": corporation_name,
+                "corporation_ticker": corporation_ticker,
+                "alliance_id": alliance_id,
+                "alliance_name": alliance_name,
+                "has_required_scopes": has_required_scopes,
+                "state": state,
+                "main_character_name": main_character_name,
+                "main_character_ticker": main_character_ticker,
+                "main_character_icon_url": main_character_icon_url,
+                "standing": contact.standing,
+                "labels": labels,
+            }
+        )
+    return JsonResponse(characters_data, safe=False)
 
 
 @login_required
@@ -673,6 +680,7 @@ def view_groups_standings(request):
     )
 
 
+@cache_page(60 * CACHED_PAGES_MINUTES)
 @login_required
 @permission_required("standingsrequests.view")
 def view_groups_standings_json(request):
