@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required, permission_required
+from django.db import models
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
@@ -26,13 +27,11 @@ from .helpers.eveentity import EveEntityHelper
 from .helpers.viewcache import cache_view_groups_json, cache_view_pilots_json
 from .helpers.writers import UnicodeWriter
 from .models import (
-    CharacterContact,
     ContactSet,
     CorporationContact,
     EveEntity,
     StandingRequest,
     StandingRevocation,
-    models,
 )
 from .tasks import update_all
 
@@ -132,18 +131,17 @@ def partial_request_entities(request):
         )
 
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
-    character_contacts_qs = contact_set.charactercontact_set.filter(
-        contact_id__in=eve_characters_qs.values_list("character_id", flat=True)
+    eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
+    contacts_for_characters_qs = contact_set.charactercontact_set.filter(
+        contact_id__in=list(eve_characters.keys())
     )
+    characters_with_standing = {
+        contact["contact_id"]: contact["standing"]
+        for contact in contacts_for_characters_qs.values("contact_id", "standing")
+    }
     characters_data = list()
-    for character in eve_characters_qs:
-        try:
-            standing = character_contacts_qs.get(
-                contact_id=character.character_id
-            ).standing
-        except CharacterContact.DoesNotExist:
-            standing = None
-
+    for character in eve_characters.values():
+        standing = characters_with_standing.get(character.character_id)
         characters_data.append(
             {
                 "character": character,
