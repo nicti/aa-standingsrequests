@@ -1,6 +1,8 @@
+from eveuniverse.models import EveEntity
+
 from allianceauth.eveonline.evelinks import eveimageserver
 
-from ..models import CharacterAssociation, EveEntity
+from ..models import CharacterAssociation
 
 
 class EveCharacterHelper:
@@ -41,22 +43,15 @@ class EveCharacterHelper:
             for entity_id in [self.character_id, self.corporation_id, self.alliance_id]
             if entity_id is not None
         ]
-        names = EveEntity.objects.get_names(entity_ids)
-        names_ids = names.keys()
+        resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
         self.character_name = (
-            names[self.character_id]
-            if self.character_id and self.character_id in names_ids
-            else None
+            resolver.to_name(self.character_id) if self.character_id else None
         )
         self.corporation_name = (
-            names[self.corporation_id]
-            if self.corporation_id and self.corporation_id in names_ids
-            else None
+            resolver.to_name(self.corporation_id) if self.corporation_id else None
         )
         self.alliance_name = (
-            names[self.alliance_id]
-            if self.alliance_id and self.alliance_id in names_ids
-            else None
+            resolver.to_name(self.alliance_id) if self.alliance_id else None
         )
 
     def portrait_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:

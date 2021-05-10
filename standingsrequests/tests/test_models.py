@@ -194,7 +194,7 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
 @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
-class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
+class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -748,64 +748,30 @@ class TestCharacterAssociation(TestCase):
 
     @patch(MODULE_PATH + ".EveEntity")
     def test_get_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
+        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
     @patch(MODULE_PATH + ".EveEntity")
     def test_get_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
+        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
         self.assertIsNone(my_assoc.character_name)
 
     @patch(MODULE_PATH + ".EveEntity")
     def test_get_main_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
+        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
     @patch(MODULE_PATH + ".EveEntity")
     def test_get_main_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
+        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
         self.assertIsNone(my_assoc.main_character_name)
 
     @patch(MODULE_PATH + ".EveEntity")
     def test_get_main_character_name_not_defined(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
+        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002)
         self.assertIsNone(my_assoc.main_character_name)
-
-
-class TestEveEntity(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-
-    """
-    @patch(MODULE_PATH + '.EveEntityHelper')
-    def test_get_names_from_contacts(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = \
-            get_entity_names
-
-        contact_set = ContactSet.objects.create(
-            name='Dummy Pilots Set'
-        )
-        CharacterContact.objects.create(
-            contact_set=contact_set
-            contact_id=1001,
-            name='Bruce Wayne',
-            standing=0
-        )
-        entities = EveEntity.objects.get_names([1001])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: 'Bruce Wayne'
-            }
-        )
-        self.assertListEqual(
-            mock_EveEntityHelper.get_names.call_args[0][0],
-            []
-        )
-    """

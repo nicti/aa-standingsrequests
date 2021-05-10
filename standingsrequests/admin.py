@@ -1,9 +1,9 @@
 from django.contrib import admin
+from eveuniverse.models import EveEntity
 
 from .models import (
     CharacterContact,
     CorporationContact,
-    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
@@ -26,7 +26,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveEntity.objects.get_name(obj.contact_id)
+        return EveEntity.objects.resolve_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
         if obj.contact_type_id in CharacterContact.contact_type_ids:

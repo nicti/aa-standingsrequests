@@ -4,9 +4,10 @@ from unittest.mock import Mock, patch
 from bravado.exception import HTTPError
 
 from django.utils.timezone import now
+from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
@@ -16,7 +17,6 @@ from ..models import (
     CharacterAssociation,
     CharacterContact,
     ContactSet,
-    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
@@ -30,7 +30,7 @@ from .my_test_data import (
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
     esi_post_characters_affiliation,
-    esi_post_universe_names,
+    generate_eve_entities_from_allianceauth,
 )
 
 MODULE_PATH = "standingsrequests.managers"
@@ -47,6 +47,16 @@ class TestContactSetManager(NoSocketsTestCase):
         add_character_to_user(
             cls.user, character, scopes=["esi-alliances.read_contacts.v1"]
         )
+        create_entity(EveCharacter, 1002)
+        create_entity(EveCharacter, 1003)
+        create_entity(EveCharacter, 1004)
+        create_entity(EveCharacter, 1005)
+        create_entity(EveCharacter, 1006)
+        create_entity(EveCharacter, 1008)
+        create_entity(EveCharacter, 1009)
+        create_entity(EveCharacter, 1010)
+        create_entity(EveAllianceInfo, 3010)
+        generate_eve_entities_from_allianceauth()
 
     def setUp(self):
         pass
@@ -103,7 +113,7 @@ class TestContactSetManager(NoSocketsTestCase):
         character = create_standings_char()
         self.assertEqual(ContactSet.standings_character(), character)
 
-    @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", 1002)
+    @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(MODULE_PATH_MODELS + ".EveCharacter.objects.create_character")
     def test_standings_character_not_exists(self, mock_create_character):
         character, _ = EveCharacter.objects.get_or_create(
@@ -116,9 +126,7 @@ class TestContactSetManager(NoSocketsTestCase):
         )
         mock_create_character.return_value = character
         self.assertEqual(ContactSet.standings_character(), character)
-        self.assertTrue(
-            EveEntity.objects.filter(entity_id=TEST_STANDINGS_API_CHARID).exists()
-        )
+        self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
 @patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
@@ -524,7 +532,7 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertEqual(assoc.main_character_id, 1001)
         self.assertEqual(assoc.alliance_id, 3001)
         self.assertEqual(
-            EveEntity.objects.get(entity_id=1001).name, my_character.character_name
+            EveEntity.objects.get(id=1001).name, my_character.character_name
         )
 
     def test_can_handle_no_main(self):
@@ -539,7 +547,7 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertIsNone(assoc.main_character_id)
         self.assertEqual(assoc.alliance_id, 3001)
         self.assertEqual(
-            EveEntity.objects.get(entity_id=1001).name, my_character.character_name
+            EveEntity.objects.get(id=1001).name, my_character.character_name
         )
 
     def test_can_handle_no_character_without_alliance(self):
@@ -554,7 +562,7 @@ class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
         self.assertIsNone(assoc.main_character_id)
         self.assertIsNone(assoc.alliance_id)
         self.assertEqual(
-            EveEntity.objects.get(entity_id=1004).name, my_character.character_name
+            EveEntity.objects.get(id=1004).name, my_character.character_name
         )
 
 
@@ -684,123 +692,3 @@ class TestCharacterAssociationManager(NoSocketsTestCase):
             set(CharacterAssociation.objects.get_api_expired_items(items_in=[1004])),
             {my_assoc_expired_2},
         )
-
-
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-class TestEveEntityManagerGetName(NoSocketsTestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-
-    def test_get_name_from_api_when_table_is_empty(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        self.assertEqual(EveEntity.objects.get_name(1001), "Bruce Wayne")
-
-    def test_get_name_when_exists_in_cache(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        self.assertEqual(EveEntity.objects.get_name(1001), "Bruce Wayne")
-
-    def test_get_name_that_not_exists(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        self.assertEqual(EveEntity.objects.get_name(1999), None)
-
-    def test_get_name_when_cache_outdated(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        my_entity = EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        my_entity.updated = now() - timedelta(days=31)
-        my_entity.save()
-        self.assertEqual(EveEntity.objects.get_name(1001), "Bruce Wayne")
-
-
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-class TestEveEntityManagerGetNames(NoSocketsTestCase):
-    def setUp(self):
-        EveEntity.objects.all().delete()
-
-    def test_get_names_when_table_is_empty(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: "Bruce Wayne",
-                1002: "Peter Parker",
-            },
-        )
-
-    def test_get_names_from_cache(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        EveEntity.objects.create(entity_id=1002, name="Peter Parker")
-        entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: "Bruce Wayne",
-                1002: "Peter Parker",
-            },
-        )
-
-    def test_get_names_from_cache_and_api(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: "Bruce Wayne",
-                1002: "Peter Parker",
-            },
-        )
-
-    def test_get_names_from_expired_cache_and_api(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        EveEntity.objects.filter(entity_id=1001).update(
-            updated=now() - timedelta(days=31)
-        )
-        entities = EveEntity.objects.get_names([1001, 1002])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: "Bruce Wayne",
-                1002: "Peter Parker",
-            },
-        )
-
-    def test_get_names_that_dont_exist(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
-        entities = EveEntity.objects.get_names([1999])
-        self.assertDictEqual(entities, dict())
-
-
-class TestEveEntityManager(NoSocketsTestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-
-    def test_update_name(self):
-        my_entity = EveEntity.objects.create(entity_id=1001, name="Bruce Wayne")
-        EveEntity.objects.update_name(1001, "Batman", EveEntity.CATEGORY_CHARACTER)
-        my_entity.refresh_from_db()
-        self.assertEqual(my_entity.name, "Batman")
-        self.assertEqual(my_entity.category, EveEntity.CATEGORY_CHARACTER)

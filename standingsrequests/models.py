@@ -5,9 +5,9 @@ from django.core import exceptions
 from django.db import models
 from django.utils.timezone import now
 from esi.models import Token
+from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
@@ -26,7 +26,6 @@ from .managers import (
     AbstractStandingsRequestManager,
     CharacterAssociationManager,
     ContactSetManager,
-    EveEntityManager,
     StandingRequestManager,
     StandingRevocationManager,
 )
@@ -181,7 +180,7 @@ class ContactSet(models.Model):
         except EveCharacter.DoesNotExist:
             character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
             EveEntity.objects.get_or_create(
-                entity_id=character.character_id,
+                id=character.character_id,
                 defaults={
                     "name": character.character_name,
                     "category": EveEntity.CATEGORY_CHARACTER,
@@ -200,7 +199,7 @@ class ContactSet(models.Model):
         if SR_OPERATION_MODE == "alliance":
             if character.alliance_id:
                 entity, _ = EveEntity.objects.get_or_create(
-                    entity_id=character.alliance_id,
+                    id=character.alliance_id,
                     defaults={
                         "name": character.alliance_name,
                         "category": EveEntity.CATEGORY_ALLIANCE,
@@ -210,7 +209,7 @@ class ContactSet(models.Model):
                 entity = None
         elif SR_OPERATION_MODE == "corporation":
             entity, _ = EveEntity.objects.get_or_create(
-                entity_id=character.corporation_id,
+                id=character.corporation_id,
                 defaults={
                     "name": character.corporation_name,
                     "category": EveEntity.CATEGORY_CORPORATION,
@@ -744,7 +743,7 @@ class CharacterAssociation(models.Model):
         Character name property for character_id
         :return: str character name
         """
-        name = EveEntity.objects.get_name(self.character_id)
+        name = EveEntity.objects.resolve_name(self.character_id)
         return name
 
     @property
@@ -754,60 +753,7 @@ class CharacterAssociation(models.Model):
         :return: str character name
         """
         if self.main_character_id:
-            name = EveEntity.objects.get_name(self.main_character_id)
+            name = EveEntity.objects.resolve_name(self.main_character_id)
         else:
             name = None
         return name
-
-
-class EveEntity(models.Model):
-    """An Eve Online entity like a character or a corporation
-
-    A main function of this class is to enable name matching for Eve IDs
-    """
-
-    CACHE_TIME = timedelta(days=30)
-
-    CATEGORY_ALLIANCE = "alliance"
-    CATEGORY_CHARACTER = "character"
-    CATEGORY_CONSTELLATION = "constellation"
-    CATEGORY_CORPORATION = "corporation"
-    CATEGORY_FACTION = "faction"
-    CATEGORY_INVENTORY_TYPE = "inventory_type"
-    CATEGORY_REGION = "region"
-    CATEGORY_SOLAR_SYSTEM = "solar_system"
-    CATEGORY_STATION = "station"
-
-    CATEGORY_CHOICES = (
-        (CATEGORY_ALLIANCE, "alliance"),
-        (CATEGORY_CHARACTER, "character"),
-        (CATEGORY_CONSTELLATION, "constellation"),
-        (CATEGORY_CORPORATION, "corporation"),
-        (CATEGORY_FACTION, "faction"),
-        (CATEGORY_INVENTORY_TYPE, "inventory_type"),
-        (CATEGORY_REGION, "region"),
-        (CATEGORY_SOLAR_SYSTEM, "solar_system"),
-        (CATEGORY_STATION, "station"),
-    )
-
-    entity_id = models.PositiveIntegerField(primary_key=True)
-    name = models.CharField(max_length=254)
-    category = models.CharField(
-        max_length=16, choices=CATEGORY_CHOICES, default=None, null=True
-    )
-    updated = models.DateTimeField(auto_now=True, db_index=True)
-
-    objects = EveEntityManager()
-
-    def icon_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
-        map_category_2_other = {
-            self.CATEGORY_ALLIANCE: "alliance_logo_url",
-            self.CATEGORY_CHARACTER: "character_portrait_url",
-            self.CATEGORY_CORPORATION: "corporation_logo_url",
-            self.CATEGORY_INVENTORY_TYPE: "type_icon_url",
-        }
-        if self.category not in map_category_2_other:
-            return ""
-        else:
-            func = map_category_2_other[self.category]
-            return getattr(eveimageserver, func)(self.entity_id, size=size)

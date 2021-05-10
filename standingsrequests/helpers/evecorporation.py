@@ -154,7 +154,9 @@ class EveCorporation:
             }
             if "alliance_id" in info and info["alliance_id"]:
                 args["alliance_id"] = info["alliance_id"]
-                args["alliance_name"] = EveEntity.objects.get_name(info["alliance_id"])
+                args["alliance_name"] = EveEntity.objects.resolve_name(
+                    info["alliance_id"]
+                )
 
             return cls(**args)
 

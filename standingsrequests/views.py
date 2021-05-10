@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
 from esi.decorators import token_required
+from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
@@ -26,13 +27,7 @@ from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
 from .helpers.writers import UnicodeWriter
-from .models import (
-    ContactSet,
-    CorporationContact,
-    EveEntity,
-    StandingRequest,
-    StandingRevocation,
-)
+from .models import ContactSet, CorporationContact, StandingRequest, StandingRevocation
 from .tasks import update_all
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -331,7 +326,7 @@ def request_pilot_standing(request, character_id):
             request,
             "An unexpected error occurred when trying to process "
             "your standing request for %s. Please try again."
-            % EveEntity.objects.get_name(character_id),
+            % EveEntity.objects.resolve_name(character_id),
         )
 
     return redirect("standingsrequests:create_requests")
@@ -407,7 +402,7 @@ def remove_pilot_standing(request, character_id):
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
-            % EveEntity.objects.get_name(character_id),
+            % EveEntity.objects.resolve_name(character_id),
         )
 
     return redirect("standingsrequests:create_requests")
@@ -452,7 +447,7 @@ def request_corp_standing(request, corporation_id):
             request,
             "An unexpected error occurred when trying to process "
             "your standing request for %s. Please try again."
-            % EveEntity.objects.get_name(corporation_id),
+            % EveEntity.objects.resolve_name(corporation_id),
         )
 
     return redirect("standingsrequests:create_requests")
@@ -522,7 +517,7 @@ def remove_corp_standing(request, corporation_id):
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
-            % EveEntity.objects.get_name(corporation_id),
+            % EveEntity.objects.resolve_name(corporation_id),
         )
 
     return redirect("standingsrequests:create_requests")
@@ -664,7 +659,7 @@ def download_pilot_standings(request):
 
     # lets request make sure all info is there in bulk
     character_contacts = contacts.charactercontact_set.all().order_by("name")
-    EveEntity.objects.get_names([p.contact_id for p in character_contacts])
+    EveEntity.objects.bulk_resolve_names([p.contact_id for p in character_contacts])
 
     for pilot_standing in character_contacts:
         char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
@@ -1004,7 +999,7 @@ def manage_requests_write(request, contact_id):
         else:
             StandingRequest.objects.remove_requests(contact_id)
             if SR_NOTIFICATIONS_ENABLED:
-                entity_name = EveEntity.objects.get_name(contact_id)
+                entity_name = EveEntity.objects.resolve_name(contact_id)
                 title = _("Standing request for %s rejected" % entity_name)
                 message = _(
                     "Your standing request for '%s' "
@@ -1043,7 +1038,7 @@ def manage_revocations_write(request, contact_id):
         else:
             StandingRevocation.objects.filter(contact_id=contact_id).delete()
             if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
-                entity_name = EveEntity.objects.get_name(contact_id)
+                entity_name = EveEntity.objects.resolve_name(contact_id)
                 title = _("Standing revocation for %s rejected" % entity_name)
                 message = _(
                     "Your standing revocation for '%s' "
@@ -1097,7 +1092,7 @@ def _standing_requests_to_view() -> models.QuerySet:
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
     source_entity = ContactSet.standings_source_entity()
-    char_name = EveEntity.objects.get_name(STANDINGS_API_CHARID)
+    char_name = EveEntity.objects.resolve_name(STANDINGS_API_CHARID)
     if not source_entity:
         messages_plus.error(
             request,
@@ -1136,7 +1131,7 @@ def view_auth_page(request, token):
             % {
                 "char_name": char_name,
                 "standings_api_char_id": STANDINGS_API_CHARID,
-                "token_char_name": EveEntity.objects.get_name(token.character_id),
+                "token_char_name": EveEntity.objects.resolve_name(token.character_id),
                 "token_char_id": token.character_id,
             },
         )
@@ -1150,6 +1145,6 @@ def view_requester_add_scopes(request, token):
     messages_plus.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
-        % {"char_name": EveEntity.objects.get_name(token.character_id)},
+        % {"char_name": EveEntity.objects.resolve_name(token.character_id)},
     )
     return redirect("standingsrequests:create_requests")

@@ -49,7 +49,7 @@ class TestViewAuthPage(NoSocketsTestCase):
     def setUp(self):
         self.factory = RequestFactory()
         EveEntity.objects.create(
-            entity_id=TEST_STANDINGS_API_CHARID, name=TEST_STANDINGS_API_CHARNAME
+            id=TEST_STANDINGS_API_CHARID, name=TEST_STANDINGS_API_CHARNAME
         )
 
     def make_request(self, user, character):
@@ -86,7 +86,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         user = AuthUtils.create_user("Clark Kent")
         character = AuthUtils.add_main_character_2(user, user.username, 1002)
         EveEntity.objects.create(
-            entity_id=character.character_id,
+            id=character.character_id,
             name=character.character_name,
             category=EveEntity.CATEGORY_CHARACTER,
         )

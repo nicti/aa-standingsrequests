@@ -1,21 +1,26 @@
-from unittest.mock import patch
-
 from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecharacter import EveCharacterHelper
 from ..models import CharacterAssociation
-from .my_test_data import create_contacts_set, esi_post_universe_names, get_my_test_data
+from .my_test_data import (
+    create_contacts_set,
+    create_entity,
+    generate_eve_entities_from_allianceauth,
+    get_my_test_data,
+)
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
 
 
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-class TestEveCorporation(NoSocketsTestCase):
-    def test_init_with_data_has_alliance(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
+class TestEveCharacter(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_entity(EveCharacter, 1001)
+        generate_eve_entities_from_allianceauth()
+
+    def test_init_with_data_has_alliance(self):
         create_contacts_set()
         character = EveCharacterHelper(character_id=1002)
         self.assertEqual(character.character_id, 1002)
@@ -27,10 +32,7 @@ class TestEveCorporation(NoSocketsTestCase):
         main = character.main_character
         self.assertEqual(main.character_id, 1001)
 
-    def test_init_with_data_has_no_alliance(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
+    def test_init_with_data_has_no_alliance(self):
         create_contacts_set()
         character = EveCharacterHelper(character_id=1004)
         self.assertEqual(character.character_id, 1004)
@@ -40,10 +42,7 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertIsNone(character.alliance_id)
         self.assertIsNone(character.alliance_name)
 
-    def test_init_with_data_has_no_main(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
+    def test_init_with_data_has_no_main(self):
         create_contacts_set()
         assoc = CharacterAssociation.objects.get(character_id=1001)
         assoc.main_character = None
@@ -57,10 +56,7 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(character.alliance_name, "Wayne Enterprises")
         self.assertIsNone(character.main_character)
 
-    def test_init_without_data(self, mock_esi_client):
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
+    def test_init_without_data(self):
         EveCharacter.objects.filter(character_id=1001).delete()
         data = get_my_test_data()["EveCharacter"]["1001"]
         EveCharacter.objects.create(**data)
