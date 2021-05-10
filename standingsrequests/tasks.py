@@ -12,7 +12,6 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
-from .helpers.viewcache import cache_view_groups_json, cache_view_pilots_json
 from .models import (
     AllianceContact,
     CharacterAssociation,
@@ -77,8 +76,6 @@ def standings_update():
             contact_set.generate_standing_requests_for_blue_alts()
         StandingRequest.objects.process_requests()
         StandingRevocation.objects.process_requests()
-        cache_view_pilots_json.clear()
-        cache_view_groups_json.clear()
 
 
 @shared_task(name="standings_requests.validate_requests")
