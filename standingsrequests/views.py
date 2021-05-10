@@ -869,31 +869,30 @@ def _compose_standing_requests_data(
     """composes list of standings requests or revocations based on queryset
     and returns it
     """
-    requests_data = list()
-
-    # preload characters in bulk
-    character_ids = requests_qs.exclude(
-        contact_type_id=CorporationContact.get_contact_type_id()
-    ).values_list("contact_id", flat=True)
-    if character_ids:
-        eve_characters = {
-            character.character_id: character
-            for character in EveCharacter.objects.filter(character_id__in=character_ids)
-        }
-    else:
-        eve_characters = list()
+    requests_qs = requests_qs.select_related(
+        "user", "user__profile__state", "user__profile__main_character"
+    )
+    # preload character ids in bulk
+    eve_characters = {
+        character.character_id: character
+        for character in EveCharacter.objects.filter(
+            character_id__in=(
+                requests_qs.exclude(
+                    contact_type_id=CorporationContact.get_contact_type_id()
+                ).values_list("contact_id", flat=True)
+            )
+        )
+    }
     # preload corporations in bulk
-    corporation_ids = requests_qs.filter(
-        contact_type_id=CorporationContact.get_contact_type_id()
-    ).values_list("contact_id", flat=True)
-    if corporation_ids:
-        eve_corporations = {
-            corporation.corporation_id: corporation
-            for corporation in EveCorporation.get_many_by_id(corporation_ids)
-        }
-    else:
-        eve_corporations = list()
-
+    eve_corporations = {
+        corporation.corporation_id: corporation
+        for corporation in EveCorporation.get_many_by_id(
+            requests_qs.filter(
+                contact_type_id=CorporationContact.get_contact_type_id()
+            ).values_list("contact_id", flat=True)
+        )
+    }
+    requests_data = list()
     for r in requests_qs:
         main_character_name = ""
         main_character_ticker = ""
