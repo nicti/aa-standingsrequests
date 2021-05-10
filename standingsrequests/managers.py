@@ -2,6 +2,7 @@ from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
 from django.db import models, transaction
+from django.db.models import Case, Q, Value, When
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
@@ -202,7 +203,30 @@ class _ContactsWrapper:
             self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
 
 
+class AbstractStandingsRequestQuerySet(models.QuerySet):
+    def annotate_is_pending(self) -> models.QuerySet:
+        return self.annotate(
+            is_pending_annotated=Case(
+                When(Q(action_date__isnull=True) & Q(is_effective=False), then=True),
+                default=Value(False),
+                output_field=models.BooleanField(),
+            )
+        )
+
+    def annotate_is_actioned(self) -> models.QuerySet:
+        return self.annotate(
+            is_actioned_annotated=Case(
+                When(Q(action_date__isnull=False) & Q(is_effective=False), then=True),
+                default=Value(False),
+                output_field=models.BooleanField(),
+            )
+        )
+
+
 class AbstractStandingsRequestManager(models.Manager):
+    def get_queryset(self) -> models.QuerySet:
+        return AbstractStandingsRequestQuerySet(self.model, using=self._db)
+
     def process_requests(self) -> None:
         """Process all the Standing requests/revocation objects"""
         from .models import (
@@ -331,22 +355,19 @@ class AbstractStandingsRequestManager(models.Manager):
 
         returns True if a request is pending API confirmation, False otherwise
         """
-        return (
-            self.filter(contact_id=contact_id)
-            .exclude(action_date__isnull=True)
-            .filter(is_effective=False)
-            .exists()
-        )
+        return self.filter(
+            contact_id=contact_id, action_date__isnull=False, is_effective=False
+        ).exists()
 
     def has_effective_request(self, contact_id: int) -> bool:
         """return True if an effective request exists for given contact_id,
         else False
         """
-        return self.filter(contact_id=contact_id).filter(is_effective=True).exists()
+        return self.filter(contact_id=contact_id, is_effective=True).exists()
 
     def pending_requests(self) -> models.QuerySet:
         """returns all pending requests for this class"""
-        return self.filter(action_date__isnull=True).filter(is_effective=False)
+        return self.filter(action_date__isnull=True, is_effective=False)
 
 
 class StandingRequestManager(AbstractStandingsRequestManager):

@@ -69,19 +69,21 @@
         </div>
     </div>
 
-{% endblock page_content %}
+{% endblock %}
 
-{% block extra_script %}
-    $(function() {
-        /* async load request_entities view into div or show HTTP errors if any */
-        $("#div_request_entities").load(
-            "{% url 'standingsrequests:request_entities' %}",
-            function(responseTxt, statusTxt, xhr){
-                if(statusTxt == "error"){
-                    $("#div_request_entities").html(
-                        '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
-                    );
-                }
+{% block extra_javascript %}
+    <script>
+        $(function() {
+            /* async load request_entities view into div or show HTTP errors if any */
+            $("#div_request_entities").load(
+                "{% url 'standingsrequests:request_entities' %}",
+                function(responseTxt, statusTxt, xhr){
+                    if(statusTxt == "error"){
+                        $("#div_request_entities").html(
+                            '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
+                        );
+                    }
+            });
         });
-    });
-{% endblock extra_script %}
+    </script>
+{% endblock %}

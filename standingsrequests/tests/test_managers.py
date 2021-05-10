@@ -283,6 +283,38 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1003))
 
 
+class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
+    def setUp(self):
+        self.user_manager = AuthUtils.create_user("Mike Manager")
+        self.user_requestor = AuthUtils.create_user("Roger Requestor")
+        ContactSet.objects.all().delete()
+        self.contact_set = create_contacts_set()
+        create_standings_char()
+
+    def test_pending_request_annotation(self):
+        # given
+        r1 = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+        )
+        r2 = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now(),
+        )
+        # when
+        requests = StandingRequest.objects.all().annotate_is_pending()
+        # then
+        self.assertTrue(requests.get(pk=r1.pk).is_pending_annotated)
+        self.assertFalse(requests.get(pk=r2.pk).is_pending_annotated)
+
+
 @patch(MODULE_PATH_MODELS + ".StandingRequest.can_request_corporation_standing")
 class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     @classmethod

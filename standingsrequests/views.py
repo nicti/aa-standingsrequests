@@ -107,20 +107,6 @@ def create_requests(request):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def create_request_debug(request):
-    logger.debug("Start index_view request")
-    context = {
-        "corporations_enabled": SR_CORPORATIONS_ENABLED,
-    }
-    return render(
-        request,
-        "standingsrequests/create_request_debug.html",
-        add_common_context(request, context),
-    )
-
-
-@login_required
-@permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def partial_request_entities(request):
     logger.debug("Start partial_request_entities request")
     try:
@@ -132,38 +118,64 @@ def partial_request_entities(request):
 
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
     eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
-    contacts_for_characters_qs = contact_set.charactercontact_set.filter(
-        contact_id__in=list(eve_characters.keys())
-    )
     characters_with_standing = {
         contact["contact_id"]: contact["standing"]
-        for contact in contacts_for_characters_qs.values("contact_id", "standing")
+        for contact in (
+            contact_set.charactercontact_set.filter(
+                contact_id__in=list(eve_characters.keys())
+            ).values("contact_id", "standing")
+        )
+    }
+    characters_standings_requests = {
+        obj.contact_id: obj
+        for obj in (
+            StandingRequest.objects.select_related("user")
+            .filter(contact_id__in=eve_characters.keys())
+            .annotate_is_pending()
+            .annotate_is_actioned()
+        )
+    }
+    characters_standing_revocation = {
+        obj.contact_id: obj
+        for obj in (
+            StandingRevocation.objects.filter(
+                contact_id__in=eve_characters.keys()
+            ).annotate_is_pending()
+        )
     }
     characters_data = list()
     for character in eve_characters.values():
-        standing = characters_with_standing.get(character.character_id)
+        character_id = character.character_id
+        standing = characters_with_standing.get(character_id)
+        has_pending_request = (
+            character_id in characters_standings_requests
+            and characters_standings_requests[character_id].is_pending_annotated
+        )
+        has_pending_revocation = (
+            character_id in characters_standing_revocation
+            and characters_standing_revocation[character_id].is_pending_annotated
+        )
+        has_actioned_request = (
+            character_id in characters_standings_requests
+            and characters_standings_requests[character_id].is_actioned_annotated
+        )
+        has_standing = (
+            character_id in characters_standings_requests
+            and characters_standings_requests[character_id].is_effective
+            and characters_standings_requests[character_id].user == request.user
+        )
         characters_data.append(
             {
                 "character": character,
                 "standing": standing,
-                "pendingRequest": StandingRequest.objects.has_pending_request(
-                    character.character_id
-                ),
-                "pendingRevocation": StandingRevocation.objects.has_pending_request(
-                    character.character_id
-                ),
-                "requestActioned": StandingRequest.objects.has_actioned_request(
-                    character.character_id
-                ),
+                "pendingRequest": has_pending_request,
+                "pendingRevocation": has_pending_revocation,
+                "requestActioned": has_actioned_request,
                 "inOrganisation": ContactSet.is_character_in_organisation(character),
                 "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
                     character, user=request.user, quick_check=True
                 ),
-                "hasStanding": StandingRequest.objects.filter(
-                    contact_id=character.character_id,
-                    user=request.user,
-                    is_effective=True,
-                ).exists(),
+                "hasStanding": has_standing,
             }
         )
 
@@ -176,18 +188,62 @@ def partial_request_entities(request):
             .exclude(alliance_id__in=ContactSet.alliance_ids_in_organization())
             .values_list("corporation_id", flat=True)
         )
-        corporation_contacts_qs = contact_set.corporationcontact_set.filter(
-            contact_id__in=corporation_ids
-        )
+        corporations_standing_requests = {
+            obj.contact_id: obj
+            for obj in (
+                StandingRequest.objects.select_related("user")
+                .filter(contact_id__in=corporation_ids)
+                .annotate_is_pending()
+                .annotate_is_actioned()
+            )
+        }
+        corporations_revocation_requests = {
+            obj.contact_id: obj
+            for obj in (
+                StandingRevocation.objects.filter(contact_id__in=corporation_ids)
+                .annotate_is_pending()
+                .annotate_is_actioned()
+            )
+        }
+        corporation_contacts = {
+            obj.contact_id: obj
+            for obj in (
+                contact_set.corporationcontact_set.filter(
+                    contact_id__in=corporation_ids
+                )
+            )
+        }
         for corporation in EveCorporation.get_many_by_id(corporation_ids):
             if corporation and not corporation.is_npc:
+                corporation_id = corporation.corporation_id
                 try:
-                    standing = corporation_contacts_qs.get(
-                        contact_id=corporation.corporation_id
-                    ).standing
-                except CorporationContact.DoesNotExist:
+                    standing = corporation_contacts[corporation_id].standing
+                except KeyError:
                     standing = None
-
+                has_pending_request = (
+                    corporation_id in corporations_standing_requests
+                    and corporations_standing_requests[
+                        corporation_id
+                    ].is_pending_annotated
+                )
+                has_pending_revocation = (
+                    corporation_id in corporations_revocation_requests
+                    and corporations_revocation_requests[
+                        corporation_id
+                    ].is_pending_annotated
+                )
+                has_actioned_request = (
+                    corporation_id in corporations_standing_requests
+                    and corporations_standing_requests[
+                        corporation_id
+                    ].is_actioned_annotated
+                )
+                has_standing = (
+                    corporation_id in corporations_standing_requests
+                    and corporations_standing_requests[corporation_id].is_effective
+                    and corporations_standing_requests[corporation_id].user
+                    == request.user
+                )
                 corporations_data.append(
                     {
                         "token_count": corporation.member_tokens_count_for_user(
@@ -195,19 +251,10 @@ def partial_request_entities(request):
                         ),
                         "corp": corporation,
                         "standing": standing,
-                        "pendingRequest": StandingRequest.objects.has_pending_request(
-                            corporation.corporation_id
-                        ),
-                        "pendingRevocation": StandingRevocation.objects.has_pending_request(
-                            corporation.corporation_id
-                        ),
-                        "requestActioned": StandingRequest.objects.has_actioned_request(
-                            corporation.corporation_id
-                        ),
-                        "hasStanding": StandingRequest.objects.filter(
-                            contact_id=corporation.corporation_id,
-                            is_effective=True,
-                        ).exists(),
+                        "pendingRequest": has_pending_request,
+                        "pendingRevocation": has_pending_revocation,
+                        "requestActioned": has_actioned_request,
+                        "hasStanding": has_standing,
                     }
                 )
 
