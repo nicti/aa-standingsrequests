@@ -1,25 +1,25 @@
 from datetime import timedelta
 
-from django.core import exceptions
 from django.contrib.auth.models import User
+from django.core import exceptions
 from django.db import models
 from django.utils.timezone import now
+from esi.models import Token
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import eveimageserver
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
-
-from esi.models import Token
+from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import (
+    SR_OPERATION_MODE,
     SR_REQUIRED_SCOPES,
     SR_STANDING_TIMEOUT_HOURS,
     STANDINGS_API_CHARID,
-    STR_CORP_IDS,
     STR_ALLIANCE_IDS,
-    SR_OPERATION_MODE,
+    STR_CORP_IDS,
 )
 from .helpers.evecorporation import EveCorporation
 from .managers import (
@@ -30,7 +30,6 @@ from .managers import (
     StandingRequestManager,
     StandingRevocationManager,
 )
-from app_utils.logging import LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -157,13 +156,12 @@ class ContactSet(models.Model):
             or character.alliance_id in cls.alliance_ids_in_organization()
         )
 
-    @staticmethod
-    def corporation_ids_in_organization() -> list:
-        return [int(corporation_id) for corporation_id in list(STR_CORP_IDS)]
+    def corporation_ids_in_organization() -> set:
+        return {int(corporation_id) for corporation_id in list(STR_CORP_IDS)}
 
     @staticmethod
-    def alliance_ids_in_organization() -> list:
-        return [int(corporation_id) for corporation_id in list(STR_ALLIANCE_IDS)]
+    def alliance_ids_in_organization() -> set:
+        return {int(corporation_id) for corporation_id in list(STR_ALLIANCE_IDS)}
 
     @staticmethod
     def required_esi_scope() -> str:

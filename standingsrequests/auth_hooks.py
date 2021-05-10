@@ -1,8 +1,9 @@
 import logging
 
 from django.utils.translation import gettext_lazy as _
+
 from allianceauth import hooks
-from allianceauth.services.hooks import ServicesHook, MenuItemHook
+from allianceauth.services.hooks import MenuItemHook, ServicesHook
 
 from . import __title__
 from .models import StandingRequest, StandingRevocation

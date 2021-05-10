@@ -1,39 +1,37 @@
 from datetime import timedelta
-from unittest.mock import patch, Mock
-from allianceauth.notifications.models import Notification
+from unittest.mock import Mock, patch
+
 from bravado.exception import HTTPError
 
 from django.utils.timezone import now
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
-from .entity_type_ids import (
-    CHARACTER_TYPE_ID,
-    CORPORATION_TYPE_ID,
-)
 from ..models import (
-    ContactSet,
-    CharacterAssociation,
     AbstractStandingsRequest,
-    EveEntity,
+    CharacterAssociation,
     CharacterContact,
+    ContactSet,
+    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
+from .entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
 from .my_test_data import (
-    create_entity,
+    TEST_STANDINGS_API_CHARID,
+    TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
+    create_entity,
     create_standings_char,
-    esi_post_universe_names,
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
     esi_post_characters_affiliation,
-    TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
+    esi_post_universe_names,
 )
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
 MODULE_PATH = "standingsrequests.managers"
 MODULE_PATH_MODELS = "standingsrequests.models"
@@ -283,6 +281,38 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
             contact_type_id=CHARACTER_TYPE_ID,
         )
         self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1003))
+
+
+class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
+    def setUp(self):
+        self.user_manager = AuthUtils.create_user("Mike Manager")
+        self.user_requestor = AuthUtils.create_user("Roger Requestor")
+        ContactSet.objects.all().delete()
+        self.contact_set = create_contacts_set()
+        create_standings_char()
+
+    def test_pending_request_annotation(self):
+        # given
+        r1 = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+        )
+        r2 = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now(),
+        )
+        # when
+        requests = StandingRequest.objects.all().annotate_is_pending()
+        # then
+        self.assertTrue(requests.get(pk=r1.pk).is_pending_annotated)
+        self.assertFalse(requests.get(pk=r2.pk).is_pending_annotated)
 
 
 @patch(MODULE_PATH_MODELS + ".StandingRequest.can_request_corporation_standing")

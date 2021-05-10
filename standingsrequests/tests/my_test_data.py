@@ -1,28 +1,26 @@
-from copy import deepcopy
 import inspect
 import json
 import os
+from copy import deepcopy
 from unittest.mock import Mock
 
 from bravado.exception import HTTPNotFound
 
 from allianceauth.eveonline.models import (
+    EveAllianceInfo,
     EveCharacter,
     EveCorporationInfo,
-    EveAllianceInfo,
 )
 
 from ..managers import _ContactsWrapper
-
 from ..models import (
     AllianceContact,
     CharacterAssociation,
+    CharacterContact,
     ContactSet,
     CorporationContact,
     EveEntity,
-    CharacterContact,
 )
-
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"

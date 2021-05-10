@@ -2,14 +2,13 @@ from unittest.mock import patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
+from esi.models import CallbackRedirect, Token
 
 from allianceauth.tests.auth_utils import AuthUtils
-from esi.models import Token, CallbackRedirect
-from app_utils.testing import generate_invalid_pk, _generate_token, _store_as_Token
+from app_utils.testing import _generate_token, _store_as_Token, generate_invalid_pk
 
-from .my_test_data import create_eve_objects
 from ..decorators import token_required_by_state
-
+from .my_test_data import create_eve_objects
 
 MODULE_PATH = "standingsrequests.decorators"
 PATH_MODELS = "standingsrequests.models"

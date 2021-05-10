@@ -5,14 +5,13 @@ from bravado.exception import HTTPError
 from django.contrib.auth.models import User
 from django.core.cache import cache
 
-from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import eveimageserver
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
-
-from .. import __title__
-from .esi_fetch import esi_fetch, _esi_client
 from app_utils.logging import LoggerAddTag
 
+from .. import __title__
+from .esi_fetch import _esi_client, esi_fetch
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

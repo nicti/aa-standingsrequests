@@ -8,15 +8,10 @@ from django.utils.translation import gettext_lazy as _
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
-
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_STANDINGS_STALE_HOURS,
-    SR_SYNC_BLUE_ALTS_ENABLED,
-)
-from .helpers.viewcache import cache_view_pilots_json, cache_view_groups_json
+from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
 from .models import (
     AllianceContact,
     CharacterAssociation,
@@ -27,7 +22,6 @@ from .models import (
     StandingRequest,
     StandingRevocation,
 )
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -82,8 +76,6 @@ def standings_update():
             contact_set.generate_standing_requests_for_blue_alts()
         StandingRequest.objects.process_requests()
         StandingRevocation.objects.process_requests()
-        cache_view_pilots_json.clear()
-        cache_view_groups_json.clear()
 
 
 @shared_task(name="standings_requests.validate_requests")

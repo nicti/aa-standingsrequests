@@ -1,11 +1,11 @@
 from django.contrib import admin
 
 from .models import (
-    StandingRequest,
-    StandingRevocation,
-    EveEntity,
     CharacterContact,
     CorporationContact,
+    EveEntity,
+    StandingRequest,
+    StandingRevocation,
 )
 
 
@@ -22,6 +22,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         "effective_date",
     )
     list_filter = ("is_effective",)
+    list_select_related = True
     ordering = ("-id",)
 
     def _contact_name(self, obj):

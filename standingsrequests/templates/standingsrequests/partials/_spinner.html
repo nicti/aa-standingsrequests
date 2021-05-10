@@ -1,0 +1,7 @@
+{% load static %}
+
+{% if NIGHT_MODE %}
+    <img src="{% static 'standingsrequests/img/Spinner-1s-64px-dark.gif' %}" alt="Spinner"/>
+{% else %}
+    <img src="{% static 'standingsrequests/img/Spinner-1s-64px-light.gif' %}" alt="Spinner"/>
+{% endif %}

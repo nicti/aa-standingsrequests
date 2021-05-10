@@ -23,7 +23,7 @@
                     <a href="{% url 'standingsrequests:manage' %}">
                         {% trans "Manage Requests" %}
                         {% if pending_total_count > 0 %}
-                            &nbsp;<span class="badge">{{ pending_total_count }}</span>
+                            &nbsp;<span class="badge badge-nav">{{ pending_total_count }}</span>
                         {% endif %}
                     </a>
                 </li>

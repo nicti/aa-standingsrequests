@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+
 from . import __title__, __version__
 
 
