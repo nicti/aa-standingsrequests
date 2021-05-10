@@ -157,11 +157,11 @@ class ContactSet(models.Model):
         )
 
     def corporation_ids_in_organization() -> set:
-        return {int(corporation_id) for corporation_id in list(STR_CORP_IDS)}
+        return {int(org_id) for org_id in list(STR_CORP_IDS)}
 
     @staticmethod
     def alliance_ids_in_organization() -> set:
-        return {int(corporation_id) for corporation_id in list(STR_ALLIANCE_IDS)}
+        return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
 
     @staticmethod
     def required_esi_scope() -> str:

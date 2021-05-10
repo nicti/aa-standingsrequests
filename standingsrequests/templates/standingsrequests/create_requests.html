@@ -14,11 +14,13 @@
         <br>
     </div>
 
-    <h3>{% trans "Your Corporations" %}</h3>
-    <div id="div_request_corporations">
-        {% include "standingsrequests/partials/_spinner.html" %}
-        <br>
-    </div>
+    {% if corporations_enabled %}
+        <h3>{% trans "Your Corporations" %}</h3>
+        <div id="div_request_corporations">
+            {% include "standingsrequests/partials/_spinner.html" %}
+            <br>
+        </div>
+    {% endif %}
 
     <div class="col-lg-12">
         <div class="panel panel-default">
@@ -95,17 +97,18 @@
                         );
                     }
             });
-
-            /* async load request_corporations view into div or show HTTP errors if any */
-            $("#div_request_corporations").load(
-                "{% url 'standingsrequests:request_corporations' %}",
-                function(responseTxt, statusTxt, xhr) {
-                    if (statusTxt == "error") {
-                        $("#div_request_corporations").html(
-                            '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
-                        );
-                    }
-            });
+            {% if corporations_enabled %}
+                /* async load request_corporations view into div or show HTTP errors if any */
+                $("#div_request_corporations").load(
+                    "{% url 'standingsrequests:request_corporations' %}",
+                    function(responseTxt, statusTxt, xhr) {
+                        if (statusTxt == "error") {
+                            $("#div_request_corporations").html(
+                                '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
+                            );
+                        }
+                });
+            {% endif %}
         });
     </script>
 {% endblock %}
