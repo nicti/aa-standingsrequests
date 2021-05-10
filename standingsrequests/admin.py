@@ -22,6 +22,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         "effective_date",
     )
     list_filter = ("is_effective",)
+    list_select_related = True
     ordering = ("-id",)
 
     def _contact_name(self, obj):

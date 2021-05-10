@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.7.1] - 2021-05-10
+
+### Changed
+
+- Reduced page load times for all pages
+
 ### Fixed
 
 - Spinner now has correct colors in dark mode
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - It's now possible again to copy the name of characters to the clipboard with one click
 
-### Changes
+### Changed
 
 - Now automatically redirects managers to manage page if there are open requests
 - Removed support for Django 2.2 & 3.0
