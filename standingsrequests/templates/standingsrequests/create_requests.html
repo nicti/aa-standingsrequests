@@ -4,7 +4,18 @@
 {% load i18n %}
 
 {% block page_content %}
-    <div id="div_request_entities">
+    <p>
+        On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
+    </p>
+
+    <h3>{% trans "Your Characters" %}</h3>
+    <div id="div_request_characters">
+        {% include "standingsrequests/partials/_spinner.html" %}
+        <br>
+    </div>
+
+    <h3>{% trans "Your Corporations" %}</h3>
+    <div id="div_request_corporations">
         {% include "standingsrequests/partials/_spinner.html" %}
         <br>
     </div>
@@ -74,12 +85,23 @@
 {% block extra_javascript %}
     <script>
         $(function() {
-            /* async load request_entities view into div or show HTTP errors if any */
-            $("#div_request_entities").load(
-                "{% url 'standingsrequests:request_entities' %}",
-                function(responseTxt, statusTxt, xhr){
-                    if(statusTxt == "error"){
-                        $("#div_request_entities").html(
+            /* async load request_characters view into div or show HTTP errors if any */
+            $("#div_request_characters").load(
+                "{% url 'standingsrequests:request_characters' %}",
+                function(responseTxt, statusTxt, xhr) {
+                    if (statusTxt == "error") {
+                        $("#div_request_characters").html(
+                            '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
+                        );
+                    }
+            });
+
+            /* async load request_corporations view into div or show HTTP errors if any */
+            $("#div_request_corporations").load(
+                "{% url 'standingsrequests:request_corporations' %}",
+                function(responseTxt, statusTxt, xhr) {
+                    if (statusTxt == "error") {
+                        $("#div_request_corporations").html(
                             '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
                         );
                     }

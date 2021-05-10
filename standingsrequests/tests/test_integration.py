@@ -221,7 +221,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_characters"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -295,7 +295,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_characters"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -367,7 +367,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_corporations"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -441,7 +441,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_corporations"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -514,7 +514,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_characters"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -577,7 +577,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_corporations"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt
@@ -641,7 +641,7 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_requestor)
         create_page_1 = self.app.get(reverse("standingsrequests:create_requests"))
         self.assertEqual(create_page_1.status_code, 200)
-        create_page_2 = self.app.get(reverse("standingsrequests:request_entities"))
+        create_page_2 = self.app.get(reverse("standingsrequests:request_characters"))
         self.assertEqual(create_page_2.status_code, 200)
 
         # user requests standing for alt

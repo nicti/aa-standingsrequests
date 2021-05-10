@@ -1,0 +1,100 @@
+{% load static %}
+{% load i18n %}
+{% load evelinks %}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="table-responsive">
+            <table class="table table-condensed table-hover table-striped">
+                <tr>
+                    <th class="col-md-2">{% trans "Character" %}</th>
+                    <th class="col-md-2">{% trans "Corporation" %}</th>
+                    <th class="col-md-2">{% trans "Alliance" %}</th>
+                    <th class="col-md-1">{% trans "Scopes" %}</th>
+                    <th class="col-md-1">{% trans "Standing" %}</th>
+                    <th class="col-md-1">{% trans "Actions" %}</th>
+                </tr>
+                {% for std in characters %}
+                    <tr>
+                        <td>
+                            <img src="{{ std.character|character_portrait_url:32 }}" class="img-circle">&nbsp;&nbsp;&nbsp;{{ std.character.character_name }}
+                        </td>
+                        <td>
+                            [{{ std.character.corporation_ticker }}] {{ std.character.corporation_name }}
+                        </td>
+                        <td>
+                            {{ std.character.alliance_name|default_if_none:"" }}
+                        </td>
+                        <td>
+                            <span style="font-size:2em;">
+                                {% if std.hasRequiredScopes %}
+                                    <i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>
+                                {% else %}
+                                    <a title="{% trans 'Add required scopes' %}" class="btn btn-danger btn-sm" href="{% url 'standingsrequests:view_requester_add_scopes' %}"><i class="fas fa-plus"></i> {% trans "Required" %}</a>
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <p>
+                                <span style="font-size:2em;">
+                                    {% if std.inOrganisation == True %}
+                                        <i class="fas fa-star fa-fw text-primary" title="{% trans 'In Organisation' %}"></i>
+                                    {% elif std.requestActioned == True %}
+                                        <i class="fas fa-hourglass-half fa-fw text-success" title="{% trans 'Accepted, pending update in game.' %}"></i>
+                                    {% elif std.pendingRequest == True %}
+                                        <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
+                                    {% elif std.pendingRevocation == True %}
+                                        <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
+                                    {% elif std.standing == None and std.pendingRequest == False %}
+                                        <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
+                                    {% else %}
+                                        {% include 'standingsrequests/partials/_standing.html' with standing=std.standing %}
+                                    {% endif %}
+                                </span>
+                            </p>
+                        </td>
+                        <td>
+                            <p>
+                                <span style="font-size:2em;">
+                                    {% if std.inOrganisation == True %}
+                                        <!-- Already in organisation, No actions -->
+                                    {% elif std.pendingRequest == True or std.requestActioned == True %}
+                                        <a
+                                            class="btn btn-warning"
+                                            role="button"
+                                            href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                            title="Cancel Request">
+                                            Cancel
+                                        </a>
+                                    {% elif std.pendingRevocation == True %}
+                                        <!-- Revoked, No actions -->
+                                    {% elif not std.hasStanding %}
+                                        <a
+                                            class="btn btn-primary"
+                                            role="button"
+                                            href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
+                                            title="Request to get standing for this character"
+                                            {% if not std.hasRequiredScopes %}
+                                            disabled
+                                            {% endif %}
+                                            >
+                                            &nbsp;Apply&nbsp;
+                                        </a>
+                                    {% else %}
+                                        <a
+                                            class="btn btn-danger"
+                                            role="button"
+                                            href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                            title="Request to revoke standing for this character">
+                                            Revoke
+                                        </a>
+                                    {% endif %}
+                                </span>
+                            </p>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</div>
