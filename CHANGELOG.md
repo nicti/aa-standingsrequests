@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Fixed
+
+- Corporations can not be disabled with global flag
+
 ## [0.7.1] - 2021-05-10
 
 ### Changed
