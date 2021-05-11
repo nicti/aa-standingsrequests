@@ -576,7 +576,6 @@ def view_pilots_standings_json(request):
         except (AttributeError, ObjectDoesNotExist):
             main = None
             state = ""
-            has_required_scopes = None
             corporation_ticker = None
             main_character_name = None
             main_character_ticker = None
@@ -596,9 +595,6 @@ def view_pilots_standings_json(request):
         else:
             main = user.profile.main_character
             state = user.profile.state.name if user.profile.state else ""
-            has_required_scopes = StandingRequest.has_required_scopes_for_request(
-                character=character, user=user, quick_check=True
-            )
             corporation_id = character.corporation_id
             corporation_name = character.corporation_name
             corporation_ticker = character.corporation_ticker
@@ -619,7 +615,6 @@ def view_pilots_standings_json(request):
                 "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
-                "has_required_scopes": has_required_scopes,
                 "state": state,
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
@@ -716,7 +711,7 @@ def view_groups_standings(request):
     if contact_set:
         groups_count = (
             contact_set.contacts.filter_corporations()
-            | contact_set.contacts.filter_characters()
+            | contact_set.contacts.filter_alliances()
         ).count()
 
     else:
@@ -770,18 +765,11 @@ def view_groups_standings_json(request):
                 standing_request = standings_requests[contact.eve_entity_id]
             except KeyError:
                 main = None
-                has_required_scopes = None
                 state_name = ""
             else:
                 user = standing_request.user
                 main = user.profile.main_character
                 state_name = user.profile.state.name
-                has_required_scopes = (
-                    not corporation.is_npc
-                    and corporation.user_has_all_member_tokens(
-                        user=user, quick_check=True
-                    )
-                )
             finally:
                 main_character_name = main.character_name if main else ""
                 main_character_ticker = main.corporation_ticker if main else ""
@@ -799,7 +787,6 @@ def view_groups_standings_json(request):
                     "alliance_name": corporation.alliance_name,
                     "standing": contact.standing,
                     "labels": labels,
-                    "has_required_scopes": has_required_scopes,
                     "state": state_name,
                     "main_character_name": main_character_name,
                     "main_character_ticker": main_character_ticker,

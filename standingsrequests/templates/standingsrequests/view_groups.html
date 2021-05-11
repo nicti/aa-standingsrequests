@@ -11,28 +11,25 @@
             {% trans "Groups" %} ({{groups_count|default:"-"}})
         </h2>
         {% include "standingsrequests/partials/_contacts_legend.html" %}
-        <div class="container-fluid">
 
-            <div id="div_spinner" class="row">
-                {% include "standingsrequests/partials/_spinner.html" %}
-            </div>
+        <div id="div_spinner">
+            {% include "standingsrequests/partials/_spinner.html" %}
+        </div>
 
-            <div id="div_results" class="row" style="visibility: hidden">
+        <div id="div_results" class="container-fluid" style="visibility: hidden">
+            <div class="row">
 
                 <h3>Corporations</h3>
-
                 <div class="table-responsive">
                     <table class="table table-condensed table-hover table-striped">
-
                         <!-- Corporations -->
                         <tr>
                             <th class="col-md-2">{% trans "Name" %}</th>
                             <th class="col-md-2">{% trans "Alliance" %}</th>
                             <th class="col-md-2">{% trans "Main Character" %}</th>
                             <th class="col-md-1">{% trans "Standing" %}</th>
-                            <th class="col-md-1">{% trans "Scopes" %}</th>
                             <th class="col-md-1">{% trans "State" %}</th>
-                            <th class="col-md-1">{% trans "Labels" %}</th>
+                            <th class="col-md-2">{% trans "Labels" %}</th>
                         </tr>
                         {% verbatim %}
                         <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">
@@ -58,9 +55,6 @@
                                 </span>
                             </td>
                             <td>
-                                <bool-checkmark value="entity.has_required_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
-                            </td>
-                                <td>
                                 {{entity.state}}
                             </td>
                             <td>
@@ -79,15 +73,16 @@
                         {% endverbatim %}
 
                     </table>
+                </div>
 
-                    <h3>Alliances</h3>
-
+                <h3>Alliances</h3>
+                <div class="table-responsive">
                     <table class="table table-condensed table-hover table-striped">
                         <!-- Alliances -->
                         <tr>
                             <th class="col-md-6">{% trans "Name" %}</th>
-                            <th class="col-md-3">{% trans "Standing" %}</th>
-                            <th class="col-md-1">{% trans "Labels" %}</th>
+                            <th class="col-md-2">{% trans "Standing" %}</th>
+                            <th class="col-md-2">{% trans "Labels" %}</th>
                         </tr>
                         {% verbatim %}
                         <!-- Should DRY this -->
@@ -117,8 +112,8 @@
                         {% endverbatim %}
                     </table>
                 </div>
-            </div>
 
+            </div>
         </div>
     </div>
 {% endblock page_content %}
