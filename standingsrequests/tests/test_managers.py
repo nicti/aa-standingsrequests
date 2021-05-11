@@ -15,7 +15,7 @@ from app_utils.testing import NoSocketsTestCase, add_character_to_user
 from ..core import BaseConfig
 from ..models import (
     AbstractStandingsRequest,
-    CharacterAssociation,
+    CharacterAffiliation,
     Contact,
     ContactSet,
     StandingRequest,
@@ -480,7 +480,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
         self.assertTrue(my_revocation.is_effective)
 
 
-# class TestCharacterAssociationsManagerAuth(NoSocketsTestCase):
+# class TestCharacterAffiliationsManagerAuth(NoSocketsTestCase):
 #     @classmethod
 #     def setUpClass(cls):
 #         super().setUpClass()
@@ -489,16 +489,16 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #     def setUp(self):
 #         EveCharacter.objects.all().delete()
 #         CharacterOwnership.objects.all().delete()
-#         CharacterAssociation.objects.all().delete()
+#         CharacterAffiliation.objects.all().delete()
 #         EveEntity.objects.all().delete()
 
 #     def test_can_update_from_one_character(self):
 #         my_character = create_entity(EveCharacter, 1001)
 #         add_character_to_user(self.user, my_character, is_main=True)
 
-#         CharacterAssociation.objects.update_from_auth()
-#         self.assertEqual(CharacterAssociation.objects.count(), 1)
-#         assoc = CharacterAssociation.objects.first()
+#         CharacterAffiliation.objects.update_from_auth()
+#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
+#         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1001)
 #         self.assertEqual(assoc.corporation_id, 2001)
 #         self.assertEqual(assoc.main_character_id, 1001)
@@ -511,9 +511,9 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #         my_character = create_entity(EveCharacter, 1001)
 #         add_character_to_user(self.user, my_character)
 
-#         CharacterAssociation.objects.update_from_auth()
-#         self.assertEqual(CharacterAssociation.objects.count(), 1)
-#         assoc = CharacterAssociation.objects.first()
+#         CharacterAffiliation.objects.update_from_auth()
+#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
+#         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1001)
 #         self.assertEqual(assoc.corporation_id, 2001)
 #         self.assertIsNone(assoc.main_character_id)
@@ -526,9 +526,9 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #         my_character = create_entity(EveCharacter, 1004)
 #         add_character_to_user(self.user, my_character)
 
-#         CharacterAssociation.objects.update_from_auth()
-#         self.assertEqual(CharacterAssociation.objects.count(), 1)
-#         assoc = CharacterAssociation.objects.first()
+#         CharacterAffiliation.objects.update_from_auth()
+#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
+#         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1004)
 #         self.assertEqual(assoc.corporation_id, 2003)
 #         self.assertIsNone(assoc.main_character_id)
@@ -539,7 +539,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
 
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
-class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
+class TestCharacterAffiliationsManagerApi(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -551,10 +551,10 @@ class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
         )
         create_contacts_set(include_assoc=False)
         # when
-        CharacterAssociation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_api()
         # then
         existing_objects = set(
-            CharacterAssociation.objects.values_list("character_id", flat=True)
+            CharacterAffiliation.objects.values_list("character_id", flat=True)
         )
         self.assertSetEqual(
             existing_objects, {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
@@ -566,14 +566,14 @@ class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=True)
-        assoc = CharacterAssociation.objects.get(character_id=1001)
+        assoc = CharacterAffiliation.objects.get(character_id=1001)
         assoc.corporation = EveEntity.objects.get(id=2003)
         assoc.save()
         # when
-        CharacterAssociation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_api()
         # then
         existing_objects = set(
-            CharacterAssociation.objects.values_list("character_id", flat=True)
+            CharacterAffiliation.objects.values_list("character_id", flat=True)
         )
         self.assertSetEqual(
             existing_objects,
@@ -587,4 +587,4 @@ class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
             Mock()
         )
         create_contacts_set(include_assoc=False)
-        CharacterAssociation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_api()

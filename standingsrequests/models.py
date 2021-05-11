@@ -19,7 +19,7 @@ from .core import BaseConfig, ContactType, MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
-    CharacterAssociationManager,
+    CharacterAffiliationManager,
     ContactQuerySet,
     ContactSetManager,
     StandingRequestManager,
@@ -506,8 +506,8 @@ class StandingRevocation(AbstractStandingsRequest):
     objects = StandingRevocationManager()
 
 
-class CharacterAssociation(models.Model):
-    """Associations of a character."""
+class CharacterAffiliation(models.Model):
+    """Affiliation of a character."""
 
     character = models.OneToOneField(
         EveEntity,
@@ -516,25 +516,25 @@ class CharacterAssociation(models.Model):
         related_name="character_association",
     )
     corporation = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, related_name="corporation_associations"
+        EveEntity, on_delete=models.CASCADE, related_name="+"
     )
     alliance = models.ForeignKey(
         EveEntity,
         on_delete=models.CASCADE,
         null=True,
         default=None,
-        related_name="alliance_associations",
+        related_name="+",
     )
     main_character = models.ForeignKey(
         EveEntity,
         on_delete=models.CASCADE,
         null=True,
         default=None,
-        related_name="main_association",
+        related_name="+",
     )
     updated = models.DateTimeField(auto_now_add=True)
 
-    objects = CharacterAssociationManager()
+    objects = CharacterAffiliationManager()
 
     @cached_property
     def character_name(self) -> str:

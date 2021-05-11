@@ -20,7 +20,7 @@ from ..core import MainOrganizations
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
     AbstractStandingsRequest,
-    CharacterAssociation,
+    CharacterAffiliation,
     Contact,
     ContactLabel,
     ContactSet,
@@ -600,39 +600,39 @@ class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
         self.assertFalse(StandingRequest.has_required_scopes_for_request(character))
 
 
-class TestCharacterAssociation(TestCase):
+class TestCharacterAffiliation(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_eve_entities()
 
     def test_get_character_name_exists(self):
-        my_assoc = CharacterAssociation.objects.create(
+        my_assoc = CharacterAffiliation.objects.create(
             character_id=1002, corporation_id=2001, main_character_id=1001
         )
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
     def test_get_character_name_not_exists(self):
         character = EveEntity.objects.create(id=1999)
-        my_assoc = CharacterAssociation.objects.create(
+        my_assoc = CharacterAffiliation.objects.create(
             character=character, corporation_id=2001, main_character_id=1001
         )
         self.assertIsNone(my_assoc.character_name)
 
     def test_get_main_character_name_exists(self):
-        my_assoc = CharacterAssociation.objects.create(
+        my_assoc = CharacterAffiliation.objects.create(
             character_id=1002, corporation_id=2001, main_character_id=1001
         )
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
     def test_get_main_character_name_not_exists(self):
-        my_assoc = CharacterAssociation.objects.create(
+        my_assoc = CharacterAffiliation.objects.create(
             character_id=1002, corporation_id=2001
         )
         self.assertIsNone(my_assoc.main_character_name)
 
     def test_get_main_character_name_not_defined(self):
-        my_assoc = CharacterAssociation.objects.create(
+        my_assoc = CharacterAffiliation.objects.create(
             character_id=1002, corporation_id=2001
         )
         self.assertIsNone(my_assoc.main_character_name)

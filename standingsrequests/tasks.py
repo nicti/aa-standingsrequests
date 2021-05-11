@@ -14,7 +14,7 @@ from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
 from .core import BaseConfig
 from .models import (
-    CharacterAssociation,
+    CharacterAffiliation,
     Contact,
     ContactLabel,
     ContactSet,
@@ -88,7 +88,7 @@ def validate_requests():
 def update_associations_auth():
     """Update associations from local auth data (Main character, corporations)"""
     logger.info("Associations updating from Auth")
-    CharacterAssociation.objects.update_from_auth()
+    CharacterAffiliation.objects.update_from_auth()
     logger.info("Finished Associations update from Auth")
 
 
@@ -96,7 +96,7 @@ def update_associations_auth():
 def update_associations_api():
     """Update character associations from the EVE API (corporations)"""
     logger.info("Associations updating from EVE API")
-    CharacterAssociation.objects.update_from_api()
+    CharacterAffiliation.objects.update_from_api()
     logger.info("Finished associations update from EVE API")
 
 

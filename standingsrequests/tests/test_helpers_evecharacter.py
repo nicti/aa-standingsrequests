@@ -2,7 +2,7 @@ from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecharacter import EveCharacterHelper
-from ..models import CharacterAssociation
+from ..models import CharacterAffiliation
 from .my_test_data import (
     create_contacts_set,
     create_entity,
@@ -42,7 +42,7 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertIsNone(character.alliance_name)
 
     def test_init_with_data_has_no_main(self):
-        assoc = CharacterAssociation.objects.get(character_id=1001)
+        assoc = CharacterAffiliation.objects.get(character_id=1001)
         assoc.main_character = None
         assoc.save()
         character = EveCharacterHelper(character_id=1001)

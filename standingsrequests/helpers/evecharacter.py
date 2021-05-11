@@ -1,6 +1,6 @@
 from allianceauth.eveonline.evelinks import eveimageserver
 
-from ..models import CharacterAssociation
+from ..models import CharacterAffiliation
 
 
 class EveCharacterHelper:
@@ -18,10 +18,10 @@ class EveCharacterHelper:
         self.main_character = None
         self.alliance_name = None
         try:
-            assoc = CharacterAssociation.objects.select_related(
+            assoc = CharacterAffiliation.objects.select_related(
                 "character", "corporation", "alliance", "main_character"
             ).get(character_id=self.character_id)
-        except CharacterAssociation.DoesNotExist:
+        except CharacterAffiliation.DoesNotExist:
             assoc = None
             self.corporation_id = None
             self.corporation_name = None

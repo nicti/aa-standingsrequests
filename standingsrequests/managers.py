@@ -520,11 +520,11 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         return instance
 
 
-class CharacterAssociationManager(models.Manager):
+class CharacterAffiliationManager(models.Manager):
     def update_from_auth(self) -> None:
         ...
 
-    #     """Update all character associations based on auth relationship data"""
+    #     """Update all character affiliations based on auth relationship data"""
     #     for character in EveCharacter.objects.all():
     #         logger.debug(
     #             "Updating Association from Auth for %s", character.character_name
@@ -573,12 +573,12 @@ class CharacterAssociationManager(models.Manager):
     #             )
 
     def update_from_api(self) -> None:
-        """Update all character associations we have contacts or requests for."""
+        """Update all character affiliations we have contacts or requests for."""
         character_ids = self._gather_character_ids()
         if character_ids:
-            associations = self._fetch_character_associations_from_esi(character_ids)
-            if associations:
-                self._store_associations(associations)
+            affiliations = self._fetch_characters_affiliation_from_esi(character_ids)
+            if affiliations:
+                self._store_affiliations(affiliations)
 
     def _gather_character_ids(self) -> list:
         from .models import ContactSet, StandingRequest, StandingRevocation
@@ -610,44 +610,44 @@ class CharacterAssociationManager(models.Manager):
             | set(character_ids_revocations)
         )
 
-    def _fetch_character_associations_from_esi(self, character_ids) -> list:
+    def _fetch_characters_affiliation_from_esi(self, character_ids) -> list:
         chunk_size = 1000
-        associations = []
+        affiliations = []
         for character_ids_chunk in chunks(character_ids, chunk_size):
             try:
-                associations_raw = esi_fetch(
+                response = esi_fetch(
                     "Character.post_characters_affiliation",
                     args={"characters": character_ids_chunk},
                 )
             except HTTPError:
-                logger.exception("Could not fetch character associations from ESI")
+                logger.exception("Could not fetch character affiliations from ESI")
                 return []
             else:
-                associations += associations_raw
-        return associations
+                affiliations += response
+        return affiliations
 
-    def _store_associations(self, associations) -> None:
-        assocs = list()
-        for association in associations:
+    def _store_affiliations(self, affiliations) -> None:
+        affiliation_objects = list()
+        for affiliation in affiliations:
             character, _ = EveEntity.objects.get_or_create(
-                id=association["character_id"]
+                id=affiliation["character_id"]
             )
             corporation, _ = EveEntity.objects.get_or_create(
-                id=association["corporation_id"]
+                id=affiliation["corporation_id"]
             )
-            if association.get("alliance_id"):
+            if affiliation.get("alliance_id"):
                 alliance, _ = EveEntity.objects.get_or_create(
-                    id=association["alliance_id"]
+                    id=affiliation["alliance_id"]
                 )
             else:
                 alliance = None
-            assocs.append(
+            affiliation_objects.append(
                 self.model(
                     character=character, corporation=corporation, alliance=alliance
                 )
             )
         with transaction.atomic():
             self.all().delete()
-            self.bulk_create(assocs, batch_size=500)
+            self.bulk_create(affiliation_objects, batch_size=500)
 
         EveEntity.objects.bulk_update_new_esi()

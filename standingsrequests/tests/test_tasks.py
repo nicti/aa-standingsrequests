@@ -57,12 +57,12 @@ class TestOtherTasks(NoSocketsTestCase):
         validate_requests()
         self.assertTrue(mock_validate_standings_requests.called)
 
-    @patch(MODULE_PATH + ".CharacterAssociation.objects.update_from_auth")
+    @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_from_auth")
     def test_update_associations_auth(self, mock_update_character_associations_auth):
         update_associations_auth()
         self.assertTrue(mock_update_character_associations_auth.called)
 
-    @patch(MODULE_PATH + ".CharacterAssociation.objects.update_from_api")
+    @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_from_api")
     def test_update_associations_api(self, mock_update_character_associations_api):
         update_associations_api()
         self.assertTrue(mock_update_character_associations_api.called)

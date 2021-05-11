@@ -15,7 +15,7 @@ from allianceauth.eveonline.models import (
 )
 
 from ..managers import _ContactsWrapper
-from ..models import CharacterAssociation, Contact, ContactSet
+from ..models import CharacterAffiliation, Contact, ContactSet
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
@@ -138,7 +138,7 @@ def esi_post_universe_names(ids, *args, **kwargs) -> object:
 
 def esi_post_characters_affiliation(characters, *args, **kwargs) -> object:
     result = []
-    for assoc in _my_test_data["CharacterAssociation"]:
+    for assoc in _my_test_data["CharacterAffiliation"]:
         if assoc["character_id"] in characters:
             row = assoc.copy()
             del row["main_character_id"]
@@ -273,11 +273,11 @@ def create_contacts_set(my_set: ContactSet = None, include_assoc=True) -> Contac
                 },
             )
 
-    # create CharacterAssociation
+    # create CharacterAffiliation
     if include_assoc:
-        CharacterAssociation.objects.all().delete()
-        for assoc in _my_test_data["CharacterAssociation"]:
-            CharacterAssociation.objects.create(**assoc)
+        CharacterAffiliation.objects.all().delete()
+        for assoc in _my_test_data["CharacterAffiliation"]:
+            CharacterAffiliation.objects.create(**assoc)
 
     return my_set
 
