@@ -1,9 +1,10 @@
 from unittest.mock import patch
 
+from eveuniverse.models import EveEntity
+
 from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecorporation import EveCorporation
-from ..models import EveEntity
 from .my_test_data import esi_get_corporations_corporation_id
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"

@@ -80,13 +80,9 @@ class ContactSetManager(models.Manager):
         """
         for contact in contacts:
             flat_labels = [label.id for label in contact.labels]
-            labels = contact_set.contactlabel_set.filter(label_id__in=flat_labels)
+            labels = contact_set.labels.filter(label_id__in=flat_labels)
             contact_set.create_contact(
-                contact_type_id=contact.type_id,
-                contact_id=contact.id,
-                name=contact.name,
-                standing=contact.standing,
-                labels=labels,
+                contact_id=contact.id, standing=contact.standing, labels=labels
             )
 
 
@@ -201,6 +197,17 @@ class _ContactsWrapper:
             self.alliance.append(
                 self.Contact(contact, self.allianceLabels, resolver._names_map)
             )
+
+
+class ContactQuerySet(models.QuerySet):
+    def filter_characters(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_CHARACTER)
+
+    def filter_corporations(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_CORPORATION)
+
+    def filter_alliances(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_ALLIANCE)
 
 
 class AbstractStandingsRequestQuerySet(models.QuerySet):
@@ -384,7 +391,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         returns the number of invalid requests
         """
-        from .models import CorporationContact, StandingRevocation
+        from .models import ContactType, StandingRevocation
 
         logger.debug("Validating standings requests")
         invalid_count = 0
@@ -396,7 +403,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 logger.debug("Request is invalid, user does not have permission")
                 is_valid = False
 
-            elif CorporationContact.is_corporation(
+            elif ContactType.is_corporation(
                 standing_request.contact_type_id
             ) and not self.model.can_request_corporation_standing(
                 standing_request.contact_id, standing_request.user
@@ -571,8 +578,8 @@ class CharacterAssociationManager(models.Manager):
         except ContactSet.DoesNotExist:
             logger.warning("Could not find a contact set")
         else:
-            all_pilots = contact_set.charactercontact_set.values_list(
-                "contact_id", flat=True
+            all_pilots = contact_set.contacts.filter_characters().values_list(
+                "eve_entity_id", flat=True
             )
             expired_character_associations = self.get_api_expired_items(
                 all_pilots

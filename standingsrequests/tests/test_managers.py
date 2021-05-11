@@ -7,7 +7,7 @@ from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
@@ -15,7 +15,7 @@ from app_utils.testing import NoSocketsTestCase, add_character_to_user
 from ..models import (
     AbstractStandingsRequest,
     CharacterAssociation,
-    CharacterContact,
+    Contact,
     ContactSet,
     StandingRequest,
     StandingRevocation,
@@ -30,7 +30,7 @@ from .my_test_data import (
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
     esi_post_characters_affiliation,
-    generate_eve_entities_from_allianceauth,
+    load_eve_entities,
 )
 
 MODULE_PATH = "standingsrequests.managers"
@@ -47,16 +47,7 @@ class TestContactSetManager(NoSocketsTestCase):
         add_character_to_user(
             cls.user, character, scopes=["esi-alliances.read_contacts.v1"]
         )
-        create_entity(EveCharacter, 1002)
-        create_entity(EveCharacter, 1003)
-        create_entity(EveCharacter, 1004)
-        create_entity(EveCharacter, 1005)
-        create_entity(EveCharacter, 1006)
-        create_entity(EveCharacter, 1008)
-        create_entity(EveCharacter, 1009)
-        create_entity(EveCharacter, 1010)
-        create_entity(EveAllianceInfo, 3010)
-        generate_eve_entities_from_allianceauth()
+        load_eve_entities()
 
     def setUp(self):
         pass
@@ -77,13 +68,13 @@ class TestContactSetManager(NoSocketsTestCase):
 
         # labels
         contact_set = ContactSet.objects.create_new_from_api()
-        labels = set(contact_set.contactlabel_set.values_list("label_id", "name"))
+        labels = set(contact_set.labels.values_list("label_id", "name"))
         expected = {(1, "blue"), (2, "green"), (3, "yellow"), (4, "red")}
         self.assertSetEqual(labels, expected)
 
-        # pilots
-        pilots = set(
-            contact_set.charactercontact_set.values_list("contact_id", "standing")
+        # all_contacts
+        all_contacts = set(
+            contact_set.contacts.values_list("eve_entity_id", "standing")
         )
         expected = {
             (1001, 10),
@@ -95,18 +86,11 @@ class TestContactSetManager(NoSocketsTestCase):
             (1008, -5),
             (1009, -10),
             (1010, 5),
-        }
-        self.assertSetEqual(pilots, expected)
-
-        # corporations
-        corporations = set(
-            contact_set.corporationcontact_set.values_list("contact_id", "standing")
-        )
-        expected = {
             (2003, 5.0),
             (2102, -10.0),
+            (3010, -10.0),
         }
-        self.assertSetEqual(corporations, expected)
+        self.assertSetEqual(all_contacts, expected)
 
     @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
@@ -457,25 +441,14 @@ class TestStandingsRequestManager(NoSocketsTestCase):
 class TestStandingsRevocationManager(NoSocketsTestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
+        load_eve_entities()
         my_set = ContactSet.objects.create(name="Dummy Set")
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=10
-        )
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1002, name="James Gordon", standing=5
-        )
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1003, name="Alfred Pennyworth", standing=0.01
-        )
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1005, name="Clark Kent", standing=0
-        )
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1008, name="Harvey Dent", standing=-5
-        )
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1009, name="Lex Luthor", standing=-10
-        )
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1001, standing=10)
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1002, standing=5)
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1003, standing=0.01)
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1005, standing=0)
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1008, standing=-5)
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1009, standing=-10)
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
 

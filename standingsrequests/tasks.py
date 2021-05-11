@@ -13,12 +13,10 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
 from .models import (
-    AllianceContact,
     CharacterAssociation,
-    CharacterContact,
+    Contact,
     ContactLabel,
     ContactSet,
-    CorporationContact,
     StandingRequest,
     StandingRevocation,
 )
@@ -128,9 +126,9 @@ def purge_stale_standings_data():
             # because with lots of them it uses lots of memory
             # lets go over them one by one and delete
             for contact_set in stale_contacts_qs:
-                CharacterContact.objects.filter(contact_set=contact_set).delete()
-                CorporationContact.objects.filter(contact_set=contact_set).delete()
-                AllianceContact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
                 ContactLabel.objects.filter(contact_set=contact_set).delete()
 
             stale_contacts_qs.delete()

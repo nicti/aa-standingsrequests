@@ -18,14 +18,12 @@ from app_utils.testing import (
 
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
-    AbstractContact,
     AbstractStandingsRequest,
-    AllianceContact,
     CharacterAssociation,
-    CharacterContact,
+    Contact,
     ContactLabel,
     ContactSet,
-    CorporationContact,
+    ContactType,
     EveEntity,
     StandingRequest,
     StandingRevocation,
@@ -56,6 +54,7 @@ from .my_test_data import (
     create_standings_char,
     get_entity_name,
     get_my_test_data,
+    load_eve_entities,
 )
 
 MODULE_PATH = "standingsrequests.models"
@@ -63,7 +62,66 @@ TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
+class TestContactType(TestCase):
+    def test_get_contact_type(self):
+        self.assertEqual(ContactType.character_id, CHARACTER_TYPE_ID)
+
+    def test_is_pilot(self):
+        self.assertTrue(ContactType.is_character(CHARACTER_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_NI_KUNNI_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_CIVRE_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_DETEIS_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_GALLENTE_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_INTAKI_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_SEBIESTOR_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_BRUTOR_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_STATIC_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_MODIFIER_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_ACHURA_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_JIN_MEI_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_KHANID_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_VHEROKIOR_TYPE_ID))
+        self.assertTrue(ContactType.is_character(CHARACTER_DRIFTER_TYPE_ID))
+
+        self.assertFalse(ContactType.is_character(CORPORATION_TYPE_ID))
+        self.assertFalse(ContactType.is_character(ALLIANCE_TYPE_ID))
+        self.assertFalse(ContactType.is_character(1))
+        self.assertFalse(ContactType.is_character(None))
+        self.assertFalse(ContactType.is_character(-1))
+        self.assertFalse(ContactType.is_character(0))
+
+    def test_get_contact_type_2(self):
+        self.assertEqual(ContactType.corporation_id, CORPORATION_TYPE_ID)
+
+    def test_is_corporation(self):
+        self.assertTrue(ContactType.is_corporation(CORPORATION_TYPE_ID))
+        self.assertFalse(ContactType.is_corporation(CHARACTER_TYPE_ID))
+        self.assertFalse(ContactType.is_corporation(ALLIANCE_TYPE_ID))
+        self.assertFalse(ContactType.is_corporation(1))
+        self.assertFalse(ContactType.is_corporation(None))
+        self.assertFalse(ContactType.is_corporation(-1))
+        self.assertFalse(ContactType.is_corporation(0))
+
+    def test_get_contact_type_3(self):
+        self.assertEqual(ContactType.alliance_id, ALLIANCE_TYPE_ID)
+
+    def test_is_alliance(self):
+        self.assertTrue(ContactType.is_alliance(ALLIANCE_TYPE_ID))
+        self.assertFalse(ContactType.is_alliance(CHARACTER_TYPE_ID))
+        self.assertFalse(ContactType.is_alliance(CORPORATION_TYPE_ID))
+        self.assertFalse(ContactType.is_alliance(1))
+        self.assertFalse(ContactType.is_alliance(None))
+        self.assertFalse(ContactType.is_alliance(-1))
+        self.assertFalse(ContactType.is_alliance(0))
+
+
 class TestContactSet(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.character_1001 = create_entity(EveCharacter, 1001)
+        load_eve_entities()
+
     def setUp(self):
         ContactSet.objects.all().delete()
 
@@ -73,74 +131,62 @@ class TestContactSet(NoSocketsTestCase):
 
     def test_get_contact_by_id_pilot(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=5
-        )
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1001, standing=5)
         # look for existing pilot
         obj = my_set.get_contact_by_id(1001, CHARACTER_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing pilot
-        with self.assertRaises(CharacterContact.DoesNotExist):
+        with self.assertRaises(Contact.DoesNotExist):
             my_set.get_contact_by_id(1999, CHARACTER_TYPE_ID)
 
     def test_get_contact_by_id_corporation(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
-        CorporationContact.objects.create(
-            contact_set=my_set, contact_id=2001, name="Dummy Corp 1", standing=5
-        )
+        Contact.objects.create(contact_set=my_set, eve_entity_id=2001, standing=5)
         # look for existing corp
         obj = my_set.get_contact_by_id(2001, CORPORATION_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing corp
-        with self.assertRaises(CorporationContact.DoesNotExist):
+        with self.assertRaises(Contact.DoesNotExist):
             my_set.get_contact_by_id(2999, CORPORATION_TYPE_ID)
 
     def test_get_contact_by_id_alliance(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceContact.objects.create(
-            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
-        )
+        Contact.objects.create(contact_set=my_set, eve_entity_id=3001, standing=5)
         # look for existing alliance
         obj = my_set.get_contact_by_id(3001, ALLIANCE_TYPE_ID)
         self.assertEqual(obj.standing, 5)
 
         # look for non existing alliance
-        with self.assertRaises(AllianceContact.DoesNotExist):
+        with self.assertRaises(Contact.DoesNotExist):
             my_set.get_contact_by_id(3999, ALLIANCE_TYPE_ID)
 
     def test_get_contact_by_id_other_type(self):
         my_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceContact.objects.create(
-            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
-        )
+        Contact.objects.create(contact_set=my_set, eve_entity_id=3001, standing=5)
         with self.assertRaises(ObjectDoesNotExist):
             my_set.get_contact_by_id(9999, 99)
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_corp(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(character))
+        self.assertTrue(ContactSet.is_character_in_organisation(self.character_1001))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
     def test_pilot_in_organisation_matches_alliance(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(character))
+        self.assertTrue(ContactSet.is_character_in_organisation(self.character_1001))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [3001])
+    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [3101])
     def test_pilot_in_organisation_doest_not_exist(self):
-        character = create_entity(EveCharacter, 1007)
-        self.assertFalse(ContactSet.is_character_in_organisation(character))
+        self.assertFalse(ContactSet.is_character_in_organisation(self.character_1001))
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", [])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_none(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertFalse(ContactSet.is_character_in_organisation(character))
+        self.assertFalse(ContactSet.is_character_in_organisation(self.character_1001))
 
 
 class TestContactSetCreateStanding(NoSocketsTestCase):
@@ -151,41 +197,32 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
 
     def test_can_create_pilot_standing(self):
         obj = self.contact_set.create_contact(
-            contact_type_id=CHARACTER_TYPE_ID,
-            name="Lex Luthor",
             contact_id=1009,
             standing=-10,
             labels=ContactLabel.objects.all(),
         )
-        self.assertIsInstance(obj, CharacterContact)
-        self.assertEqual(obj.name, "Lex Luthor")
-        self.assertEqual(obj.contact_id, 1009)
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 1009)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_corp_standing(self):
         obj = self.contact_set.create_contact(
-            contact_type_id=CORPORATION_TYPE_ID,
-            name="Lexcorp",
             contact_id=2102,
             standing=-10,
             labels=ContactLabel.objects.all(),
         )
-        self.assertIsInstance(obj, CorporationContact)
-        self.assertEqual(obj.name, "Lexcorp")
-        self.assertEqual(obj.contact_id, 2102)
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 2102)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_alliance_standing(self):
         obj = self.contact_set.create_contact(
-            contact_type_id=ALLIANCE_TYPE_ID,
-            name="Wayne Enterprises",
             contact_id=3001,
             standing=5,
             labels=ContactLabel.objects.all(),
         )
-        self.assertIsInstance(obj, AllianceContact)
-        self.assertEqual(obj.name, "Wayne Enterprises")
-        self.assertEqual(obj.contact_id, 3001)
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 3001)
         self.assertEqual(obj.standing, 5)
 
 
@@ -252,69 +289,6 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
         self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
-
-
-class TestAbstractStanding(TestCase):
-    def test_get_contact_type(self):
-        with self.assertRaises(NotImplementedError):
-            AbstractContact.get_contact_type_id()
-
-
-class TestPilotStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(CharacterContact.get_contact_type_id(), CHARACTER_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(CharacterContact.is_character(CHARACTER_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_NI_KUNNI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_CIVRE_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_DETEIS_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_GALLENTE_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_INTAKI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_SEBIESTOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_BRUTOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_STATIC_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_MODIFIER_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_ACHURA_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_JIN_MEI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_KHANID_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_VHEROKIOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_DRIFTER_TYPE_ID))
-
-        self.assertFalse(CharacterContact.is_character(CORPORATION_TYPE_ID))
-        self.assertFalse(CharacterContact.is_character(ALLIANCE_TYPE_ID))
-        self.assertFalse(CharacterContact.is_character(1))
-        self.assertFalse(CharacterContact.is_character(None))
-        self.assertFalse(CharacterContact.is_character(-1))
-        self.assertFalse(CharacterContact.is_character(0))
-
-
-class TestCorpStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(CorporationContact.get_contact_type_id(), CORPORATION_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(CorporationContact.is_corporation(CORPORATION_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(CHARACTER_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(ALLIANCE_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(1))
-        self.assertFalse(CorporationContact.is_corporation(None))
-        self.assertFalse(CorporationContact.is_corporation(-1))
-        self.assertFalse(CorporationContact.is_corporation(0))
-
-
-class TestAllianceStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(AllianceContact.get_contact_type_id(), ALLIANCE_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(AllianceContact.is_alliance(ALLIANCE_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(CHARACTER_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(CORPORATION_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(1))
-        self.assertFalse(AllianceContact.is_alliance(None))
-        self.assertFalse(AllianceContact.is_alliance(-1))
-        self.assertFalse(AllianceContact.is_alliance(0))
 
 
 class TestStandingsRequest(TestCase):

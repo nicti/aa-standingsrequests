@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 from unittest.mock import Mock, patch
 
@@ -15,12 +14,18 @@ from allianceauth.eveonline.models import (
     EveCorporationInfo,
 )
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
+from app_utils.testing import (
+    NoSocketsTestCase,
+    add_character_to_user,
+    json_response_to_dict,
+    json_response_to_python,
+)
 
 from .. import views
+from ..helpers.evecorporation import EveCorporation
 from ..models import (
-    CharacterContact,
-    CorporationContact,
+    Contact,
+    ContactType,
     EveEntity,
     StandingRequest,
     StandingRevocation,
@@ -33,18 +38,19 @@ from .my_test_data import (
     create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
+    load_eve_entities,
 )
 
-MODULE_PATH = "standingsrequests.views"
-MODULE_PATH_MODELS = "standingsrequests.models"
-MODULE_PATH_MANAGERS = "standingsrequests.managers"
+VIEWS_PATH = "standingsrequests.views"
+MODELS_PATH = "standingsrequests.models"
+MANAGERS_PATH = "standingsrequests.managers"
 TEST_SCOPE = "publicData"
 
 
-@patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH + ".update_all")
-@patch(MODULE_PATH + ".messages_plus")
+@patch(VIEWS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODELS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(VIEWS_PATH + ".update_all")
+@patch(VIEWS_PATH + ".messages_plus")
 class TestViewAuthPage(NoSocketsTestCase):
     def setUp(self):
         self.factory = RequestFactory()
@@ -63,7 +69,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         orig_view = views.view_auth_page.__wrapped__.__wrapped__.__wrapped__
         return orig_view(request, token)
 
-    @patch(MODULE_PATH_MODELS + ".SR_OPERATION_MODE", "corporation")
+    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "corporation")
     def test_for_corp_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -78,7 +84,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODULE_PATH_MODELS + ".SR_OPERATION_MODE", "corporation")
+    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "corporation")
     def test_when_not_provided_standingschar_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -97,7 +103,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertTrue(mock_messages.error.called)
         self.assertFalse(mock_update_all.delay.called)
 
-    @patch(MODULE_PATH_MODELS + ".SR_OPERATION_MODE", "alliance")
+    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -116,7 +122,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODULE_PATH_MODELS + ".SR_OPERATION_MODE", "alliance")
+    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_not_in_alliance_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -138,6 +144,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         super().setUpClass()
         cls.factory = RequestFactory()
         cls.contact_set = create_contacts_set()
+        load_eve_entities()
         create_eve_objects()
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
@@ -159,22 +166,20 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             scopes=[TEST_SCOPE],
         )
 
-    def setUp(self):
-        pass
-
     def test_normal(self):
-        request = self.factory.get(reverse("standingsrequests:view_auth_page"))
+        # given
+        self.maxDiff = None
+        request = self.factory.get(reverse("standingsrequests:view_pilots_json"))
         request.user = self.user
-        response = views.view_pilots_standings_json(request)
+        my_view_without_cache = views.view_pilots_standings_json.__wrapped__
+        # when
+        response = my_view_without_cache(request)
+        # then
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["character_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "character_id")
         expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
         self.assertSetEqual(set(data.keys()), expected)
 
-        self.maxDiff = None
         data_character_1002 = data[1002]
         expected_character_1002 = {
             "character_id": 1002,
@@ -214,6 +219,88 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "main_character_icon_url": None,
         }
         self.assertDictEqual(data_character_1009, expected_character_1009)
+
+
+@patch("standingsrequests.helpers.evecorporation.EveCorporation.get_many_by_id")
+class TestGroupStandingsJson(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        cls.contact_set = create_contacts_set()
+        load_eve_entities()
+        create_eve_objects()
+        member_state = AuthUtils.get_member_state()
+        member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+        cls.user = AuthUtils.create_member("John Doe")
+        AuthUtils.add_permission_to_user_by_name("standingsrequests.view", cls.user)
+        EveCharacter.objects.get(character_id=1009).delete()
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
+        add_character_to_user(
+            cls.user_1,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_SCOPE],
+        )
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
+        add_character_to_user(
+            cls.user_1,
+            cls.alt_character_1,
+            scopes=[TEST_SCOPE],
+        )
+
+    def test_normal(self, mock_get_many_by_id):
+        # given
+        self.maxDiff = None
+        mock_get_many_by_id.return_value = [
+            EveCorporation(
+                corporation_id=2003, corporation_name="CatCo Worldwide Media"
+            ),
+            EveCorporation(corporation_id=2102, corporation_name="Lexcorp"),
+        ]
+        request = self.factory.get(reverse("standingsrequests:view_groups_json"))
+        request.user = self.user
+        my_view_without_cache = views.view_groups_standings_json.__wrapped__
+        # when
+        response = my_view_without_cache(request)
+        # then
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        corporations = {obj["corporation_id"]: obj for obj in data["corps"]}
+        self.assertSetEqual(set(corporations.keys()), {2003, 2102})
+        obj = corporations[2003]
+        self.assertDictEqual(
+            obj,
+            {
+                "corporation_id": 2003,
+                "corporation_name": "CatCo Worldwide Media",
+                "corporation_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
+                "alliance_id": None,
+                "alliance_name": None,
+                "standing": 5.0,
+                "labels": [],
+                "has_required_scopes": None,
+                "state": "",
+                "main_character_name": "",
+                "main_character_ticker": "",
+                "main_character_icon_url": "",
+            },
+        )
+
+        alliances = {obj["alliance_id"]: obj for obj in data["alliances"]}
+        self.assertSetEqual(set(alliances.keys()), {3010})
+        obj = alliances[3010]
+        self.assertDictEqual(
+            obj,
+            {
+                "alliance_id": 3010,
+                "alliance_name": "Bad Boys Inc",
+                "alliance_icon_url": "https://images.evetech.net/alliances/3010/logo?size=32",
+                "standing": -10.0,
+                "labels": [],
+            },
+        )
 
 
 class TestViewPagesBase(TestCase):
@@ -298,10 +385,10 @@ class TestViewPagesBase(TestCase):
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = CharacterContact.get_contact_type_id()
+            contact_type_id = ContactType.character_id
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = CorporationContact.get_contact_type_id()
+            contact_type_id = ContactType.corporation_id
         else:
             raise NotImplementedError()
 
@@ -318,25 +405,17 @@ class TestViewPagesBase(TestCase):
     def _set_standing_for_alt_in_game(self, alt: object) -> None:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_name = alt.character_name
-            CharacterContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=contact_id,
+                defaults={"standing": 10},
             )
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_name = alt.corporation_name
-            CorporationContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=contact_id,
+                defaults={"standing": 10},
             )
         else:
             raise NotImplementedError()
@@ -344,9 +423,9 @@ class TestViewPagesBase(TestCase):
         self.contact_set.refresh_from_db()
 
 
-@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODELS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(MANAGERS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 class TestViewsBasics(TestViewPagesBase):
@@ -460,7 +539,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 200)
 
 
-@patch(MODULE_PATH + ".messages_plus")
+@patch(VIEWS_PATH + ".messages_plus")
 class TestRequestStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
@@ -515,7 +594,7 @@ class TestRequestStanding(TestViewPagesBase):
         )
 
 
-@patch(MODULE_PATH + ".messages_plus")
+@patch(VIEWS_PATH + ".messages_plus")
 class TestRemovePilotStanding(TestViewPagesBase):
     def make_request(self, character_id):
         request = self.factory.get(
@@ -636,10 +715,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -695,10 +771,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -749,10 +822,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -810,10 +880,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -861,10 +928,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -912,10 +976,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -962,10 +1023,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -1015,10 +1073,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
 
         # validate
         self.assertEqual(response.status_code, 200)
-        data = {
-            x["contact_id"]: x
-            for x in json.loads(response.content.decode(response.charset))
-        }
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -1071,7 +1126,7 @@ class TestGroupsStandings(TestViewPagesBase):
         # validate
         self.maxDiff = None
         self.assertEqual(response.status_code, 200)
-        data_json = json.loads(response.content.decode(response.charset))
+        data_json = json_response_to_python(response)
         corporations = {row["corporation_id"]: row for row in data_json["corps"]}
         expected = {2003, 2004, 2102}
         self.assertSetEqual(set(corporations.keys()), expected)

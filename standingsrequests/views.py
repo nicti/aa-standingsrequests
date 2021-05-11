@@ -27,7 +27,7 @@ from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
 from .helpers.writers import UnicodeWriter
-from .models import ContactSet, CorporationContact, StandingRequest, StandingRevocation
+from .models import ContactSet, ContactType, StandingRequest, StandingRevocation
 from .tasks import update_all
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -118,11 +118,11 @@ def request_characters(request):
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
     eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
     characters_with_standing = {
-        contact["contact_id"]: contact["standing"]
+        contact["eve_entity_id"]: contact["standing"]
         for contact in (
-            contact_set.charactercontact_set.filter(
-                contact_id__in=list(eve_characters.keys())
-            ).values("contact_id", "standing")
+            contact_set.contacts.filter(
+                eve_entity_id__in=list(eve_characters.keys())
+            ).values("eve_entity_id", "standing")
         )
     }
     characters_standings_requests = {
@@ -223,10 +223,8 @@ def request_corporations(request):
         )
     }
     corporation_contacts = {
-        obj.contact_id: obj
-        for obj in (
-            contact_set.corporationcontact_set.filter(contact_id__in=corporation_ids)
-        )
+        obj.eve_entity_id: obj
+        for obj in (contact_set.contacts.filter(eve_entity_id__in=corporation_ids))
     }
     corporations_data = list()
     for corporation in EveCorporation.get_many_by_id(corporation_ids):
@@ -537,7 +535,7 @@ def view_pilots_standings(request):
     finally:
         organization = ContactSet.standings_source_entity()
         last_update = contact_set.date if contact_set else None
-        pilots_count = contact_set.charactercontact_set.count() if contact_set else None
+        pilots_count = contact_set.contacts.count() if contact_set else None
 
     context = {
         "lastUpdate": last_update,
@@ -561,10 +559,13 @@ def view_pilots_standings_json(request):
         contacts = ContactSet()
 
     character_contacts_qs = (
-        contacts.charactercontact_set.all().prefetch_related("labels").order_by("name")
+        contacts.contacts.filter_characters()
+        .select_related("eve_entity")
+        .prefetch_related("labels")
+        .order_by("eve_entity__name")
     )
     character_contact_ids = set(
-        character_contacts_qs.values_list("contact_id", flat=True)
+        character_contacts_qs.values_list("eve_entity_id", flat=True)
     )
     eve_characters = {
         obj.character_id: obj
@@ -576,11 +577,11 @@ def view_pilots_standings_json(request):
     }
     characters_data = list()
     for contact in character_contacts_qs:
-        character = eve_characters.get(contact.contact_id)
+        character = eve_characters.get(contact.eve_entity_id)
         try:
             user = character.character_ownership.user
         except AttributeError:
-            character = EveCharacterHelper(contact.contact_id)
+            character = EveCharacterHelper(contact.eve_entity_id)
             main = None
             state = ""
             has_required_scopes = None
@@ -607,8 +608,8 @@ def view_pilots_standings_json(request):
 
         characters_data.append(
             {
-                "character_id": contact.contact_id,
-                "character_name": contact.name,
+                "character_id": contact.eve_entity_id,
+                "character_name": contact.eve_entity.name,
                 "character_icon_url": character_icon_url,
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
@@ -658,7 +659,7 @@ def download_pilot_standings(request):
     )
 
     # lets request make sure all info is there in bulk
-    character_contacts = contacts.charactercontact_set.all().order_by("name")
+    character_contacts = contacts.contacts.all().order_by("name")
     EveEntity.objects.bulk_resolve_names([p.contact_id for p in character_contacts])
 
     for pilot_standing in character_contacts:
@@ -711,9 +712,10 @@ def view_groups_standings(request):
 
     if contact_set:
         groups_count = (
-            contact_set.corporationcontact_set.count()
-            + contact_set.alliancecontact_set.count()
-        )
+            contact_set.contacts.filter_corporations()
+            | contact_set.contacts.filter_characters()
+        ).count()
+
     else:
         groups_count = None
 
@@ -739,29 +741,30 @@ def view_groups_standings_json(request):
         contacts = ContactSet()
 
     corporations_qs = (
-        contacts.corporationcontact_set.all()
+        contacts.contacts.filter_corporations()
+        .select_related("eve_entity")
         .prefetch_related("labels")
-        .order_by("name")
+        .order_by("eve_entity__name")
     )
     eve_corporations = {
         corporation.corporation_id: corporation
         for corporation in EveCorporation.get_many_by_id(
-            corporations_qs.values_list("contact_id", flat=True)
+            corporations_qs.values_list("eve_entity_id", flat=True)
         )
     }
     corporations_data = list()
     standing_requests_qs = StandingRequest.objects.filter(
-        contact_type_id=CorporationContact.get_contact_type_id()
+        contact_type_id=ContactType.corporation_id
     )
     standings_requests = {
         obj.contact_id: obj
         for obj in standing_requests_qs.filter(contact_id__in=eve_corporations.keys())
     }
     for contact in corporations_qs:
-        if contact.contact_id in eve_corporations:
-            corporation = eve_corporations[contact.contact_id]
+        if contact.eve_entity_id in eve_corporations:
+            corporation = eve_corporations[contact.eve_entity_id]
             try:
-                standing_request = standings_requests[contact.contact_id]
+                standing_request = standings_requests[contact.eve_entity_id]
             except KeyError:
                 main = None
                 has_required_scopes = None
@@ -803,14 +806,14 @@ def view_groups_standings_json(request):
 
     alliances_data = list()
     for contact in (
-        contacts.alliancecontact_set.all().prefetch_related("labels").order_by("name")
+        contacts.contacts.filter_alliances().prefetch_related("labels").order_by("name")
     ):
         alliances_data.append(
             {
-                "alliance_id": contact.contact_id,
-                "alliance_name": contact.name,
+                "alliance_id": contact.eve_entity_id,
+                "alliance_name": contact.eve_entity.name,
                 "alliance_icon_url": EveAllianceInfo.generic_logo_url(
-                    contact.contact_id, DEFAULT_ICON_SIZE
+                    contact.eve_entity_id, DEFAULT_ICON_SIZE
                 ),
                 "standing": contact.standing,
                 "labels": [label.name for label in contact.labels.all()],
@@ -873,7 +876,7 @@ def _compose_standing_requests_data(
         for character in EveCharacter.objects.filter(
             character_id__in=(
                 requests_qs.exclude(
-                    contact_type_id=CorporationContact.get_contact_type_id()
+                    contact_type_id=ContactType.corporation_id
                 ).values_list("contact_id", flat=True)
             )
         )
@@ -882,9 +885,9 @@ def _compose_standing_requests_data(
     eve_corporations = {
         corporation.corporation_id: corporation
         for corporation in EveCorporation.get_many_by_id(
-            requests_qs.filter(
-                contact_type_id=CorporationContact.get_contact_type_id()
-            ).values_list("contact_id", flat=True)
+            requests_qs.filter(contact_type_id=ContactType.corporation_id).values_list(
+                "contact_id", flat=True
+            )
         )
     }
     requests_data = list()

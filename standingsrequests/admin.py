@@ -1,12 +1,7 @@
 from django.contrib import admin
 from eveuniverse.models import EveEntity
 
-from .models import (
-    CharacterContact,
-    CorporationContact,
-    StandingRequest,
-    StandingRevocation,
-)
+from .models import ContactType, StandingRequest, StandingRevocation
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
@@ -29,9 +24,9 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return EveEntity.objects.resolve_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contact_type_id in CharacterContact.contact_type_ids:
+        if obj.contact_type_id in ContactType.character_ids:
             return "Character"
-        elif obj.contact_type_id in CorporationContact.contact_type_ids:
+        elif obj.contact_type_id in ContactType.corporation_ids:
             return "Corporation"
         else:
             return "(undefined)"

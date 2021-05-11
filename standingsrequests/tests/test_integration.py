@@ -14,9 +14,9 @@ from app_utils.testing import add_character_to_user
 
 from .. import tasks
 from ..models import (
-    CharacterContact,
+    Contact,
     ContactSet,
-    CorporationContact,
+    ContactType,
     StandingRequest,
     StandingRevocation,
 )
@@ -27,7 +27,7 @@ from .my_test_data import (
     create_eve_objects,
     create_standings_char,
     esi_get_corporations_corporation_id,
-    esi_post_universe_names,
+    load_eve_entities,
 )
 
 MODULE_PATH_MODELS = "standingsrequests.models"
@@ -54,6 +54,7 @@ class TestMainUseCases(WebTest):
 
         create_standings_char()
         create_eve_objects()
+        load_eve_entities()
 
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
@@ -119,26 +120,16 @@ class TestMainUseCases(WebTest):
 
     def _set_standing_for_alt_in_game(self, alt: object) -> None:
         if isinstance(alt, EveCharacter):
-            contact_id = alt.character_id
-            contact_name = alt.character_name
-            CharacterContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=alt.character_id,
+                defaults={"standing": 10},
             )
         elif isinstance(alt, EveCorporationInfo):
-            contact_id = alt.corporation_id
-            contact_name = alt.corporation_name
-            CorporationContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=alt.corporation_id,
+                defaults={"standing": 10},
             )
         else:
             raise NotImplementedError()
@@ -148,10 +139,10 @@ class TestMainUseCases(WebTest):
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = CharacterContact.get_contact_type_id()
+            contact_type_id = ContactType.character_id
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = CorporationContact.get_contact_type_id()
+            contact_type_id = ContactType.corporation_id
         else:
             raise NotImplementedError()
 
@@ -167,12 +158,12 @@ class TestMainUseCases(WebTest):
 
     def _remove_standing_for_alt_in_game(self, alt: object) -> None:
         if isinstance(alt, EveCharacter):
-            CharacterContact.objects.get(
-                contact_set=self.contact_set, contact_id=alt.character_id
+            Contact.objects.get(
+                contact_set=self.contact_set, eve_entity_id=alt.character_id
             ).delete()
         elif isinstance(alt, EveCorporationInfo):
-            CorporationContact.objects.get(
-                contact_set=self.contact_set, contact_id=alt.corporation_id
+            Contact.objects.get(
+                contact_set=self.contact_set, eve_entity_id=alt.corporation_id
             ).delete()
         else:
             raise NotImplementedError()
@@ -186,9 +177,6 @@ class TestMainUseCases(WebTest):
         mock_Corporation = mock_esi_client.return_value.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
-        )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
         )
 
     def setUp(self) -> None:
