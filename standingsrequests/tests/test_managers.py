@@ -12,6 +12,7 @@ from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
+from ..core import BaseConfig
 from ..models import (
     AbstractStandingsRequest,
     CharacterAssociation,
@@ -33,8 +34,9 @@ from .my_test_data import (
     load_eve_entities,
 )
 
-MODULE_PATH = "standingsrequests.managers"
-MODULE_PATH_MODELS = "standingsrequests.models"
+CORE_PATH = "standingsrequests.core"
+MANAGERS_PATH = "standingsrequests.managers"
+MODELS_PATH = "standingsrequests.models"
 TEST_USER_NAME = "Peter Parker"
 
 
@@ -52,10 +54,9 @@ class TestContactSetManager(NoSocketsTestCase):
     def setUp(self):
         pass
 
-    @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    @patch(MODULE_PATH_MODELS + ".SR_OPERATION_MODE", "alliance")
-    @patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    @patch(MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch("standingsrequests.helpers.esi_fetch._esi_client")
     def test_can_create_new_from_api(self, mock_esi_client):
         mock_Contacts = mock_esi_client.return_value.Contacts
@@ -92,13 +93,13 @@ class TestContactSetManager(NoSocketsTestCase):
         }
         self.assertSetEqual(all_contacts, expected)
 
-    @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
         character = create_standings_char()
-        self.assertEqual(ContactSet.standings_character(), character)
+        self.assertEqual(BaseConfig.standings_character(), character)
 
-    @patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    @patch(MODULE_PATH_MODELS + ".EveCharacter.objects.create_character")
+    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(MODELS_PATH + ".EveCharacter.objects.create_character")
     def test_standings_character_not_exists(self, mock_create_character):
         character, _ = EveCharacter.objects.get_or_create(
             character_id=TEST_STANDINGS_API_CHARID,
@@ -109,15 +110,14 @@ class TestContactSetManager(NoSocketsTestCase):
             },
         )
         mock_create_character.return_value = character
-        self.assertEqual(ContactSet.standings_character(), character)
+        self.assertEqual(BaseConfig.standings_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
-@patch(MODULE_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MODULE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MODELS + ".SR_STANDING_TIMEOUT_HOURS", 24)
-@patch(MODULE_PATH + ".notify")
+@patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MODELS_PATH + ".SR_STANDING_TIMEOUT_HOURS", 24)
+@patch(MANAGERS_PATH + ".notify")
 class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
@@ -307,7 +307,7 @@ class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
         self.assertFalse(requests.get(pk=r2.pk).is_pending_annotated)
 
 
-@patch(MODULE_PATH_MODELS + ".StandingRequest.can_request_corporation_standing")
+@patch(MODELS_PATH + ".StandingRequest.can_request_corporation_standing")
 class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):

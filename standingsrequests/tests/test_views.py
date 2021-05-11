@@ -23,13 +23,7 @@ from app_utils.testing import (
 
 from .. import views
 from ..helpers.evecorporation import EveCorporation
-from ..models import (
-    Contact,
-    ContactType,
-    EveEntity,
-    StandingRequest,
-    StandingRevocation,
-)
+from ..models import Contact, ContactType, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
@@ -41,22 +35,20 @@ from .my_test_data import (
     load_eve_entities,
 )
 
-VIEWS_PATH = "standingsrequests.views"
+CORE_PATH = "standingsrequests.core"
 MODELS_PATH = "standingsrequests.models"
 MANAGERS_PATH = "standingsrequests.managers"
+VIEWS_PATH = "standingsrequests.views"
 TEST_SCOPE = "publicData"
 
 
-@patch(VIEWS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODELS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(VIEWS_PATH + ".update_all")
 @patch(VIEWS_PATH + ".messages_plus")
 class TestViewAuthPage(NoSocketsTestCase):
     def setUp(self):
         self.factory = RequestFactory()
-        EveEntity.objects.create(
-            id=TEST_STANDINGS_API_CHARID, name=TEST_STANDINGS_API_CHARNAME
-        )
+        load_eve_entities()
 
     def make_request(self, user, character):
         token = Mock(spec=Token)
@@ -69,33 +61,31 @@ class TestViewAuthPage(NoSocketsTestCase):
         orig_view = views.view_auth_page.__wrapped__.__wrapped__.__wrapped__
         return orig_view(request, token)
 
-    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "corporation")
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "corporation")
     def test_for_corp_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
+        # given
         user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
         character = AuthUtils.add_main_character_2(
             user, TEST_STANDINGS_API_CHARNAME, TEST_STANDINGS_API_CHARID
         )
+        # when
         response = self.make_request(user, character)
+        # then
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:index"))
         self.assertTrue(mock_messages.success.called)
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "corporation")
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "corporation")
     def test_when_not_provided_standingschar_return_error(
         self, mock_messages, mock_update_all
     ):
         create_standings_char()
         user = AuthUtils.create_user("Clark Kent")
         character = AuthUtils.add_main_character_2(user, user.username, 1002)
-        EveEntity.objects.create(
-            id=character.character_id,
-            name=character.character_name,
-            category=EveEntity.CATEGORY_CHARACTER,
-        )
         response = self.make_request(user, character)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:index"))
@@ -103,7 +93,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertTrue(mock_messages.error.called)
         self.assertFalse(mock_update_all.delay.called)
 
-    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -122,7 +112,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(MODELS_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_not_in_alliance_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -423,9 +413,8 @@ class TestViewPagesBase(TestCase):
         self.contact_set.refresh_from_db()
 
 
-@patch(MODELS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MANAGERS_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
 class TestViewsBasics(TestViewPagesBase):

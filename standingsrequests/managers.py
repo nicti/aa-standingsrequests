@@ -16,11 +16,8 @@ from app_utils.helpers import chunks
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_NOTIFICATIONS_ENABLED,
-    SR_OPERATION_MODE,
-    STANDINGS_API_CHARID,
-)
+from .app_settings import SR_NOTIFICATIONS_ENABLED
+from .core import BaseConfig
 from .helpers.esi_fetch import esi_fetch
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -34,7 +31,7 @@ class ContactSetManager(models.Manager):
         Returns new ContactSet on success, else None
         """
         token = (
-            Token.objects.filter(character_id=STANDINGS_API_CHARID)
+            Token.objects.filter(character_id=BaseConfig.standings_character_id)
             .require_scopes(self.model.required_esi_scope())
             .require_valid()
             .first()
@@ -43,7 +40,7 @@ class ContactSetManager(models.Manager):
             logger.warning("Token for standing char could not be found")
             return None
         try:
-            contacts = _ContactsWrapper(token, STANDINGS_API_CHARID)
+            contacts = _ContactsWrapper(token, BaseConfig.standings_character_id)
         except HTTPError as ex:
             logger.exception(
                 "APIError occurred while trying to query api server: %s", ex
@@ -154,7 +151,7 @@ class _ContactsWrapper:
         self.alliance = []
         self.allianceLabels = []
 
-        if SR_OPERATION_MODE == "alliance":
+        if BaseConfig.operation_mode == "alliance":
             alliance_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).alliance_id
@@ -172,7 +169,7 @@ class _ContactsWrapper:
                 token=token,
                 has_pages=True,
             )
-        elif SR_OPERATION_MODE == "corporation":
+        elif BaseConfig.operation_mode == "corporation":
             corporation_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).corporation_id
@@ -244,7 +241,6 @@ class AbstractStandingsRequestManager(models.Manager):
         """Process all the Standing requests/revocation objects"""
         from .models import (
             AbstractStandingsRequest,
-            ContactSet,
             StandingRequest,
             StandingRevocation,
         )
@@ -252,7 +248,7 @@ class AbstractStandingsRequestManager(models.Manager):
         if self.model == AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
-        organization = ContactSet.standings_source_entity()
+        organization = BaseConfig.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
             contact, dummy = EveEntity.objects.get_or_create_esi(

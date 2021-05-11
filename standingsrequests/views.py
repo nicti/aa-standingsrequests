@@ -16,13 +16,8 @@ from app_utils.logging import LoggerAddTag
 from app_utils.messages import messages_plus
 
 from . import __title__
-from .app_settings import (
-    SR_CORPORATIONS_ENABLED,
-    SR_NOTIFICATIONS_ENABLED,
-    SR_OPERATION_MODE,
-    STANDINGS_API_CHARID,
-)
-from .core import MainOrganizations
+from .app_settings import SR_CORPORATIONS_ENABLED, SR_NOTIFICATIONS_ENABLED
+from .core import BaseConfig, MainOrganizations
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
@@ -42,7 +37,7 @@ def add_common_context(request, context: dict) -> dict:
     new_context = {
         **{
             "app_title": __title__,
-            "operation_mode": SR_OPERATION_MODE,
+            "operation_mode": BaseConfig.operation_mode,
             "pending_total_count": (
                 StandingRequest.objects.pending_requests().count()
                 + StandingRevocation.objects.pending_requests().count()
@@ -91,7 +86,7 @@ def index_view(request):
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def create_requests(request):
-    organization = ContactSet.standings_source_entity()
+    organization = BaseConfig.standings_source_entity()
     context = {
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
@@ -532,7 +527,7 @@ def view_pilots_standings(request):
     except ContactSet.DoesNotExist:
         contact_set = None
     finally:
-        organization = ContactSet.standings_source_entity()
+        organization = BaseConfig.standings_source_entity()
         last_update = contact_set.date if contact_set else None
         pilots_count = contact_set.contacts.count() if contact_set else None
 
@@ -706,7 +701,7 @@ def view_groups_standings(request):
     except ContactSet.DoesNotExist:
         contact_set = None
     finally:
-        organization = ContactSet.standings_source_entity()
+        organization = BaseConfig.standings_source_entity()
         last_update = contact_set.date if contact_set else None
 
     if contact_set:
@@ -834,7 +829,7 @@ def view_groups_standings_json(request):
 def manage_standings(request):
     logger.debug("manage_standings called by %s", request.user)
     context = {
-        "organization": ContactSet.standings_source_entity(),
+        "organization": BaseConfig.standings_source_entity(),
         "requests_count": StandingRequest.objects.pending_requests().count(),
         "revocations_count": StandingRevocation.objects.pending_requests().count(),
     }
@@ -1064,7 +1059,7 @@ def manage_revocations_write(request, contact_id):
 @permission_required("standingsrequests.affect_standings")
 def view_active_requests(request):
     context = {
-        "organization": ContactSet.standings_source_entity(),
+        "organization": BaseConfig.standings_source_entity(),
         "requests_count": _standing_requests_to_view().count(),
     }
     return render(
@@ -1094,8 +1089,8 @@ def _standing_requests_to_view() -> models.QuerySet:
 @permission_required("standingsrequests.affect_standings")
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
-    source_entity = ContactSet.standings_source_entity()
-    char_name = EveEntity.objects.resolve_name(STANDINGS_API_CHARID)
+    source_entity = BaseConfig.standings_source_entity()
+    char_name = EveEntity.objects.resolve_name(BaseConfig.standings_character_id)
     if not source_entity:
         messages_plus.error(
             request,
@@ -1109,7 +1104,7 @@ def view_auth_page(request, token):
                 % char_name,
             ),
         )
-    elif token.character_id == STANDINGS_API_CHARID:
+    elif token.character_id == BaseConfig.standings_character_id:
         update_all.delay(user_pk=request.user.pk)
         messages_plus.success(
             request,
@@ -1133,7 +1128,7 @@ def view_auth_page(request, token):
             )
             % {
                 "char_name": char_name,
-                "standings_api_char_id": STANDINGS_API_CHARID,
+                "standings_api_char_id": BaseConfig.standings_character_id,
                 "token_char_name": EveEntity.objects.resolve_name(token.character_id),
                 "token_char_id": token.character_id,
             },

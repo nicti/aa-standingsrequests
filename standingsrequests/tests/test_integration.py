@@ -30,20 +30,20 @@ from .my_test_data import (
     load_eve_entities,
 )
 
-MODULE_PATH_MODELS = "standingsrequests.models"
-MODULE_PATH_MANAGERS = "standingsrequests.managers"
-MODULE_PATH_TASKS = "standingsrequests.tasks"
+CORE_PATH = "standingsrequests.core"
+MODELS_PATH = "standingsrequests.models"
+MANAGERS_PATH = "standingsrequests.managers"
+TASKS_PATH = "standingsrequests.tasks"
 TEST_REQUIRED_SCOPE = "publicData"
 
 
 @patch(
-    MODULE_PATH_MODELS + ".SR_REQUIRED_SCOPES",
+    MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch("standingsrequests.core.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
 
     csrf_checks = False
@@ -113,7 +113,7 @@ class TestMainUseCases(WebTest):
         )
         cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
-    @patch(MODULE_PATH_TASKS + ".ContactSet.objects.create_new_from_api")
+    @patch(TASKS_PATH + ".ContactSet.objects.create_new_from_api")
     def _process_standing_requests(self, mock_create_new_from_api):
         mock_create_new_from_api.return_value = self.contact_set
         tasks.standings_update()
@@ -761,7 +761,7 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    @patch(TASKS_PATH + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_requests_for_valid_alts(self):
         """
         given user's alt has no standing record
@@ -782,7 +782,7 @@ class TestMainUseCases(WebTest):
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
 
-    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    @patch(TASKS_PATH + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_revocation_for_invalid_alts_2(self):
         """
         given user's alt has no standing record

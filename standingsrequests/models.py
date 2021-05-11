@@ -15,13 +15,8 @@ from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_OPERATION_MODE,
-    SR_REQUIRED_SCOPES,
-    SR_STANDING_TIMEOUT_HOURS,
-    STANDINGS_API_CHARID,
-)
-from .core import MainOrganizations
+from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
+from .core import BaseConfig, MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
@@ -138,64 +133,6 @@ class ContactSet(models.Model):
             return False
         return contact.is_standing_satisfied
 
-    @staticmethod
-    def required_esi_scope() -> str:
-        """returns the required ESI scopes for syncing"""
-        if SR_OPERATION_MODE == "alliance":
-            return "esi-alliances.read_contacts.v1"
-        elif SR_OPERATION_MODE == "corporation":
-            return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
-
-    @staticmethod
-    def standings_character() -> EveCharacter:
-        """returns the configured standings character"""
-        try:
-            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
-        except EveCharacter.DoesNotExist:
-            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
-            EveEntity.objects.get_or_create(
-                id=character.character_id,
-                defaults={
-                    "name": character.character_name,
-                    "category": EveEntity.CATEGORY_CHARACTER,
-                },
-            )
-
-        return character
-
-    @classmethod
-    def standings_source_entity(cls) -> object:
-        """returns the entity that all standings are fetched from
-
-        returns None when in alliance mode, but character has no alliance
-        """
-        character = cls.standings_character()
-        if SR_OPERATION_MODE == "alliance":
-            if character.alliance_id:
-                entity, _ = EveEntity.objects.get_or_create(
-                    id=character.alliance_id,
-                    defaults={
-                        "name": character.alliance_name,
-                        "category": EveEntity.CATEGORY_ALLIANCE,
-                    },
-                )
-            else:
-                entity = None
-        elif SR_OPERATION_MODE == "corporation":
-            entity, _ = EveEntity.objects.get_or_create(
-                id=character.corporation_id,
-                defaults={
-                    "name": character.corporation_name,
-                    "category": EveEntity.CATEGORY_CORPORATION,
-                },
-            )
-        else:
-            raise NotImplementedError()
-
-        return entity
-
     def generate_standing_requests_for_blue_alts(self) -> int:
         """Automatically creates effective standings requests for
         alt characters on Auth that already have blue standing in-game.
@@ -239,6 +176,16 @@ class ContactSet(models.Model):
             created_counter,
         )
         return created_counter
+
+    @staticmethod
+    def required_esi_scope() -> str:
+        """returns the required ESI scopes for syncing"""
+        if BaseConfig.operation_mode == "alliance":
+            return "esi-alliances.read_contacts.v1"
+        elif BaseConfig.operation_mode == "corporation":
+            return "esi-corporations.read_contacts.v1"
+        else:
+            raise NotImplementedError()
 
 
 class ContactLabel(models.Model):
