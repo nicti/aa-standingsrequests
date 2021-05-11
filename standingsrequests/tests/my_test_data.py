@@ -141,7 +141,6 @@ def esi_post_characters_affiliation(characters, *args, **kwargs) -> object:
     for assoc in _my_test_data["CharacterAffiliation"]:
         if assoc["character_id"] in characters:
             row = assoc.copy()
-            del row["main_character_id"]
             result.append(row)
 
     return BravadoOperationStub(result)

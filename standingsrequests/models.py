@@ -520,17 +520,18 @@ class CharacterAffiliation(models.Model):
     )
     alliance = models.ForeignKey(
         EveEntity,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_DEFAULT,
         null=True,
         default=None,
         related_name="+",
     )
-    main_character = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
+    eve_character = models.ForeignKey(
+        EveCharacter,
+        on_delete=models.SET_DEFAULT,
         null=True,
         default=None,
         related_name="+",
+        help_text="Related auth character (if any)",
     )
     updated = models.DateTimeField(auto_now_add=True)
 
@@ -540,10 +541,3 @@ class CharacterAffiliation(models.Model):
     def character_name(self) -> str:
         """Return character name for main."""
         return self.character.name if self.character.name else None
-
-    @cached_property
-    def main_character_name(self) -> str:
-        """Return character name for main."""
-        if self.main_character and self.main_character.name:
-            return self.main_character.name
-        return None

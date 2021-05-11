@@ -126,62 +126,52 @@
         {
             "character_id": 1001,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1002,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1003,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1004,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1001
+            "corporation_id": 2003
         },
         {
             "character_id": 1005,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1005
+            "corporation_id": 2003
         },
         {
             "character_id": 1006,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1006
+            "corporation_id": 2003
         },
         {
             "character_id": 1007,
             "alliance_id": null,
-            "corporation_id": 2004,
-            "main_character_id": 1007
+            "corporation_id": 2004
         },
         {
             "character_id": 1008,
             "alliance_id": null,
-            "corporation_id": 2004,
-            "main_character_id": 1008
+            "corporation_id": 2004
         },
         {
             "character_id": 1009,
             "alliance_id": null,
-            "corporation_id": 2102,
-            "main_character_id": 1009
+            "corporation_id": 2102
         },
         {
             "character_id": 1010,
             "alliance_id": null,
-            "corporation_id": 2102,
-            "main_character_id": 1002
+            "corporation_id": 2102
         }
     ],
     "EveAllianceInfo": {

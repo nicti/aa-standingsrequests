@@ -522,55 +522,24 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
 
 class CharacterAffiliationManager(models.Manager):
     def update_from_auth(self) -> None:
-        ...
+        """Update links to eve character in auth if any"""
 
-    #     """Update all character affiliations based on auth relationship data"""
-    #     for character in EveCharacter.objects.all():
-    #         logger.debug(
-    #             "Updating Association from Auth for %s", character.character_name
-    #         )
-    #         try:
-    #             ownership = CharacterOwnership.objects.get(character=character)
-    #         except CharacterOwnership.DoesNotExist:
-    #             main = None
-    #         else:
-    #             main = (
-    #                 ownership.user.profile.main_character.character_id
-    #                 if ownership.user.profile.main_character
-    #                 else None
-    #             )
-
-    #         self.update_or_create(
-    #             character_id=character.character_id,
-    #             defaults={
-    #                 "corporation_id": character.corporation_id,
-    #                 "main_character_id": main,
-    #                 "alliance_id": character.alliance_id,
-    #                 "updated": now(),
-    #             },
-    #         )
-    #         EveEntity.objects.update_or_create(
-    #             id=character.character_id,
-    #             defaults={
-    #                 "category": EveEntity.CATEGORY_CHARACTER,
-    #                 "name": character.character_name,
-    #             },
-    #         )
-    #         EveEntity.objects.update_or_create(
-    #             id=character.corporation_id,
-    #             defaults={
-    #                 "category": EveEntity.CATEGORY_CORPORATION,
-    #                 "name": character.corporation_name,
-    #             },
-    #         )
-    #         if character.alliance_id:
-    #             EveEntity.objects.update_or_create(
-    #                 id=character.alliance_id,
-    #                 defaults={
-    #                     "category": EveEntity.CATEGORY_ALLIANCE,
-    #                     "name": character.alliance_name,
-    #                 },
-    #             )
+        eve_character_id_map = {
+            obj["character_id"]: obj["id"]
+            for obj in EveCharacter.objects.values("id", "character_id")
+        }
+        with transaction.atomic():
+            affiliations = [
+                obj for obj in self.filter(character_id__in=eve_character_id_map.keys())
+            ]
+            for affiliation in affiliations:
+                affiliation.eve_character_id = eve_character_id_map[
+                    affiliation.character_id
+                ]
+            self.all().update({"eve_character_id": None})
+            self.bulk_update(
+                objs=affiliations, fields=["eve_character_id"], batch_size=500
+            )
 
     def update_from_api(self) -> None:
         """Update all character affiliations we have contacts or requests for."""

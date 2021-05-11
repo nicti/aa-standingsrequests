@@ -539,7 +539,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
 
 @patch("standingsrequests.helpers.esi_fetch._esi_client")
-class TestCharacterAffiliationsManagerApi(NoSocketsTestCase):
+class TestCharacterAffiliationsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -582,9 +582,16 @@ class TestCharacterAffiliationsManagerApi(NoSocketsTestCase):
         assoc.refresh_from_db()
         self.assertEqual(assoc.corporation_id, 2001)
 
-    def test_handle_exception_from_api(self, mock_esi_client):
+    def test_should_handle_exception_from_api(self, mock_esi_client):
+        # given
         mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = HTTPError(
             Mock()
         )
         create_contacts_set(include_assoc=False)
+        # when
         CharacterAffiliation.objects.update_from_api()
+
+    def test_should_update_eve_character_relations(self, mock_esi_client):
+        # given
+        # create_contacts_set(include_assoc=True)
+        pass

@@ -10,16 +10,15 @@ class EveCharacterHelper:
 
     # Not implemented
     corporation_ticker = None
-    api_id = ""
+
     user = None
 
     def __init__(self, character_id):
         self.character_id = int(character_id)
-        self.main_character = None
         self.alliance_name = None
         try:
             assoc = CharacterAffiliation.objects.select_related(
-                "character", "corporation", "alliance", "main_character"
+                "character", "corporation", "alliance"
             ).get(character_id=self.character_id)
         except CharacterAffiliation.DoesNotExist:
             assoc = None
@@ -29,13 +28,6 @@ class EveCharacterHelper:
         else:
             self.corporation_id = assoc.corporation_id
             self.alliance_id = assoc.alliance_id
-
-            # Add a main character attribute (deviates from original model)
-            if (
-                assoc.main_character_id is not None
-                and assoc.main_character_id != self.character_id
-            ):
-                self.main_character = EveCharacterHelper(assoc.main_character_id)
 
         self.character_name = (
             assoc.character.name if assoc and assoc.character else None

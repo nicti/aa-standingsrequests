@@ -2,7 +2,6 @@ from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecharacter import EveCharacterHelper
-from ..models import CharacterAffiliation
 from .my_test_data import (
     create_contacts_set,
     create_entity,
@@ -29,8 +28,6 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertEqual(character.corporation_name, "Wayne Technologies")
         self.assertEqual(character.alliance_id, 3001)
         self.assertEqual(character.alliance_name, "Wayne Enterprises")
-        main = character.main_character
-        self.assertEqual(main.character_id, 1001)
 
     def test_init_with_data_has_no_alliance(self):
         character = EveCharacterHelper(character_id=1004)
@@ -42,9 +39,6 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertIsNone(character.alliance_name)
 
     def test_init_with_data_has_no_main(self):
-        assoc = CharacterAffiliation.objects.get(character_id=1001)
-        assoc.main_character = None
-        assoc.save()
         character = EveCharacterHelper(character_id=1001)
         self.assertEqual(character.character_id, 1001)
         self.assertEqual(character.character_name, "Bruce Wayne")
@@ -52,7 +46,6 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertEqual(character.corporation_name, "Wayne Technologies")
         self.assertEqual(character.alliance_id, 3001)
         self.assertEqual(character.alliance_name, "Wayne Enterprises")
-        self.assertIsNone(character.main_character)
 
     def test_init_without_data(self):
         EveCharacter.objects.filter(character_id=1001).delete()
