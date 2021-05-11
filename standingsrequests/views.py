@@ -22,6 +22,7 @@ from .app_settings import (
     SR_OPERATION_MODE,
     STANDINGS_API_CHARID,
 )
+from .core import MainOrganizations
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
@@ -170,7 +171,7 @@ def request_characters(request):
                 "pendingRequest": has_pending_request,
                 "pendingRevocation": has_pending_revocation,
                 "requestActioned": has_actioned_request,
-                "inOrganisation": ContactSet.is_character_in_organisation(character),
+                "inOrganisation": MainOrganizations.is_character_a_member(character),
                 "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
                     character, user=request.user, quick_check=True
                 ),
@@ -199,10 +200,8 @@ def request_corporations(request):
 
     eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
     corporation_ids = set(
-        eve_characters_qs.exclude(
-            corporation_id__in=ContactSet.corporation_ids_in_organization()
-        )
-        .exclude(alliance_id__in=ContactSet.alliance_ids_in_organization())
+        eve_characters_qs.exclude(corporation_id__in=MainOrganizations.corporation_ids)
+        .exclude(alliance_id__in=MainOrganizations.alliance_ids)
         .values_list("corporation_id", flat=True)
     )
     corporations_standing_requests = {
@@ -351,7 +350,7 @@ def remove_pilot_standing(request, character_id):
             "User %s does not own Pilot ID %d, forbidden", request.user, character_id
         )
         ok = False
-    elif ContactSet.is_character_in_organisation(character):
+    elif MainOrganizations.is_character_a_member(character):
         logger.warning(
             "Character %d of user %s is in organization. Can not remove standing",
             character_id,

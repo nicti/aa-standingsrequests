@@ -22,7 +22,7 @@ TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
 @patch(
-    "standingsrequests.models.STR_ALLIANCE_IDS",
+    "standingsrequests.core.STR_ALLIANCE_IDS",
     [str(TEST_STANDINGS_ALLIANCE_ID)],
 )
 @patch(

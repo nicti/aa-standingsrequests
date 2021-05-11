@@ -15,6 +15,7 @@ from app_utils.testing import (
     add_new_token,
 )
 
+from ..core import MainOrganizations
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
     AbstractStandingsRequest,
@@ -56,7 +57,8 @@ from .my_test_data import (
     load_eve_entities,
 )
 
-MODULE_PATH = "standingsrequests.models"
+CORE_PATH = "standingsrequests.core"
+MODELS_PATH = "standingsrequests.models"
 TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
@@ -128,25 +130,25 @@ class TestContactSet(NoSocketsTestCase):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".STR_CORP_IDS", ["2001"])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_corp(self):
-        self.assertTrue(ContactSet.is_character_in_organisation(self.character_1001))
+        self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
     def test_pilot_in_organisation_matches_alliance(self):
-        self.assertTrue(ContactSet.is_character_in_organisation(self.character_1001))
+        self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [3101])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3101])
     def test_pilot_in_organisation_doest_not_exist(self):
-        self.assertFalse(ContactSet.is_character_in_organisation(self.character_1001))
+        self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_none(self):
-        self.assertFalse(ContactSet.is_character_in_organisation(self.character_1001))
+        self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
 
 class TestContactSetCreateStanding(NoSocketsTestCase):
@@ -184,10 +186,10 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
 
 
 @patch(
-    MODULE_PATH + ".SR_REQUIRED_SCOPES",
+    MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -512,8 +514,8 @@ class TestStandingsRequest(TestCase):
 
 
 class TestStandingsRequestClassMethods(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good(self, mock_get_corp_by_id):
         """user has tokens for all 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -534,8 +536,8 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
 
         self.assertTrue(StandingRequest.can_request_corporation_standing(2001, my_user))
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_incomplete(self, mock_get_corp_by_id):
         """user has tokens for only 2 / 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -559,10 +561,10 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         )
 
     @patch(
-        MODULE_PATH + ".SR_REQUIRED_SCOPES",
+        MODELS_PATH + ".SR_REQUIRED_SCOPES",
         {"Guest": ["publicData", "esi-mail.read_mail.v1"]},
     )
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_wrong_scope(self, mock_get_corp_by_id):
         """user has tokens for only 3 / 3 chars of corp, but wrong scopes"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -585,8 +587,8 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
             StandingRequest.can_request_corporation_standing(2001, my_user)
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good_another_user(
         self, mock_get_corp_by_id
     ):
@@ -609,21 +611,21 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
 
 
 class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_scopes_if_defined_for_state(self):
         expected = ["abc"]
         self.assertListEqual(
             StandingRequest.get_required_scopes_for_state("member"), expected
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_empty_list_if_not_defined_for_state(self):
         expected = []
         self.assertListEqual(
             StandingRequest.get_required_scopes_for_state("guest"), expected
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_empty_list_if_state_is_note(self):
         expected = []
         self.assertListEqual(
@@ -631,7 +633,7 @@ class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
         )
 
 
-@patch(MODULE_PATH + ".StandingRequest.get_required_scopes_for_state")
+@patch(MODELS_PATH + ".StandingRequest.get_required_scopes_for_state")
 class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
     def test_true_when_user_has_required_scopes(
         self, mock_get_required_scopes_for_state
@@ -677,31 +679,31 @@ class TestCharacterAssociation(TestCase):
         EveEntity.objects.all().delete()
         CharacterAssociation.objects.all().delete()
 
-    @patch(MODULE_PATH + ".EveEntity")
+    @patch(MODELS_PATH + ".EveEntity")
     def test_get_character_name_exists(self, mock_EveEntity):
         mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
-    @patch(MODULE_PATH + ".EveEntity")
+    @patch(MODELS_PATH + ".EveEntity")
     def test_get_character_name_not_exists(self, mock_EveEntity):
         mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
         self.assertIsNone(my_assoc.character_name)
 
-    @patch(MODULE_PATH + ".EveEntity")
+    @patch(MODELS_PATH + ".EveEntity")
     def test_get_main_character_name_exists(self, mock_EveEntity):
         mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
-    @patch(MODULE_PATH + ".EveEntity")
+    @patch(MODELS_PATH + ".EveEntity")
     def test_get_main_character_name_not_exists(self, mock_EveEntity):
         mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
         self.assertIsNone(my_assoc.main_character_name)
 
-    @patch(MODULE_PATH + ".EveEntity")
+    @patch(MODELS_PATH + ".EveEntity")
     def test_get_main_character_name_not_defined(self, mock_EveEntity):
         mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
         my_assoc = CharacterAssociation(character_id=1002)

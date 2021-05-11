@@ -20,9 +20,8 @@ from .app_settings import (
     SR_REQUIRED_SCOPES,
     SR_STANDING_TIMEOUT_HOURS,
     STANDINGS_API_CHARID,
-    STR_ALLIANCE_IDS,
-    STR_CORP_IDS,
 )
+from .core import MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
@@ -137,27 +136,7 @@ class ContactSet(models.Model):
             contact = self.contacts.get(eve_entity_id=contact_id)
         except Contact.DoesNotExist:
             return False
-        return StandingRequest.is_standing_satisfied(contact.standing)
-
-    @classmethod
-    def is_character_in_organisation(cls, character: EveCharacter) -> bool:
-        """Check if the Pilot is in the auth instances organisation
-
-        character: EveCharacter
-
-        returns True if the character is in the organisation, False otherwise
-        """
-        return (
-            character.corporation_id in cls.corporation_ids_in_organization()
-            or character.alliance_id in cls.alliance_ids_in_organization()
-        )
-
-    def corporation_ids_in_organization() -> set:
-        return {int(org_id) for org_id in list(STR_CORP_IDS)}
-
-    @staticmethod
-    def alliance_ids_in_organization() -> set:
-        return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
+        return contact.is_standing_satisfied
 
     @staticmethod
     def required_esi_scope() -> str:
@@ -231,7 +210,7 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not self.is_character_in_organisation(alt)
+                not MainOrganizations.is_character_a_member(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
@@ -309,6 +288,10 @@ class Contact(models.Model):
     @property
     def name(self) -> str:
         return self.eve_entity.name
+
+    @property
+    def is_standing_satisfied(self) -> str:
+        return StandingRequest.is_standing_satisfied(self.standing)
 
 
 class AbstractStandingsRequest(models.Model):
