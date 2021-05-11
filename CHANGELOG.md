@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.8.0] - TBD
+
+>**Update Notes**<br>This app now requires eveuniverse to be installed. If you have not installed eveuniverse on your system please refer to the installation guide in the README for further instructions on how to install it.
+
+### Changed
+
+- Now requires django-eveuniverse
+- Task `standings_requests.update_associations_auth` is now obsolete
+- Significant improved performance of pilot standings page and others.
+
 ## [0.7.2] - 2021-05-10
 
 ### Fixed

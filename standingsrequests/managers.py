@@ -234,7 +234,10 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
 
 class AbstractStandingsRequestManager(models.Manager):
     def filter_characters(self) -> models.QuerySet:
-        return self.filter(contact_type__in=0)
+        return self.filter(contact_type_id__in=ContactType.character_ids)
+
+    def filter_corporations(self) -> models.QuerySet:
+        return self.filter(contact_type_id__in=ContactType.corporation_ids)
 
     def get_queryset(self) -> models.QuerySet:
         return AbstractStandingsRequestQuerySet(self.model, using=self._db)
@@ -571,58 +574,80 @@ class CharacterAssociationManager(models.Manager):
 
     def update_from_api(self) -> None:
         """Update all character associations we have contacts or requests for."""
+        character_ids = self._gather_character_ids()
+        if character_ids:
+            associations = self._fetch_character_associations_from_esi(character_ids)
+            if associations:
+                self._store_associations(associations)
+
+    def _gather_character_ids(self) -> list:
         from .models import ContactSet, StandingRequest, StandingRevocation
 
         try:
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Could not find a contact set")
-            return
+            return []
 
         character_ids_contacts = list(
             contact_set.contacts.filter_characters()
             .values_list("eve_entity_id", flat=True)
             .distinct()
         )
-        character_ids_requests = StandingRequest.objects.values_list(
-            "contact_id"
-        ).distinct()
-        character_ids_revocations = StandingRevocation.objects.values_list(
-            "contact_id"
-        ).distinct()
-        character_ids = list(
+        character_ids_requests = (
+            StandingRequest.objects.filter_characters()
+            .values_list("contact_id")
+            .distinct()
+        )
+        character_ids_revocations = (
+            StandingRevocation.objects.filter_characters()
+            .values_list("contact_id")
+            .distinct()
+        )
+        return list(
             set(character_ids_contacts)
             | set(character_ids_requests)
             | set(character_ids_revocations)
         )
+
+    def _fetch_character_associations_from_esi(self, character_ids) -> list:
         chunk_size = 1000
+        associations = []
         for character_ids_chunk in chunks(character_ids, chunk_size):
             try:
-                associations = esi_fetch(
+                associations_raw = esi_fetch(
                     "Character.post_characters_affiliation",
                     args={"characters": character_ids_chunk},
                 )
             except HTTPError:
                 logger.exception("Could not fetch character associations from ESI")
-                return
+                return []
+            else:
+                associations += associations_raw
+        return associations
 
-            for association in associations:
-                character, _ = EveEntity.objects.get_or_create(
-                    id=association["character_id"]
+    def _store_associations(self, associations) -> None:
+        assocs = list()
+        for association in associations:
+            character, _ = EveEntity.objects.get_or_create(
+                id=association["character_id"]
+            )
+            corporation, _ = EveEntity.objects.get_or_create(
+                id=association["corporation_id"]
+            )
+            if association.get("alliance_id"):
+                alliance, _ = EveEntity.objects.get_or_create(
+                    id=association["alliance_id"]
                 )
-                corporation, _ = EveEntity.objects.get_or_create(
-                    id=association["corporation_id"]
+            else:
+                alliance = None
+            assocs.append(
+                self.model(
+                    character=character, corporation=corporation, alliance=alliance
                 )
-                if association.get("alliance_id"):
-                    alliance, _ = EveEntity.objects.get_or_create(
-                        id=association["alliance_id"]
-                    )
-                else:
-                    alliance = None
-                self.update_or_create(
-                    character=character,
-                    defaults={"corporation": corporation, "alliance": alliance},
-                )
+            )
+        with transaction.atomic():
+            self.all().delete()
+            self.bulk_create(assocs, batch_size=500)
 
-            # make sure we have all names resolved
-            EveEntity.objects.bulk_update_new_esi()
+        EveEntity.objects.bulk_update_new_esi()

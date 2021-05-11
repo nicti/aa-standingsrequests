@@ -38,7 +38,13 @@ Here are some example screenshots:
 
 ## Installation
 
-### Step 1: Update Eve Online scopes
+### Step 1 - Check prerequisites
+
+1. Moon Mining is a plugin for Alliance Auth. If you don't have Alliance Auth running already, please install it first before proceeding. (see the official [AA installation guide](https://allianceauth.readthedocs.io/en/latest/installation/auth/allianceauth/) for details)
+
+2. Moon Mining needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
+
+### Step 2 - Update Eve Online scopes
 
 Add the following scopes to the Eve Online app used by Auth on [developers.eveonline.com](https://developers.eveonline.com/):
 
@@ -47,7 +53,7 @@ esi-alliances.read_contacts.v1
 esi-corporations.read_contacts.v1
 ```
 
-### Step 2: Python installation
+### Step 3 - Python installation
 
 Activate your virtual environment and install this app with:
 
@@ -55,7 +61,7 @@ Activate your virtual environment and install this app with:
 pip install aa-standingsrequests
 ```
 
-### Step 3: Django Installation
+### Step 4 - Django Installation
 
 Add `'standingsrequests'` to `INSTALLED_APPS` in your Alliance Auth local settings file. Also add the other settings from the [Settings Example](#settings-example) and update the example config for your alliance.
 
@@ -75,7 +81,7 @@ python manage.py collectstatic
 
 Finally restart Django and Celery.
 
-### Step 4: Setup app within Auth
+### Step 5 - Setup app within Auth
 
 Open the standingsrequests app in Alliance Auth and add the token for the configured standings character. This will initiate the first pull of standings. You will get a notification once the standings pull is completed (Usually within a few minutes).
 
@@ -102,27 +108,22 @@ SR_REQUIRED_SCOPES = {
 }
 
 # CELERY tasks
-if 'standingsrequests' in INSTALLED_APPS:
-    CELERYBEAT_SCHEDULE['standings_requests_standings_update'] = {
-        'task': 'standings_requests.standings_update',
-        'schedule': crontab(minute='*/30'),
-    }
-    CELERYBEAT_SCHEDULE['standings_requests_validate_requests'] = {
-        'task': 'standings_requests.validate_requests',
-        'schedule': crontab(minute='0', hour='*/6'),
-    }
-    CELERYBEAT_SCHEDULE['standings_requests.update_associations_auth'] = {
-        'task': 'standings_requests.update_associations_auth',
-        'schedule': crontab(minute='0', hour='*/12'),
-    }
-    CELERYBEAT_SCHEDULE['standings_requests_update_associations_api'] = {
-        'task': 'standings_requests.update_associations_api',
-        'schedule': crontab(minute='30', hour='*/12'),
-    }
-    CELERYBEAT_SCHEDULE['standings_requests_purge_stale_data'] = {
-        'task': 'standings_requests.purge_stale_data',
-        'schedule': crontab(minute='0', hour='*/24'),
-    }
+CELERYBEAT_SCHEDULE['standings_requests_standings_update'] = {
+    'task': 'standings_requests.standings_update',
+    'schedule': crontab(minute='*/30'),
+}
+CELERYBEAT_SCHEDULE['standings_requests_update_associations_api'] = {
+    'task': 'standings_requests.update_associations_api',
+    'schedule': crontab(minute='30', hour='*/3'),
+}
+CELERYBEAT_SCHEDULE['standings_requests_validate_requests'] = {
+    'task': 'standings_requests.validate_requests',
+    'schedule': crontab(minute='0', hour='*/6'),
+}
+CELERYBEAT_SCHEDULE['standings_requests_purge_stale_data'] = {
+    'task': 'standings_requests.purge_stale_data',
+    'schedule': crontab(minute='0', hour='*/24'),
+}
 ```
 
 ## Settings

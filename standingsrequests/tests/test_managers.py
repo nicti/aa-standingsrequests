@@ -577,7 +577,7 @@ class TestCharacterAssociationsManagerApi(NoSocketsTestCase):
         )
         self.assertSetEqual(
             existing_objects,
-            {1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010},
+            {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010},
         )
         assoc.refresh_from_db()
         self.assertEqual(assoc.corporation_id, 2001)
