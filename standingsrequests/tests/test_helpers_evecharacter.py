@@ -17,11 +17,11 @@ class TestEveCharacter(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        create_contacts_set()
         create_entity(EveCharacter, 1001)
         generate_eve_entities_from_allianceauth()
 
     def test_init_with_data_has_alliance(self):
-        create_contacts_set()
         character = EveCharacterHelper(character_id=1002)
         self.assertEqual(character.character_id, 1002)
         self.assertEqual(character.character_name, "Peter Parker")
@@ -33,7 +33,6 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertEqual(main.character_id, 1001)
 
     def test_init_with_data_has_no_alliance(self):
-        create_contacts_set()
         character = EveCharacterHelper(character_id=1004)
         self.assertEqual(character.character_id, 1004)
         self.assertEqual(character.character_name, "Kara Danvers")
@@ -43,7 +42,6 @@ class TestEveCharacter(NoSocketsTestCase):
         self.assertIsNone(character.alliance_name)
 
     def test_init_with_data_has_no_main(self):
-        create_contacts_set()
         assoc = CharacterAssociation.objects.get(character_id=1001)
         assoc.main_character = None
         assoc.save()

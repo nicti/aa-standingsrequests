@@ -903,13 +903,13 @@ def _compose_standing_requests_data(
         )
     }
     requests_data = list()
-    for r in requests_qs:
+    for req in requests_qs:
         main_character_name = ""
         main_character_ticker = ""
         main_character_icon_url = ""
-        if r.user:
-            state_name = r.user.profile.state.name
-            main = r.user.profile.main_character
+        if req.user:
+            state_name = req.user.profile.state.name
+            main = req.user.profile.main_character
             if main:
                 main_character_name = main.character_name
                 main_character_ticker = main.corporation_ticker
@@ -917,11 +917,11 @@ def _compose_standing_requests_data(
         else:
             state_name = "(no user)"
 
-        if r.is_character:
-            if r.contact_id in eve_characters:
-                character = eve_characters[r.contact_id]
+        if req.is_character:
+            if req.contact_id in eve_characters:
+                character = eve_characters[req.contact_id]
             else:
-                character = EveCharacterHelper(r.contact_id)
+                character = EveCharacterHelper(req.contact_id)
 
             contact_name = character.character_name
             contact_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
@@ -935,11 +935,11 @@ def _compose_standing_requests_data(
             alliance_id = character.alliance_id
             alliance_name = character.alliance_name if character.alliance_name else ""
             has_scopes = StandingRequest.has_required_scopes_for_request(
-                character=character, user=r.user, quick_check=quick_check
+                character=character, user=req.user, quick_check=quick_check
             )
 
-        elif r.is_corporation and r.contact_id in eve_corporations:
-            corporation = eve_corporations[r.contact_id]
+        elif req.is_corporation and req.contact_id in eve_corporations:
+            corporation = eve_corporations[req.contact_id]
             contact_icon_url = corporation.logo_url(DEFAULT_ICON_SIZE)
             contact_name = corporation.corporation_name
             corporation_id = corporation.corporation_id
@@ -950,7 +950,7 @@ def _compose_standing_requests_data(
             has_scopes = (
                 not corporation.is_npc
                 and corporation.user_has_all_member_tokens(
-                    user=r.user, quick_check=quick_check
+                    user=req.user, quick_check=quick_check
                 )
             )
 
@@ -966,7 +966,7 @@ def _compose_standing_requests_data(
 
         requests_data.append(
             {
-                "contact_id": r.contact_id,
+                "contact_id": req.contact_id,
                 "contact_name": contact_name,
                 "contact_icon_url": contact_icon_url,
                 "corporation_id": corporation_id,
@@ -974,18 +974,18 @@ def _compose_standing_requests_data(
                 "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
-                "request_date": r.request_date.isoformat(),
-                "action_date": r.action_date.isoformat() if r.action_date else None,
+                "request_date": req.request_date.isoformat(),
+                "action_date": req.action_date.isoformat() if req.action_date else None,
                 "has_scopes": has_scopes,
                 "state": state_name,
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,
-                "actioned": r.is_actioned,
-                "is_effective": r.is_effective,
-                "is_corporation": r.is_corporation,
-                "is_character": r.is_character,
-                "action_by": r.action_by.username if r.action_by else "(System)",
+                "actioned": req.is_actioned,
+                "is_effective": req.is_effective,
+                "is_corporation": req.is_corporation,
+                "is_character": req.is_character,
+                "action_by": req.action_by.username if req.action_by else "(System)",
             }
         )
 
