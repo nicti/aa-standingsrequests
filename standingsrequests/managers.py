@@ -16,7 +16,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
-from .core import BaseConfig
+from .core import BaseConfig, ContactType
 from .helpers.esi_fetch import esi_fetch
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -233,6 +233,9 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
 
 
 class AbstractStandingsRequestManager(models.Manager):
+    def filter_characters(self) -> models.QuerySet:
+        return self.filter(contact_type__in=0)
+
     def get_queryset(self) -> models.QuerySet:
         return AbstractStandingsRequestQuerySet(self.model, using=self._db)
 
@@ -392,7 +395,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         returns the number of invalid requests
         """
-        from .models import ContactType, StandingRevocation
+        from .models import StandingRevocation
 
         logger.debug("Validating standings requests")
         invalid_count = 0
@@ -567,14 +570,8 @@ class CharacterAssociationManager(models.Manager):
     #             )
 
     def update_from_api(self) -> None:
-        """Update all character corp associations we have standings for that
-        aren't being updated locally
-        Cache timeout should be longer than update_from_auth
-        update schedule to
-        prevent unnecessarily updating characters we already have local data for.
-        """
-        # gather character associations of pilots which meed to be updated
-        from .models import ContactSet
+        """Update all character associations we have contacts or requests for."""
+        from .models import ContactSet, StandingRequest, StandingRevocation
 
         try:
             contact_set = ContactSet.objects.latest()
@@ -582,10 +579,21 @@ class CharacterAssociationManager(models.Manager):
             logger.warning("Could not find a contact set")
             return
 
-        character_ids = list(
+        character_ids_contacts = list(
             contact_set.contacts.filter_characters()
             .values_list("eve_entity_id", flat=True)
             .distinct()
+        )
+        character_ids_requests = StandingRequest.objects.values_list(
+            "contact_id"
+        ).distinct()
+        character_ids_revocations = StandingRevocation.objects.values_list(
+            "contact_id"
+        ).distinct()
+        character_ids = list(
+            set(character_ids_contacts)
+            | set(character_ids_requests)
+            | set(character_ids_revocations)
         )
         chunk_size = 1000
         for character_ids_chunk in chunks(character_ids, chunk_size):

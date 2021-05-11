@@ -18,13 +18,13 @@ from app_utils.messages import messages_plus
 
 from . import __title__
 from .app_settings import SR_CORPORATIONS_ENABLED, SR_NOTIFICATIONS_ENABLED
-from .core import BaseConfig, MainOrganizations
+from .core import BaseConfig, ContactType, MainOrganizations
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
 from .helpers.evecorporation import EveCorporation
 from .helpers.eveentity import EveEntityHelper
 from .helpers.writers import UnicodeWriter
-from .models import ContactSet, ContactType, StandingRequest, StandingRevocation
+from .models import ContactSet, StandingRequest, StandingRevocation
 from .tasks import update_all
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

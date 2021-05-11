@@ -22,8 +22,9 @@ from app_utils.testing import (
 )
 
 from .. import views
+from ..core import ContactType
 from ..helpers.evecorporation import EveCorporation
-from ..models import Contact, ContactType, StandingRequest, StandingRevocation
+from ..models import Contact, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,

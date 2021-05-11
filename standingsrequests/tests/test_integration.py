@@ -13,13 +13,8 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
 from .. import tasks
-from ..models import (
-    Contact,
-    ContactSet,
-    ContactType,
-    StandingRequest,
-    StandingRevocation,
-)
+from ..core import ContactType
+from ..models import Contact, ContactSet, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,

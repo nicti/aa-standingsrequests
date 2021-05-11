@@ -1,7 +1,8 @@
 from django.contrib import admin
 from eveuniverse.models import EveEntity
 
-from .models import ContactType, StandingRequest, StandingRevocation
+from .core import ContactType
+from .models import StandingRequest, StandingRevocation
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
