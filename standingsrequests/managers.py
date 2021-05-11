@@ -557,25 +557,23 @@ class CharacterAffiliationManager(models.Manager):
             logger.warning("Could not find a contact set")
             return []
 
-        character_ids_contacts = list(
+        character_ids_contacts = set(
             contact_set.contacts.filter_characters()
             .values_list("eve_entity_id", flat=True)
             .distinct()
         )
-        character_ids_requests = (
+        character_ids_requests = set(
             StandingRequest.objects.filter_characters()
-            .values_list("contact_id")
+            .values_list("contact_id", flat=True)
             .distinct()
         )
-        character_ids_revocations = (
+        character_ids_revocations = set(
             StandingRevocation.objects.filter_characters()
-            .values_list("contact_id")
+            .values_list("contact_id", flat=True)
             .distinct()
         )
         return list(
-            set(character_ids_contacts)
-            | set(character_ids_requests)
-            | set(character_ids_revocations)
+            character_ids_contacts | character_ids_requests | character_ids_revocations
         )
 
     def _fetch_characters_affiliation_from_esi(self, character_ids) -> list:

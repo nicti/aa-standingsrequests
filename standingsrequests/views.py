@@ -560,27 +560,20 @@ def view_pilots_standings_json(request):
             "eve_entity__character_association",
             "eve_entity__character_association__corporation",
             "eve_entity__character_association__alliance",
+            "eve_entity__character_association__eve_character",
+            "eve_entity__character_association__eve_character__character_ownership__user",
+            "eve_entity__character_association__eve_character__character_ownership__user__profile__main_character",
+            "eve_entity__character_association__eve_character__character_ownership__user__profile__state",
         )
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    character_contact_ids = set(
-        character_contacts_qs.values_list("eve_entity_id", flat=True)
-    )
-    eve_characters = {
-        obj.character_id: obj
-        for obj in EveCharacter.objects.select_related(
-            "character_ownership__user",
-            "character_ownership__user__profile__main_character",
-            "character_ownership__user__profile__state",
-        ).filter(character_id__in=character_contact_ids)
-    }
     characters_data = list()
     for contact in character_contacts_qs:
-        character = eve_characters.get(contact.eve_entity_id)
         try:
+            character = contact.eve_entity.character_association.eve_character
             user = character.character_ownership.user
-        except AttributeError:
+        except (AttributeError, ObjectDoesNotExist):
             main = None
             state = ""
             has_required_scopes = None
@@ -601,7 +594,6 @@ def view_pilots_standings_json(request):
                 alliance_id = assoc.alliance.id if assoc.alliance else None
                 alliance_name = assoc.alliance.name if assoc.alliance else None
         else:
-            user = character.character_ownership.user
             main = user.profile.main_character
             state = user.profile.state.name if user.profile.state else ""
             has_required_scopes = StandingRequest.has_required_scopes_for_request(

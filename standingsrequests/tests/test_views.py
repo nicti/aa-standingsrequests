@@ -24,7 +24,7 @@ from app_utils.testing import (
 from .. import views
 from ..core import ContactType
 from ..helpers.evecorporation import EveCorporation
-from ..models import Contact, StandingRequest, StandingRevocation
+from ..models import CharacterAffiliation, Contact, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
@@ -134,9 +134,11 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.factory = RequestFactory()
-        cls.contact_set = create_contacts_set()
         load_eve_entities()
         create_eve_objects()
+        cls.contact_set = create_contacts_set()
+        CharacterAffiliation.objects.update_evecharacter_relations()
+
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
         cls.user = AuthUtils.create_member("John Doe")

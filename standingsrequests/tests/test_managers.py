@@ -544,6 +544,8 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.user_manager = AuthUtils.create_user("Mike Manager")
+        cls.user_requestor = AuthUtils.create_user("Roger Requestor")
 
     def test_should_create_new_assocs(self, mock_esi_client):
         # given
@@ -551,6 +553,13 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=False)
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+        )
         # when
         CharacterAffiliation.objects.update_from_esi()
         # then
