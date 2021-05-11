@@ -214,7 +214,7 @@ def get_test_contacts():
     return contacts
 
 
-def create_contacts_set(my_set: object = None) -> object:
+def create_contacts_set(my_set: ContactSet = None, include_assoc=True) -> ContactSet:
 
     if not my_set:
         my_set = ContactSet.objects.create(name="Dummy Set")
@@ -274,9 +274,10 @@ def create_contacts_set(my_set: object = None) -> object:
             )
 
     # create CharacterAssociation
-    CharacterAssociation.objects.all().delete()
-    for assoc in _my_test_data["CharacterAssociation"]:
-        CharacterAssociation.objects.create(**assoc)
+    if include_assoc:
+        CharacterAssociation.objects.all().delete()
+        for assoc in _my_test_data["CharacterAssociation"]:
+            CharacterAssociation.objects.create(**assoc)
 
     return my_set
 

@@ -4,7 +4,7 @@ from enum import IntEnum
 from django.contrib.auth.models import User
 from django.core import exceptions
 from django.db import models
-from django.utils.functional import classproperty
+from django.utils.functional import cached_property, classproperty
 from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveEntity
@@ -580,38 +580,43 @@ class StandingRevocation(AbstractStandingsRequest):
 
 
 class CharacterAssociation(models.Model):
-    """
-    Alt Character Associations with declared mains
-    Main characters are associated with themselves
-    """
+    """Associations of a character."""
 
-    API_CACHE_TIMER = timedelta(days=3)
-
-    character_id = models.PositiveIntegerField(primary_key=True)
-    corporation_id = models.PositiveIntegerField(null=True)
-    alliance_id = models.PositiveIntegerField(null=True)
-    main_character_id = models.PositiveIntegerField(null=True)
+    character = models.OneToOneField(
+        EveEntity,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="character_association",
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="corporation_associations"
+    )
+    alliance = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        related_name="alliance_associations",
+    )
+    main_character = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        related_name="main_association",
+    )
     updated = models.DateTimeField(auto_now_add=True)
 
     objects = CharacterAssociationManager()
 
-    @property
-    def character_name(self):
-        """
-        Character name property for character_id
-        :return: str character name
-        """
-        name = EveEntity.objects.resolve_name(self.character_id)
-        return name
+    @cached_property
+    def character_name(self) -> str:
+        """Return character name for main."""
+        return self.character.name if self.character.name else None
 
-    @property
-    def main_character_name(self):
-        """
-        Character name property for character_id
-        :return: str character name
-        """
-        if self.main_character_id:
-            name = EveEntity.objects.resolve_name(self.main_character_id)
-        else:
-            name = None
-        return name
+    @cached_property
+    def main_character_name(self) -> str:
+        """Return character name for main."""
+        if self.main_character and self.main_character.name:
+            return self.main_character.name
+        return None

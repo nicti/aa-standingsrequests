@@ -3,12 +3,11 @@ from bravado.exception import HTTPError
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.db.models import Case, Q, Value, When
-from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
 
-from allianceauth.authentication.models import CharacterOwnership
+# from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
@@ -517,53 +516,55 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
 
 class CharacterAssociationManager(models.Manager):
     def update_from_auth(self) -> None:
-        """Update all character associations based on auth relationship data"""
-        for character in EveCharacter.objects.all():
-            logger.debug(
-                "Updating Association from Auth for %s", character.character_name
-            )
-            try:
-                ownership = CharacterOwnership.objects.get(character=character)
-            except CharacterOwnership.DoesNotExist:
-                main = None
-            else:
-                main = (
-                    ownership.user.profile.main_character.character_id
-                    if ownership.user.profile.main_character
-                    else None
-                )
+        ...
 
-            self.update_or_create(
-                character_id=character.character_id,
-                defaults={
-                    "corporation_id": character.corporation_id,
-                    "main_character_id": main,
-                    "alliance_id": character.alliance_id,
-                    "updated": now(),
-                },
-            )
-            EveEntity.objects.update_or_create(
-                id=character.character_id,
-                defaults={
-                    "category": EveEntity.CATEGORY_CHARACTER,
-                    "name": character.character_name,
-                },
-            )
-            EveEntity.objects.update_or_create(
-                id=character.corporation_id,
-                defaults={
-                    "category": EveEntity.CATEGORY_CORPORATION,
-                    "name": character.corporation_name,
-                },
-            )
-            if character.alliance_id:
-                EveEntity.objects.update_or_create(
-                    id=character.alliance_id,
-                    defaults={
-                        "category": EveEntity.CATEGORY_ALLIANCE,
-                        "name": character.alliance_name,
-                    },
-                )
+    #     """Update all character associations based on auth relationship data"""
+    #     for character in EveCharacter.objects.all():
+    #         logger.debug(
+    #             "Updating Association from Auth for %s", character.character_name
+    #         )
+    #         try:
+    #             ownership = CharacterOwnership.objects.get(character=character)
+    #         except CharacterOwnership.DoesNotExist:
+    #             main = None
+    #         else:
+    #             main = (
+    #                 ownership.user.profile.main_character.character_id
+    #                 if ownership.user.profile.main_character
+    #                 else None
+    #             )
+
+    #         self.update_or_create(
+    #             character_id=character.character_id,
+    #             defaults={
+    #                 "corporation_id": character.corporation_id,
+    #                 "main_character_id": main,
+    #                 "alliance_id": character.alliance_id,
+    #                 "updated": now(),
+    #             },
+    #         )
+    #         EveEntity.objects.update_or_create(
+    #             id=character.character_id,
+    #             defaults={
+    #                 "category": EveEntity.CATEGORY_CHARACTER,
+    #                 "name": character.character_name,
+    #             },
+    #         )
+    #         EveEntity.objects.update_or_create(
+    #             id=character.corporation_id,
+    #             defaults={
+    #                 "category": EveEntity.CATEGORY_CORPORATION,
+    #                 "name": character.corporation_name,
+    #             },
+    #         )
+    #         if character.alliance_id:
+    #             EveEntity.objects.update_or_create(
+    #                 id=character.alliance_id,
+    #                 defaults={
+    #                     "category": EveEntity.CATEGORY_ALLIANCE,
+    #                     "name": character.alliance_name,
+    #                 },
+    #             )
 
     def update_from_api(self) -> None:
         """Update all character corp associations we have standings for that
@@ -579,70 +580,41 @@ class CharacterAssociationManager(models.Manager):
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Could not find a contact set")
-        else:
-            all_pilots = contact_set.contacts.filter_characters().values_list(
-                "eve_entity_id", flat=True
-            )
-            expired_character_associations = self.get_api_expired_items(
-                all_pilots
-            ).values_list("character_id", flat=True)
-            expired_pilots = set(all_pilots).intersection(
-                expired_character_associations
-            )
-            known_pilots = self.values_list("character_id", flat=True)
-            unknown_pilots = [
-                pilot for pilot in all_pilots if pilot not in known_pilots
-            ]
-            pilots_to_fetch = list(expired_pilots | set(unknown_pilots))
+            return
 
-            # Fetch the data in acceptable sizes from the API
-            chunk_size = 1000
-            for pilots_chunk in chunks(pilots_to_fetch, chunk_size):
-                try:
-                    esi_response = esi_fetch(
-                        "Character.post_characters_affiliation",
-                        args={"characters": pilots_chunk},
-                    )
-                except HTTPError:
-                    logger.exception(
-                        "Could not fetch associations pilots_chunk from ESI"
+        character_ids = list(
+            contact_set.contacts.filter_characters()
+            .values_list("eve_entity_id", flat=True)
+            .distinct()
+        )
+        chunk_size = 1000
+        for character_ids_chunk in chunks(character_ids, chunk_size):
+            try:
+                associations = esi_fetch(
+                    "Character.post_characters_affiliation",
+                    args={"characters": character_ids_chunk},
+                )
+            except HTTPError:
+                logger.exception("Could not fetch character associations from ESI")
+                return
+
+            for association in associations:
+                character, _ = EveEntity.objects.get_or_create(
+                    id=association["character_id"]
+                )
+                corporation, _ = EveEntity.objects.get_or_create(
+                    id=association["corporation_id"]
+                )
+                if association.get("alliance_id"):
+                    alliance, _ = EveEntity.objects.get_or_create(
+                        id=association["alliance_id"]
                     )
                 else:
-                    entity_ids = []
-                    for association in esi_response:
-                        corporation_id = association["corporation_id"]
-                        alliance_id = (
-                            association["alliance_id"]
-                            if "alliance_id" in association
-                            else None
-                        )
-                        character_id = association["character_id"]
-                        self.update_or_create(
-                            character_id=character_id,
-                            defaults={
-                                "corporation_id": corporation_id,
-                                "alliance_id": alliance_id,
-                                "updated": now(),
-                            },
-                        )
-                        entity_ids.append(character_id)
-                        entity_ids.append(corporation_id)
-                        if alliance_id:
-                            entity_ids.append(alliance_id)
+                    alliance = None
+                self.update_or_create(
+                    character=character,
+                    defaults={"corporation": corporation, "alliance": alliance},
+                )
 
-                    # make sure we have all names resolved
-                    EveEntity.objects.bulk_resolve_names(entity_ids)
-
-    def get_api_expired_items(self, items_in=None) -> models.QuerySet:
-        """Get all API timer expired items
-
-        items_in: list optional parameter to limit the results
-        to character_ids in the list
-
-        returns: QuerySet of CharacterAssociation items
-        """
-        expired = self.filter(updated__lt=now() - self.model.API_CACHE_TIMER)
-        if items_in is not None:
-            expired = expired.filter(character_id__in=items_in)
-
-        return expired
+            # make sure we have all names resolved
+            EveEntity.objects.bulk_update_new_esi()

@@ -1,4 +1,5 @@
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -554,7 +555,12 @@ def view_pilots_standings_json(request):
 
     character_contacts_qs = (
         contacts.contacts.filter_characters()
-        .select_related("eve_entity")
+        .select_related(
+            "eve_entity",
+            "eve_entity__character_association",
+            "eve_entity__character_association__corporation",
+            "eve_entity__character_association__alliance",
+        )
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
@@ -575,10 +581,25 @@ def view_pilots_standings_json(request):
         try:
             user = character.character_ownership.user
         except AttributeError:
-            character = EveCharacterHelper(contact.eve_entity_id)
             main = None
             state = ""
             has_required_scopes = None
+            corporation_ticker = None
+            main_character_name = None
+            main_character_ticker = None
+            main_character_icon_url = None
+            try:
+                assoc = contact.eve_entity.character_association
+            except ObjectDoesNotExist:
+                corporation_id = None
+                corporation_name = None
+                alliance_id = None
+                alliance_name = None
+            else:
+                corporation_id = assoc.corporation.id
+                corporation_name = assoc.corporation.name
+                alliance_id = assoc.alliance.id if assoc.alliance else None
+                alliance_name = assoc.alliance.name if assoc.alliance else None
         else:
             user = character.character_ownership.user
             main = user.profile.main_character
@@ -586,25 +607,21 @@ def view_pilots_standings_json(request):
             has_required_scopes = StandingRequest.has_required_scopes_for_request(
                 character=character, user=user, quick_check=True
             )
-        finally:
-            character_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
-            corporation_id = character.corporation_id if character else None
-            corporation_name = character.corporation_name if character else None
-            corporation_ticker = character.corporation_ticker if character else None
-            alliance_id = character.alliance_id if character else None
-            alliance_name = character.alliance_name if character else None
-            main_character_name = main.character_name if main else None
-            main_character_ticker = main.corporation_ticker if main else None
-            main_character_icon_url = (
-                main.portrait_url(DEFAULT_ICON_SIZE) if main else None
-            )
-            labels = [label.name for label in contact.labels.all()]
+            corporation_id = character.corporation_id
+            corporation_name = character.corporation_name
+            corporation_ticker = character.corporation_ticker
+            alliance_id = character.alliance_id
+            alliance_name = character.alliance_name
+            main_character_name = main.character_name
+            main_character_ticker = main.corporation_ticker
+            main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
 
+        labels = [label.name for label in contact.labels.all()]
         characters_data.append(
             {
                 "character_id": contact.eve_entity_id,
                 "character_name": contact.eve_entity.name,
-                "character_icon_url": character_icon_url,
+                "character_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
                 "corporation_ticker": corporation_ticker,

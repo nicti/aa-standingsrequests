@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils.timezone import now
+from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
@@ -24,7 +25,6 @@ from ..models import (
     ContactLabel,
     ContactSet,
     ContactType,
-    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
@@ -52,7 +52,6 @@ from .my_test_data import (
     create_contacts_set,
     create_entity,
     create_standings_char,
-    get_entity_name,
     get_my_test_data,
     load_eve_entities,
 )
@@ -674,37 +673,38 @@ class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
 
 
 class TestCharacterAssociation(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-        CharacterAssociation.objects.all().delete()
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eve_entities()
 
-    @patch(MODELS_PATH + ".EveEntity")
-    def test_get_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
+    def test_get_character_name_exists(self):
+        my_assoc = CharacterAssociation.objects.create(
+            character_id=1002, corporation_id=2001, main_character_id=1001
+        )
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
-    @patch(MODELS_PATH + ".EveEntity")
-    def test_get_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
+    def test_get_character_name_not_exists(self):
+        character = EveEntity.objects.create(id=1999)
+        my_assoc = CharacterAssociation.objects.create(
+            character=character, corporation_id=2001, main_character_id=1001
+        )
         self.assertIsNone(my_assoc.character_name)
 
-    @patch(MODELS_PATH + ".EveEntity")
-    def test_get_main_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
+    def test_get_main_character_name_exists(self):
+        my_assoc = CharacterAssociation.objects.create(
+            character_id=1002, corporation_id=2001, main_character_id=1001
+        )
         self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
 
-    @patch(MODELS_PATH + ".EveEntity")
-    def test_get_main_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
+    def test_get_main_character_name_not_exists(self):
+        my_assoc = CharacterAssociation.objects.create(
+            character_id=1002, corporation_id=2001
+        )
         self.assertIsNone(my_assoc.main_character_name)
 
-    @patch(MODELS_PATH + ".EveEntity")
-    def test_get_main_character_name_not_defined(self, mock_EveEntity):
-        mock_EveEntity.objects.resolve_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002)
+    def test_get_main_character_name_not_defined(self):
+        my_assoc = CharacterAssociation.objects.create(
+            character_id=1002, corporation_id=2001
+        )
         self.assertIsNone(my_assoc.main_character_name)
