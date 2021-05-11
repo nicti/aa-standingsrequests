@@ -78,12 +78,18 @@ class ContactSetManager(models.Manager):
         :param contact_set: Django ContactSet to add contacts to
         :param contacts: List of _ContactsWrapper.Contact to add
         """
+        from .models import Contact
+
         for contact in contacts:
+            eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact.id)
+            obj = Contact.objects.create(
+                contact_set=contact_set,
+                eve_entity=eve_entity,
+                standing=contact.standing,
+            )
             flat_labels = [label.id for label in contact.labels]
             labels = contact_set.labels.filter(label_id__in=flat_labels)
-            contact_set.create_contact(
-                contact_id=contact.id, standing=contact.standing, labels=labels
-            )
+            obj.labels.add(*labels)
 
 
 class _ContactsWrapper:

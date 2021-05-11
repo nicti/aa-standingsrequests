@@ -131,28 +131,7 @@ class ContactSet(models.Model):
     def __repr__(self):
         return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
 
-    def create_contact(self, contact_id: int, standing: float, labels: list) -> object:
-        """creates new contact"""
-        eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact_id)
-        contact = Contact.objects.create(
-            contact_set=self, eve_entity=eve_entity, standing=standing
-        )
-        for label in labels:
-            contact.labels.add(label)
-
-        return contact
-
-    def character_has_satisfied_standing(self, contact_id: int) -> bool:
-        return self.contact_has_satisfied_standing(contact_id, ContactType.character_id)
-
-    def corporation_has_satisfied_standing(self, contact_id: int) -> bool:
-        return self.contact_has_satisfied_standing(
-            contact_id, ContactType.corporation_id
-        )
-
-    def contact_has_satisfied_standing(
-        self, contact_id: int, contact_type_id: int
-    ) -> bool:
+    def contact_has_satisfied_standing(self, contact_id: int) -> bool:
         """Return True if give contact has standing exists"""
         try:
             contact = self.contacts.get(eve_entity_id=contact_id)
@@ -247,7 +226,7 @@ class ContactSet(models.Model):
         logger.info("Started generating standings request for blue alts.")
         owned_characters_qs = EveCharacter.objects.filter(
             character_ownership__isnull=False
-        ).select_related()
+        )
         created_counter = 0
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
@@ -259,7 +238,7 @@ class ContactSet(models.Model):
                 and not StandingRevocation.objects.filter(
                     contact_id=alt.character_id
                 ).exists()
-                and self.character_has_satisfied_standing(alt.character_id)
+                and self.contact_has_satisfied_standing(alt.character_id)
             ):
                 sr = StandingRequest.objects.add_request(
                     user=user,
@@ -311,19 +290,25 @@ class Contact(models.Model):
     eve_entity = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, related_name="standingrequests_contact"
     )
-    name = models.CharField(max_length=254, db_index=True)
     standing = models.FloatField(db_index=True)
     labels = models.ManyToManyField(ContactLabel, related_name="contacts")
     is_watched = models.BooleanField(default=False)
 
     objects = ContactQuerySet.as_manager()
 
+    def __str__(self):
+        return self.eve_entity.name
+
     def __repr__(self):
         return (
             f"{type(self).__name__}(pk={self.pk}, "
-            f"contact_id={self.contact_id}, name='{self.name}', "
+            f"contact_id={self.eve_entity_id}, name='{self.eve_entity.name}', "
             f"standing={self.standing})"
         )
+
+    @property
+    def name(self) -> str:
+        return self.eve_entity.name
 
 
 class AbstractStandingsRequest(models.Model):

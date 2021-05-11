@@ -156,31 +156,28 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         cls.contact_set = create_contacts_set()
 
     def test_can_create_pilot_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_id=1009,
-            standing=-10,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=1009, standing=-10
         )
+        obj.labels.add(*ContactLabel.objects.all())
         self.assertIsInstance(obj, Contact)
         self.assertEqual(obj.eve_entity_id, 1009)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_corp_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_id=2102,
-            standing=-10,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=2102, standing=-10
         )
+        obj.labels.add(*ContactLabel.objects.all())
         self.assertIsInstance(obj, Contact)
         self.assertEqual(obj.eve_entity_id, 2102)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_alliance_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_id=3001,
-            standing=5,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=3001, standing=5
         )
+        obj.labels.add(*ContactLabel.objects.all())
         self.assertIsInstance(obj, Contact)
         self.assertEqual(obj.eve_entity_id, 3001)
         self.assertEqual(obj.standing, 5)

@@ -9,7 +9,7 @@ from esi.decorators import token_required
 from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
@@ -315,7 +315,7 @@ def request_pilot_standing(request, character_id):
             logger.warning("Failed to get a contact set")
             ok = False
         else:
-            if contact_set.character_has_satisfied_standing(character_id):
+            if contact_set.contact_has_satisfied_standing(character_id):
                 sr.mark_actioned(user=None)
                 sr.mark_effective()
 
@@ -375,7 +375,7 @@ def remove_pilot_standing(request, character_id):
                 logger.warning("Failed to get a contact set")
                 ok = False
             else:
-                if contact_set.character_has_satisfied_standing(character_id):
+                if contact_set.contact_has_satisfied_standing(character_id):
                     logger.debug(
                         "Creating standings revocation for character ID %d by user %s",
                         character_id,
@@ -483,7 +483,7 @@ def remove_corp_standing(request, corporation_id):
                     logger.warning("Failed to get a contact set")
                     ok = False
                 else:
-                    if contact_set.corporation_has_satisfied_standing(corporation_id):
+                    if contact_set.contact_has_satisfied_standing(corporation_id):
                         # Manual revocation required
                         logger.debug(
                             "Creating standings revocation for corpID %d by user %s",
@@ -659,7 +659,7 @@ def download_pilot_standings(request):
     )
 
     # lets request make sure all info is there in bulk
-    character_contacts = contacts.contacts.all().order_by("name")
+    character_contacts = contacts.contacts.all().order_by("eve_entity__name")
     EveEntity.objects.bulk_resolve_names([p.contact_id for p in character_contacts])
 
     for pilot_standing in character_contacts:
@@ -679,8 +679,8 @@ def download_pilot_standings(request):
             main = None
 
         pilot = [
-            pilot_standing.contact_id,
-            pilot_standing.name,
+            pilot_standing.eve_entity_id,
+            pilot_standing.eve_entity.name,
             char.corporation_id if char else "",
             char.corporation_name if char else "",
             char.corporation_ticker if char else "",
@@ -806,15 +806,16 @@ def view_groups_standings_json(request):
 
     alliances_data = list()
     for contact in (
-        contacts.contacts.filter_alliances().prefetch_related("labels").order_by("name")
+        contacts.contacts.filter_alliances()
+        .select_related("eve_entity")
+        .prefetch_related("labels")
+        .order_by("eve_entity__name")
     ):
         alliances_data.append(
             {
                 "alliance_id": contact.eve_entity_id,
                 "alliance_name": contact.eve_entity.name,
-                "alliance_icon_url": EveAllianceInfo.generic_logo_url(
-                    contact.eve_entity_id, DEFAULT_ICON_SIZE
-                ),
+                "alliance_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
                 "standing": contact.standing,
                 "labels": [label.name for label in contact.labels.all()],
             }
