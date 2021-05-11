@@ -33,7 +33,7 @@ from .tasks import update_all
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_ICON_SIZE = 32
-CACHED_PAGES_MINUTES = 10
+CACHED_PAGES_MINUTES = 0
 
 
 def add_common_context(request, context: dict) -> dict:

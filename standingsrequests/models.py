@@ -131,18 +131,6 @@ class ContactSet(models.Model):
     def __repr__(self):
         return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
 
-    def get_contact_by_id(self, contact_id: int, contact_type_id: int) -> object:
-        """Attempts to fetch the contact for the given ID and type
-
-        Params:
-        - contact_id: Integer contact ID
-        - contact_type_id: Integer contact type from the contact_type_ids attribute
-        in concrete models
-
-        Returns concrete contact Object or ObjectDoesNotExist exception
-        """
-        return self.contacts.get(eve_entity_id=contact_id)
-
     def create_contact(self, contact_id: int, standing: float, labels: list) -> object:
         """creates new contact"""
         eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact_id)
@@ -453,7 +441,7 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.get_contact_by_id(self.contact_id, self.contact_type_id)
+            contact = latest.contacts.get(eve_entity_id=self.contact_id)
             if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)

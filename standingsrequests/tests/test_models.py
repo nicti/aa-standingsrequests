@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -128,45 +127,6 @@ class TestContactSet(NoSocketsTestCase):
     def test_str(self):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
-
-    def test_get_contact_by_id_pilot(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        Contact.objects.create(contact_set=my_set, eve_entity_id=1001, standing=5)
-        # look for existing pilot
-        obj = my_set.get_contact_by_id(1001, CHARACTER_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing pilot
-        with self.assertRaises(Contact.DoesNotExist):
-            my_set.get_contact_by_id(1999, CHARACTER_TYPE_ID)
-
-    def test_get_contact_by_id_corporation(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        Contact.objects.create(contact_set=my_set, eve_entity_id=2001, standing=5)
-        # look for existing corp
-        obj = my_set.get_contact_by_id(2001, CORPORATION_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing corp
-        with self.assertRaises(Contact.DoesNotExist):
-            my_set.get_contact_by_id(2999, CORPORATION_TYPE_ID)
-
-    def test_get_contact_by_id_alliance(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        Contact.objects.create(contact_set=my_set, eve_entity_id=3001, standing=5)
-        # look for existing alliance
-        obj = my_set.get_contact_by_id(3001, ALLIANCE_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing alliance
-        with self.assertRaises(Contact.DoesNotExist):
-            my_set.get_contact_by_id(3999, ALLIANCE_TYPE_ID)
-
-    def test_get_contact_by_id_other_type(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        Contact.objects.create(contact_set=my_set, eve_entity_id=3001, standing=5)
-        with self.assertRaises(ObjectDoesNotExist):
-            my_set.get_contact_by_id(9999, 99)
 
     @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
     @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])

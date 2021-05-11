@@ -214,7 +214,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
             action_by=self.user_manager,
             action_date=now(),
         )
-        self.contact_set.get_contact_by_id(1002, CHARACTER_TYPE_ID).delete()
+        self.contact_set.contacts.get(eve_entity_id=1002).delete()
         StandingRequest.objects.process_requests()
         my_request.refresh_from_db()
         self.assertFalse(my_request.is_effective)
