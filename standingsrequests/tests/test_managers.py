@@ -26,6 +26,7 @@ from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
+    create_entity,
     create_standings_char,
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
@@ -496,7 +497,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #         my_character = create_entity(EveCharacter, 1001)
 #         add_character_to_user(self.user, my_character, is_main=True)
 
-#         CharacterAffiliation.objects.update_from_auth()
+#         CharacterAffiliation.objects.update_evecharacter_relations()
 #         self.assertEqual(CharacterAffiliation.objects.count(), 1)
 #         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1001)
@@ -511,7 +512,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #         my_character = create_entity(EveCharacter, 1001)
 #         add_character_to_user(self.user, my_character)
 
-#         CharacterAffiliation.objects.update_from_auth()
+#         CharacterAffiliation.objects.update_evecharacter_relations()
 #         self.assertEqual(CharacterAffiliation.objects.count(), 1)
 #         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1001)
@@ -526,7 +527,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 #         my_character = create_entity(EveCharacter, 1004)
 #         add_character_to_user(self.user, my_character)
 
-#         CharacterAffiliation.objects.update_from_auth()
+#         CharacterAffiliation.objects.update_evecharacter_relations()
 #         self.assertEqual(CharacterAffiliation.objects.count(), 1)
 #         assoc = CharacterAffiliation.objects.first()
 #         self.assertEqual(assoc.character_id, 1004)
@@ -551,7 +552,7 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         )
         create_contacts_set(include_assoc=False)
         # when
-        CharacterAffiliation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_esi()
         # then
         existing_objects = set(
             CharacterAffiliation.objects.values_list("character_id", flat=True)
@@ -570,7 +571,7 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         assoc.corporation = EveEntity.objects.get(id=2003)
         assoc.save()
         # when
-        CharacterAffiliation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_esi()
         # then
         existing_objects = set(
             CharacterAffiliation.objects.values_list("character_id", flat=True)
@@ -589,9 +590,28 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         )
         create_contacts_set(include_assoc=False)
         # when
-        CharacterAffiliation.objects.update_from_api()
+        CharacterAffiliation.objects.update_from_esi()
 
-    def test_should_update_eve_character_relations(self, mock_esi_client):
+    def test_should_add_new_eve_character_relations(self, mock_esi_client):
         # given
-        # create_contacts_set(include_assoc=True)
-        pass
+        create_contacts_set(include_assoc=True)
+        eve_character_1001 = create_entity(EveCharacter, 1001)
+        # when
+        CharacterAffiliation.objects.update_evecharacter_relations()
+        # then
+        assoc = CharacterAffiliation.objects.get(character_id=1001)
+        self.assertEqual(assoc.eve_character, eve_character_1001)
+
+    def test_should_update_existing_eve_character_relations(self, mock_esi_client):
+        # given
+        create_contacts_set(include_assoc=True)
+        eve_character_1001 = create_entity(EveCharacter, 1001)
+        eve_character_1002 = create_entity(EveCharacter, 1002)
+        assoc = CharacterAffiliation.objects.get(character_id=1001)
+        assoc.eve_character = eve_character_1002
+        assoc.save()
+        # when
+        CharacterAffiliation.objects.update_evecharacter_relations()
+        # then
+        assoc = CharacterAffiliation.objects.get(character_id=1001)
+        self.assertEqual(assoc.eve_character, eve_character_1001)

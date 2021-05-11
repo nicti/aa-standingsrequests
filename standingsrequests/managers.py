@@ -521,7 +521,7 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
 
 
 class CharacterAffiliationManager(models.Manager):
-    def update_from_auth(self) -> None:
+    def update_evecharacter_relations(self) -> None:
         """Update links to eve character in auth if any"""
 
         eve_character_id_map = {
@@ -536,12 +536,11 @@ class CharacterAffiliationManager(models.Manager):
                 affiliation.eve_character_id = eve_character_id_map[
                     affiliation.character_id
                 ]
-            self.all().update({"eve_character_id": None})
             self.bulk_update(
                 objs=affiliations, fields=["eve_character_id"], batch_size=500
             )
 
-    def update_from_api(self) -> None:
+    def update_from_esi(self) -> None:
         """Update all character affiliations we have contacts or requests for."""
         character_ids = self._gather_character_ids()
         if character_ids:

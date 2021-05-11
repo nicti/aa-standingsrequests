@@ -86,18 +86,32 @@ def validate_requests():
 
 @shared_task(name="standings_requests.update_associations_auth")
 def update_associations_auth():
-    """Update associations from local auth data (Main character, corporations)"""
-    logger.info("Associations updating from Auth")
-    CharacterAffiliation.objects.update_from_auth()
-    logger.info("Finished Associations update from Auth")
+    ...
 
 
 @shared_task(name="standings_requests.update_associations_api")
 def update_associations_api():
-    """Update character associations from the EVE API (corporations)"""
-    logger.info("Associations updating from EVE API")
-    CharacterAffiliation.objects.update_from_api()
-    logger.info("Finished associations update from EVE API")
+    """Update character affiliations from ESI and relations to Eve Characters"""
+    chain(
+        [
+            _update_character_affiliations_from_esi.si(),
+            _update_character_affiliations_to_auth.si(),
+        ]
+    ).delay()
+
+
+@shared_task
+def _update_character_affiliations_from_esi():
+    logger.info("Running character affiliations updating from ESI...")
+    CharacterAffiliation.objects.update_from_esi()
+    logger.info("Finished character affiliations from ESI.")
+
+
+@shared_task
+def _update_character_affiliations_to_auth():
+    logger.info("Updating character affiliations relations to Auth...")
+    CharacterAffiliation.objects.update_evecharacter_relations()
+    logger.info("Finished updating character affiliations to Auth.")
 
 
 @shared_task(name="standings_requests.purge_stale_data")
