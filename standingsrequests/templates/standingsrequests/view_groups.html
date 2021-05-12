@@ -1,7 +1,5 @@
 {% extends "standingsrequests/base.html" %}
-{% load bootstrap %}
-{% load static %}
-{% load i18n %}
+{% load static i18n %}
 
 {% block page_content %}
     <div ng-app="standingsApp" ng-controller="GroupsListController">
@@ -10,6 +8,7 @@
         <h2 class="page-header">
             {% trans "Groups" %} ({{groups_count|default:"-"}})
         </h2>
+
         {% include "standingsrequests/partials/_contacts_legend.html" %}
 
         <div id="div_spinner">
@@ -18,103 +17,11 @@
 
         <div id="div_results" class="container-fluid" style="visibility: hidden">
             <div class="row">
-
-                <h3>Corporations</h3>
-                <div class="table-responsive">
-                    <table class="table table-condensed table-hover table-striped">
-                        <!-- Corporations -->
-                        <tr>
-                            <th class="col-md-2">{% trans "Name" %}</th>
-                            <th class="col-md-2">{% trans "Alliance" %}</th>
-                            <th class="col-md-2">{% trans "Main Character" %}</th>
-                            <th class="col-md-1">{% trans "Standing" %}</th>
-                            <th class="col-md-1">{% trans "State" %}</th>
-                            <th class="col-md-2">{% trans "Labels" %}</th>
-                        </tr>
-                        {% verbatim %}
-                        <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">
-                            <td>
-                                <img ng-src="{{ entity.corporation_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                {{ entity.corporation_name }}
-                            </td>
-                            <td>
-                                {{ entity.alliance_name }}
-                            </td>
-                            <td>
-                                <img ng-src="{{ entity.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                <span ng-show="entity.main_character_ticker">
-                                    [{{ entity.main_character_ticker }}]
-                                </span>
-                                <span ng-show="entity.main_character_name">
-                                    {{ entity.main_character_name }}
-                                </span>
-                            </td>
-                            <td>
-                                <span style="font-size:1.5em;">
-                                    <standings-icon standing="entity.standing"></standings-icon>
-                                </span>
-                            </td>
-                            <td>
-                                {{entity.state}}
-                            </td>
-                            <td>
-                                <span ng-repeat="label in entity.labels | orderBy">
-                                    {{ label }}
-                                    <span ng-show="!$last">,&nbsp;</span>
-                                </span>
-                            </td>
-                        </tr>
-
-                        <tr ng-hide="corpsFiltered.length > 0">
-                            <td class="text-muted" colspan="3" style="text-align: left; vertical-align: middle;">
-                            Empty
-                            </td>
-                        </tr>
-                        {% endverbatim %}
-
-                    </table>
-                </div>
-
-                <h3>Alliances</h3>
-                <div class="table-responsive">
-                    <table class="table table-condensed table-hover table-striped">
-                        <!-- Alliances -->
-                        <tr>
-                            <th class="col-md-6">{% trans "Name" %}</th>
-                            <th class="col-md-2">{% trans "Standing" %}</th>
-                            <th class="col-md-2">{% trans "Labels" %}</th>
-                        </tr>
-                        {% verbatim %}
-                        <!-- Should DRY this -->
-                        <tr ng-repeat="entity in alliances | filterStandings as alliancesFiltered">
-                                <td>
-                                <img ng-src="{{ entity.alliance_icon_url }}" class="img-circle"/>&nbsp;&nbsp;{{ entity.alliance_name }}
-                            </td>
-                            <td>
-                                <span style="font-size:1.5em;">
-                                    <standings-icon standing="entity.standing"></standings-icon>
-                                </span>
-                            </td>
-                            <td>
-                                <span ng-repeat="label in entity.labels | orderBy">
-                                    {{ label }}
-                                    <span ng-show="!$last">,&nbsp;</span>
-                                </span>
-                            </td>
-                        </tr>
-
-                        <tr ng-hide="alliancesFiltered.length > 0">
-                            <td class="text-muted" colspan="3" style="text-align: left; vertical-align: middle;">
-                            Empty
-                            </td>
-                        </tr>
-
-                        {% endverbatim %}
-                    </table>
-                </div>
-
+                {% include "standingsrequests/partials/_view_groups_corporations.html" %}
+                {% include "standingsrequests/partials/_view_groups_alliances.html" %}
             </div>
         </div>
+
     </div>
 {% endblock page_content %}
 

@@ -50,11 +50,11 @@
                                 <th class="col-md-2">{% trans "Character" %}</th>
                                 <th class="col-md-2">{% trans "Corporation" %}</th>
                                 <th class="col-md-2">{% trans "Alliance" %}</th>
-                                <th class="col-md-2">{% trans "Main Character" %}</th>
+                                <th class="col-md-1">{% trans "Faction" %}</th>
                                 <th class="col-md-1">{% trans "Standing" %}</th>
-                                <th class="col-md-1">{% trans "Scopes" %}</th>
-                                <th class="col-md-1">{% trans "State" %}</th>
                                 <th class="col-md-1">{% trans "Labels" %}</th>
+                                <th class="col-md-2">{% trans "Main Character" %}</th>
+                                <th class="col-md-1">{% trans "State" %}</th>
                             </tr>
                             {% verbatim %}
                             <tr ng-repeat="character in filteredStandings = (pilots | filterStandings) | limitTo : pageSize : (currentPage-1) * pageSize as pilotsFiltered">
@@ -74,6 +74,20 @@
                                     <span ng-show="character.alliance_name" ng-bind="character.alliance_name"></span>
                                 </td>
                                 <td>
+                                    <span ng-show="character.faction_name" ng-bind="character.faction_name"></span>
+                                </td>
+                                <td>
+                                    <span style="font-size:1.5em;">
+                                        <standings-icon standing="character.standing"></standings-icon>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span ng-repeat="label in character.labels | orderBy">
+                                        {{ label }}
+                                        <span ng-show="!$last">,&nbsp;</span>
+                                    </span>
+                                </td>
+                                <td>
                                     <img ng-src="{{ character.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
                                     <span ng-show="character.main_character_ticker">
                                         [{{ character.main_character_ticker }}]
@@ -83,21 +97,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <span style="font-size:1.5em;">
-                                        <standings-icon standing="character.standing"></standings-icon>
-                                    </span>
-                                </td>
-                                <td>
-                                    <bool-checkmark value="character.has_required_scopes" true-title="Has required scopes" false-title="Missing required scopes"></bool-checkmark>
-                                </td>
-                                <td>
                                     {{character.state}}
-                                </td>
-                                <td>
-                                    <span ng-repeat="label in character.labels | orderBy">
-                                        {{ label }}
-                                        <span ng-show="!$last">,&nbsp;</span>
-                                    </span>
                                 </td>
                             </tr>
 

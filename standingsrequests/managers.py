@@ -608,9 +608,18 @@ class CharacterAffiliationManager(models.Manager):
                 )
             else:
                 alliance = None
+            if affiliation.get("faction_id"):
+                faction, _ = EveEntity.objects.get_or_create(
+                    id=affiliation["faction_id"]
+                )
+            else:
+                faction = None
             affiliation_objects.append(
                 self.model(
-                    character=character, corporation=corporation, alliance=alliance
+                    character=character,
+                    corporation=corporation,
+                    alliance=alliance,
+                    faction=faction,
                 )
             )
         with transaction.atomic():

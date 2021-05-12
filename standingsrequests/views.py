@@ -561,6 +561,7 @@ def view_pilots_standings_json(request):
             "eve_entity__character_affiliation",
             "eve_entity__character_affiliation__corporation",
             "eve_entity__character_affiliation__alliance",
+            "eve_entity__character_affiliation__faction",
             "eve_entity__character_affiliation__eve_character",
             "eve_entity__character_affiliation__eve_character__character_ownership__user",
             "eve_entity__character_affiliation__eve_character__character_ownership__user__profile__main_character",
@@ -585,14 +586,18 @@ def view_pilots_standings_json(request):
                 assoc = contact.eve_entity.character_affiliation
             except ObjectDoesNotExist:
                 corporation_id = None
-                corporation_name = None
+                corporation_name = "?"
                 alliance_id = None
-                alliance_name = None
+                alliance_name = "?"
+                faction_id = None
+                faction_name = "?"
             else:
                 corporation_id = assoc.corporation.id
                 corporation_name = assoc.corporation.name
                 alliance_id = assoc.alliance.id if assoc.alliance else None
-                alliance_name = assoc.alliance.name if assoc.alliance else None
+                alliance_name = assoc.alliance.name if assoc.alliance else ""
+                faction_id = assoc.faction.id if assoc.faction else None
+                faction_name = assoc.faction.name if assoc.faction else None
         else:
             main = user.profile.main_character
             state = user.profile.state.name if user.profile.state else ""
@@ -616,6 +621,8 @@ def view_pilots_standings_json(request):
                 "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
+                "faction_id": faction_id,
+                "faction_name": faction_name,
                 "state": state,
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
@@ -745,6 +752,7 @@ def view_groups_standings_json(request):
             "eve_entity",
             "eve_entity__corporation_details",
             "eve_entity__corporation_details__alliance",
+            "eve_entity__corporation_details__faction",
         )
         .prefetch_related("labels")
         .order_by("eve_entity__name")
@@ -768,10 +776,23 @@ def view_groups_standings_json(request):
         except (ObjectDoesNotExist, AttributeError):
             alliance_id = None
             alliance_name = "?"
+            faction_id = None
+            faction_name = "?"
         else:
             alliance = corporation_details.alliance
-            alliance_id = alliance.id if alliance else None
-            alliance_name = alliance.name if alliance else ""
+            if alliance:
+                alliance_id = alliance.id
+                alliance_name = alliance.name
+            else:
+                alliance_id = None
+                alliance_name = ""
+            faction = corporation_details.faction
+            if faction:
+                faction_id = faction.id
+                faction_name = faction.name
+            else:
+                faction_id = None
+                faction_name = ""
         try:
             standing_request = standings_requests[contact.eve_entity_id]
             user = standing_request.user
@@ -797,6 +818,8 @@ def view_groups_standings_json(request):
                 "corporation_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
+                "faction_id": faction_id,
+                "faction_name": faction_name,
                 "standing": contact.standing,
                 "labels": labels,
                 "state": state_name,

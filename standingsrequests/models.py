@@ -526,6 +526,13 @@ class CharacterAffiliation(models.Model):
         default=None,
         related_name="+",
     )
+    faction = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
     eve_character = models.ForeignKey(
         EveCharacter,
         on_delete=models.SET_DEFAULT,
