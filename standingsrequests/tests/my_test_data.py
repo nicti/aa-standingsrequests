@@ -15,7 +15,7 @@ from allianceauth.eveonline.models import (
 )
 
 from ..managers import _ContactsWrapper
-from ..models import CharacterAffiliation, Contact, ContactSet
+from ..models import CharacterAffiliation, Contact, ContactSet, CorporationDetails
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
@@ -435,5 +435,20 @@ def load_eve_entities():
             defaults={
                 "name": alliance["alliance_name"],
                 "category": EveEntity.CATEGORY_ALLIANCE,
+            },
+        )
+
+
+def load_corporation_details():
+    for record in _my_test_data["EveCorporationInfo"].values():
+        alliance_id = record["alliance_id"] if record.get("alliance_id") else None
+        CorporationDetails.objects.update_or_create(
+            corporation_id=record["corporation_id"],
+            defaults={
+                "alliance_id": alliance_id,
+                "ceo_id": 2102,
+                "home_station_id": 2102,
+                "member_count": 99,
+                "ticker": record["corporation_ticker"],
             },
         )

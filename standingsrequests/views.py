@@ -741,61 +741,70 @@ def view_groups_standings_json(request):
 
     corporations_qs = (
         contacts.contacts.filter_corporations()
-        .select_related("eve_entity")
+        .select_related(
+            "eve_entity",
+            "eve_entity__corporation_details",
+            "eve_entity__corporation_details__alliance",
+        )
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    eve_corporations = {
-        corporation.corporation_id: corporation
-        for corporation in EveCorporation.get_many_by_id(
-            corporations_qs.values_list("eve_entity_id", flat=True)
-        )
-    }
     corporations_data = list()
     standings_requests = {
         obj.contact_id: obj
         for obj in (
             StandingRequest.objects.filter(
                 contact_type_id=ContactType.corporation_id
-            ).filter(contact_id__in=eve_corporations.keys())
+            ).filter(
+                contact_id__in=list(
+                    corporations_qs.values_list("eve_entity_id", flat=True)
+                )
+            )
         )
     }
     for contact in corporations_qs:
-        if contact.eve_entity_id in eve_corporations:
-            corporation = eve_corporations[contact.eve_entity_id]
-            try:
-                standing_request = standings_requests[contact.eve_entity_id]
-                user = standing_request.user
-                main = user.profile.main_character
-            except (KeyError, AttributeError, ObjectDoesNotExist):
-                main_character_name = ""
-                main_character_ticker = ""
-                main_character_icon_url = ""
-                state_name = ""
-            else:
-                main_character_name = main.character_name if main else ""
-                main_character_ticker = main.corporation_ticker if main else ""
-                main_character_icon_url = (
-                    main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
-                )
-                state_name = user.profile.state.name
-
-            labels = [label.name for label in contact.labels.all()]
-            corporations_data.append(
-                {
-                    "corporation_id": corporation.corporation_id,
-                    "corporation_name": corporation.corporation_name,
-                    "corporation_icon_url": corporation.logo_url(DEFAULT_ICON_SIZE),
-                    "alliance_id": corporation.alliance_id,
-                    "alliance_name": corporation.alliance_name,
-                    "standing": contact.standing,
-                    "labels": labels,
-                    "state": state_name,
-                    "main_character_name": main_character_name,
-                    "main_character_ticker": main_character_ticker,
-                    "main_character_icon_url": main_character_icon_url,
-                }
+        try:
+            corporation_details = contact.eve_entity.corporation_details
+        except (ObjectDoesNotExist, AttributeError):
+            alliance_id = None
+            alliance_name = "?"
+        else:
+            alliance = corporation_details.alliance
+            alliance_id = alliance.id if alliance else None
+            alliance_name = alliance.name if alliance else ""
+        try:
+            standing_request = standings_requests[contact.eve_entity_id]
+            user = standing_request.user
+            main = user.profile.main_character
+        except (KeyError, AttributeError, ObjectDoesNotExist):
+            main_character_name = ""
+            main_character_ticker = ""
+            main_character_icon_url = ""
+            state_name = ""
+        else:
+            main_character_name = main.character_name if main else ""
+            main_character_ticker = main.corporation_ticker if main else ""
+            main_character_icon_url = (
+                main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
             )
+            state_name = user.profile.state.name
+
+        labels = [label.name for label in contact.labels.all()]
+        corporations_data.append(
+            {
+                "corporation_id": contact.eve_entity_id,
+                "corporation_name": contact.eve_entity.name,
+                "corporation_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
+                "alliance_id": alliance_id,
+                "alliance_name": alliance_name,
+                "standing": contact.standing,
+                "labels": labels,
+                "state": state_name,
+                "main_character_name": main_character_name,
+                "main_character_ticker": main_character_ticker,
+                "main_character_icon_url": main_character_icon_url,
+            }
+        )
 
     alliances_data = list()
     for contact in (

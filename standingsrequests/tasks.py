@@ -157,14 +157,8 @@ def purge_stale_standings_data():
 
 @shared_task
 def update_all_corporation_details():
-    contact_corporation_ids = set(
-        Contact.objects.filter_corporations().values_list("eve_entity_id", flat=True)
-    )
-    character_affiliation_corporation_ids = set(
-        CharacterAffiliation.objects.values_list("corporation_id", flat=True)
-    )
-    existing_corporation_ids = set(
-        contact_corporation_ids | character_affiliation_corporation_ids
+    existing_corporation_ids = (
+        CorporationDetails.objects.corporation_ids_from_contacts()
     )
     CorporationDetails.objects.exclude(
         corporation_id__in=existing_corporation_ids

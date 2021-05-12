@@ -630,6 +630,21 @@ class CharacterAffiliationManager(models.Manager):
 
 
 class CorporationDetailsManager(models.Manager):
+    def corporation_ids_from_contacts(self) -> set:
+        from .models import Contact
+
+        contact_corporation_ids = set(
+            Contact.objects.filter_corporations().values_list(
+                "eve_entity_id", flat=True
+            )
+        )
+        character_affiliation_corporation_ids = set(
+            Contact.objects.filter_characters().values_list(
+                "eve_entity__character_affiliation__corporation_id", flat=True
+            )
+        )
+        return set(contact_corporation_ids | character_affiliation_corporation_ids)
+
     def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
         """Updates or create an obj from ESI"""
         logger.info("%s: Fetching corporation from ESI", id)

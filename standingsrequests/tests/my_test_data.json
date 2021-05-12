@@ -104,6 +104,12 @@
             "standing": 5
         },
         {
+            "contact_id": 2001,
+            "contact_type": "corporation",
+            "label_ids": [],
+            "standing": 10
+        },
+        {
             "contact_id": 2003,
             "contact_type": "corporation",
             "label_ids": [],

@@ -23,7 +23,6 @@ from app_utils.testing import (
 
 from .. import views
 from ..core import ContactType
-from ..helpers.evecorporation import EveCorporation
 from ..models import CharacterAffiliation, Contact, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
@@ -33,6 +32,7 @@ from .my_test_data import (
     create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
+    load_corporation_details,
     load_eve_entities,
 )
 
@@ -212,7 +212,6 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         self.assertDictEqual(data_character_1009, expected_character_1009)
 
 
-@patch("standingsrequests.helpers.evecorporation.EveCorporation.get_many_by_id")
 class TestGroupStandingsJson(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -221,6 +220,7 @@ class TestGroupStandingsJson(NoSocketsTestCase):
         cls.contact_set = create_contacts_set()
         load_eve_entities()
         create_eve_objects()
+        load_corporation_details()
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
         cls.user = AuthUtils.create_member("John Doe")
@@ -241,15 +241,9 @@ class TestGroupStandingsJson(NoSocketsTestCase):
             scopes=[TEST_SCOPE],
         )
 
-    def test_normal(self, mock_get_many_by_id):
+    def test_normal(self):
         # given
         self.maxDiff = None
-        mock_get_many_by_id.return_value = [
-            EveCorporation(
-                corporation_id=2003, corporation_name="CatCo Worldwide Media"
-            ),
-            EveCorporation(corporation_id=2102, corporation_name="Lexcorp"),
-        ]
         request = self.factory.get(reverse("standingsrequests:view_groups_json"))
         request.user = self.user
         my_view_without_cache = views.view_groups_standings_json.__wrapped__
@@ -259,7 +253,24 @@ class TestGroupStandingsJson(NoSocketsTestCase):
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         corporations = {obj["corporation_id"]: obj for obj in data["corps"]}
-        self.assertSetEqual(set(corporations.keys()), {2003, 2102})
+        self.assertSetEqual(set(corporations.keys()), {2001, 2003, 2102})
+        obj = corporations[2001]
+        self.assertDictEqual(
+            obj,
+            {
+                "corporation_id": 2001,
+                "corporation_name": "Wayne Technologies",
+                "corporation_icon_url": "https://images.evetech.net/corporations/2001/logo?size=32",
+                "alliance_id": 3001,
+                "alliance_name": "Wayne Enterprises",
+                "standing": 10.0,
+                "labels": [],
+                "state": "",
+                "main_character_name": "",
+                "main_character_ticker": "",
+                "main_character_icon_url": "",
+            },
+        )
         obj = corporations[2003]
         self.assertDictEqual(
             obj,
@@ -268,7 +279,7 @@ class TestGroupStandingsJson(NoSocketsTestCase):
                 "corporation_name": "CatCo Worldwide Media",
                 "corporation_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
                 "alliance_id": None,
-                "alliance_name": None,
+                "alliance_name": "",
                 "standing": 5.0,
                 "labels": [],
                 "state": "",
