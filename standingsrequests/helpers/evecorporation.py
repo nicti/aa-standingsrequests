@@ -4,6 +4,7 @@ from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.eveonline.models import EveCharacter
@@ -128,8 +129,6 @@ class EveCorporation:
 
     @classmethod
     def fetch_corporation_from_api(cls, corporation_id):
-        from ..models import EveEntity
-
         logger.debug(
             "Attempting to fetch corporation from ESI with id %s", corporation_id
         )

@@ -48,16 +48,22 @@ class TestOtherTasks(NoSocketsTestCase):
         self.assertTrue(mock_validate_standings_requests.called)
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
+    @patch(MODULE_PATH + ".CorporationDetails.objects.update_or_create_from_esi")
     @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_evecharacter_relations")
     @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_from_esi")
     def test_update_associations_api(
-        self, mock_update_from_esi, mock_update_evecharacter_relations
+        self,
+        mock_update_from_esi,
+        mock_update_evecharacter_relations,
+        mock_update_or_create_from_esi,
     ):
         # when
+        create_contacts_set()
         tasks.update_associations_api.delay()
         # then
         self.assertTrue(mock_update_from_esi.called)
         self.assertTrue(mock_update_evecharacter_relations.called)
+        self.assertTrue(mock_update_or_create_from_esi.called)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -121,3 +127,21 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_2.pk}
         self.assertSetEqual(current_pks, expected)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestUpdateAllCorporationDetails(NoSocketsTestCase):
+    def setUp(self):
+        create_contacts_set()
+
+    @patch(MODULE_PATH + ".CorporationDetails.objects.update_or_create_from_esi")
+    def test_should_update_all_corporation_details(
+        self, mock_update_or_create_from_esi
+    ):
+        # when
+        tasks.update_all_corporation_details.delay()
+        # then
+        called_corporation_ids = {
+            obj[0][0] for obj in mock_update_or_create_from_esi.call_args_list
+        }
+        self.assertSetEqual(called_corporation_ids, {2001, 2003, 2004, 2102})

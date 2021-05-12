@@ -22,6 +22,7 @@ from .managers import (
     CharacterAffiliationManager,
     ContactQuerySet,
     ContactSetManager,
+    CorporationDetailsManager,
     StandingRequestManager,
     StandingRevocationManager,
 )
@@ -513,7 +514,7 @@ class CharacterAffiliation(models.Model):
         EveEntity,
         on_delete=models.CASCADE,
         primary_key=True,
-        related_name="character_association",
+        related_name="character_affiliation",
     )
     corporation = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, related_name="+"
@@ -537,7 +538,55 @@ class CharacterAffiliation(models.Model):
 
     objects = CharacterAffiliationManager()
 
+    def __str__(self) -> str:
+        return self.character.name
+
     @cached_property
     def character_name(self) -> str:
         """Return character name for main."""
         return self.character.name if self.character.name else None
+
+
+class CorporationDetails(models.Model):
+    """A corporation affiliation."""
+
+    corporation = models.OneToOneField(
+        EveEntity,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="corporation_details",
+    )
+
+    alliance = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    ceo = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    home_station = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    faction = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    member_count = models.PositiveIntegerField()
+    ticker = models.CharField(max_length=255)
+
+    objects = CorporationDetailsManager()
+
+    def __str__(self) -> str:
+        return self.corporation.name

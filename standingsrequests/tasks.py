@@ -18,6 +18,7 @@ from .models import (
     Contact,
     ContactLabel,
     ContactSet,
+    CorporationDetails,
     StandingRequest,
     StandingRevocation,
 )
@@ -95,6 +96,7 @@ def update_associations_api():
         [
             _update_character_affiliations_from_esi.si(),
             _update_character_affiliations_to_auth.si(),
+            update_all_corporation_details.si(),
         ]
     ).delay()
 
@@ -151,3 +153,33 @@ def purge_stale_standings_data():
 
     except ContactSet.DoesNotExist:
         logger.warn("No ContactSets available, nothing to delete")
+
+
+@shared_task
+def update_all_corporation_details():
+    contact_corporation_ids = set(
+        Contact.objects.filter_corporations().values_list("eve_entity_id", flat=True)
+    )
+    character_affiliation_corporation_ids = set(
+        CharacterAffiliation.objects.values_list("corporation_id", flat=True)
+    )
+    existing_corporation_ids = set(
+        contact_corporation_ids | character_affiliation_corporation_ids
+    )
+    CorporationDetails.objects.exclude(
+        corporation_id__in=existing_corporation_ids
+    ).delete()
+    if existing_corporation_ids:
+        logger.info(
+            "Updating corporation details for %d corporations.",
+            len(existing_corporation_ids),
+        )
+        for corporation_id in existing_corporation_ids:
+            update_corporation_detail.delay(corporation_id)
+    else:
+        logger.info("No corporations to update.")
+
+
+@shared_task
+def update_corporation_detail(corporation_id: int):
+    CorporationDetails.objects.update_or_create_from_esi(corporation_id)

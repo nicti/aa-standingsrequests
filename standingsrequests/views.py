@@ -558,13 +558,13 @@ def view_pilots_standings_json(request):
         contacts.contacts.filter_characters()
         .select_related(
             "eve_entity",
-            "eve_entity__character_association",
-            "eve_entity__character_association__corporation",
-            "eve_entity__character_association__alliance",
-            "eve_entity__character_association__eve_character",
-            "eve_entity__character_association__eve_character__character_ownership__user",
-            "eve_entity__character_association__eve_character__character_ownership__user__profile__main_character",
-            "eve_entity__character_association__eve_character__character_ownership__user__profile__state",
+            "eve_entity__character_affiliation",
+            "eve_entity__character_affiliation__corporation",
+            "eve_entity__character_affiliation__alliance",
+            "eve_entity__character_affiliation__eve_character",
+            "eve_entity__character_affiliation__eve_character__character_ownership__user",
+            "eve_entity__character_affiliation__eve_character__character_ownership__user__profile__main_character",
+            "eve_entity__character_affiliation__eve_character__character_ownership__user__profile__state",
         )
         .prefetch_related("labels")
         .order_by("eve_entity__name")
@@ -572,7 +572,7 @@ def view_pilots_standings_json(request):
     characters_data = list()
     for contact in character_contacts_qs:
         try:
-            character = contact.eve_entity.character_association.eve_character
+            character = contact.eve_entity.character_affiliation.eve_character
             user = character.character_ownership.user
         except (AttributeError, ObjectDoesNotExist):
             main = None
@@ -582,7 +582,7 @@ def view_pilots_standings_json(request):
             main_character_ticker = None
             main_character_icon_url = None
             try:
-                assoc = contact.eve_entity.character_association
+                assoc = contact.eve_entity.character_affiliation
             except ObjectDoesNotExist:
                 corporation_id = None
                 corporation_name = None
@@ -765,21 +765,22 @@ def view_groups_standings_json(request):
             corporation = eve_corporations[contact.eve_entity_id]
             try:
                 standing_request = standings_requests[contact.eve_entity_id]
-            except KeyError:
-                main = None
-                state_name = ""
-            else:
                 user = standing_request.user
                 main = user.profile.main_character
-                state_name = user.profile.state.name
-            finally:
+            except (KeyError, AttributeError, ObjectDoesNotExist):
+                main_character_name = ""
+                main_character_ticker = ""
+                main_character_icon_url = ""
+                state_name = ""
+            else:
                 main_character_name = main.character_name if main else ""
                 main_character_ticker = main.corporation_ticker if main else ""
                 main_character_icon_url = (
                     main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
                 )
-                labels = [label.name for label in contact.labels.all()]
+                state_name = user.profile.state.name
 
+            labels = [label.name for label in contact.labels.all()]
             corporations_data.append(
                 {
                     "corporation_id": corporation.corporation_id,

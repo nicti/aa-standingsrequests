@@ -18,6 +18,7 @@ from ..models import (
     CharacterAffiliation,
     Contact,
     ContactSet,
+    CorporationDetails,
     StandingRequest,
     StandingRevocation,
 )
@@ -30,6 +31,7 @@ from .my_test_data import (
     create_standings_char,
     esi_get_alliances_alliance_id_contacts,
     esi_get_alliances_alliance_id_contacts_labels,
+    esi_get_corporations_corporation_id,
     esi_post_characters_affiliation,
     load_eve_entities,
 )
@@ -624,3 +626,28 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         # then
         assoc = CharacterAffiliation.objects.get(character_id=1001)
         self.assertEqual(assoc.eve_character, eve_character_1001)
+
+
+@patch("standingsrequests.helpers.esi_fetch._esi_client")
+class TestCorporationDetailsManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eve_entities()
+
+    def test_should_update_corporations(self, mock_esi_client):
+        # given
+        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        # when
+        obj, created = CorporationDetails.objects.update_or_create_from_esi(2001)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.corporation_id, 2001)
+        self.assertEqual(obj.alliance_id, 3001)
+        self.assertEqual(obj.ceo_id, 2987)
+        self.assertEqual(obj.member_count, 3)
+        self.assertEqual(obj.ticker, "WYT")
+        self.assertIsNone(obj.faction)

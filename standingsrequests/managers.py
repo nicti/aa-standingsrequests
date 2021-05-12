@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
@@ -7,7 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
 
-# from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
@@ -616,4 +617,63 @@ class CharacterAffiliationManager(models.Manager):
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
 
-        EveEntity.objects.bulk_update_new_esi()
+        EveEntity.objects.bulk_create_esi(
+            filter(
+                lambda x: x is not None,
+                [
+                    affiliation["character_id"],
+                    affiliation["corporation_id"],
+                    affiliation["alliance_id"],
+                ],
+            )
+        )
+
+
+class CorporationDetailsManager(models.Manager):
+    def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
+        """Updates or create an obj from ESI"""
+        logger.info("%s: Fetching corporation from ESI", id)
+        data = esi_fetch(
+            "Corporation.get_corporations_corporation_id",
+            args={"corporation_id": id},
+        )
+        corporation = EveEntity.objects.get_or_create(id=id)[0]
+        alliance = (
+            EveEntity.objects.get_or_create(id=data["alliance_id"])[0]
+            if data.get("alliance_id")
+            else None
+        )
+        ceo = EveEntity.objects.get_or_create(id=data["ceo_id"])[0]
+        home_station = (
+            EveEntity.objects.get_or_create(id=data["home_station_id"])[0]
+            if data.get("home_station_id")
+            else None
+        )
+        faction = (
+            EveEntity.objects.get_or_create(id=data["faction_id"])[0]
+            if data.get("faction_id")
+            else None
+        )
+        EveEntity.objects.bulk_create_esi(
+            filter(
+                lambda x: x is not None,
+                [
+                    id,
+                    data.get("alliance_id"),
+                    data["ceo_id"],
+                    data.get("home_station_id"),
+                    data.get("faction_id"),
+                ],
+            )
+        )
+        return self.update_or_create(
+            corporation=corporation,
+            defaults={
+                "alliance": alliance,
+                "ceo": ceo,
+                "home_station": home_station,
+                "faction": faction,
+                "member_count": data["member_count"],
+                "ticker": data["ticker"],
+            },
+        )
