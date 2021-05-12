@@ -668,11 +668,6 @@ class CorporationDetailsManager(models.Manager):
             else None
         )
         ceo = EveEntity.objects.get_or_create(id=data["ceo_id"])[0]
-        home_station = (
-            EveEntity.objects.get_or_create(id=data["home_station_id"])[0]
-            if data.get("home_station_id")
-            else None
-        )
         faction = (
             EveEntity.objects.get_or_create(id=data["faction_id"])[0]
             if data.get("faction_id")
@@ -681,13 +676,7 @@ class CorporationDetailsManager(models.Manager):
         EveEntity.objects.bulk_create_esi(
             filter(
                 lambda x: x is not None,
-                [
-                    id,
-                    data.get("alliance_id"),
-                    data["ceo_id"],
-                    data.get("home_station_id"),
-                    data.get("faction_id"),
-                ],
+                [id, data.get("alliance_id"), data["ceo_id"], data.get("faction_id")],
             )
         )
         return self.update_or_create(
@@ -695,7 +684,6 @@ class CorporationDetailsManager(models.Manager):
             defaults={
                 "alliance": alliance,
                 "ceo": ceo,
-                "home_station": home_station,
                 "faction": faction,
                 "member_count": data["member_count"],
                 "ticker": data["ticker"],

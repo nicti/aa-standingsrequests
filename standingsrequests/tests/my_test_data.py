@@ -447,7 +447,6 @@ def load_corporation_details():
             defaults={
                 "alliance_id": alliance_id,
                 "ceo_id": 2102,
-                "home_station_id": 2102,
                 "member_count": 99,
                 "ticker": record["corporation_ticker"],
             },

@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Contact sets are now visble on the admin site
 - New button for updating all contacts from the admin site
 - Faction info for characters and corporations on standing pages
+- Setting `SR_PAGE_CACHE_SECONDS`
 
 ### Changed
 

@@ -18,7 +18,11 @@ from app_utils.logging import LoggerAddTag
 from app_utils.messages import messages_plus
 
 from . import __title__
-from .app_settings import SR_CORPORATIONS_ENABLED, SR_NOTIFICATIONS_ENABLED
+from .app_settings import (
+    SR_CORPORATIONS_ENABLED,
+    SR_NOTIFICATIONS_ENABLED,
+    SR_PAGE_CACHE_SECONDS,
+)
 from .core import BaseConfig, ContactType, MainOrganizations
 from .decorators import token_required_by_state
 from .helpers.evecharacter import EveCharacterHelper
@@ -31,7 +35,6 @@ from .tasks import update_all
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_ICON_SIZE = 32
-CACHED_PAGES_MINUTES = 0
 
 
 def add_common_context(request, context: dict) -> dict:
@@ -545,7 +548,7 @@ def view_pilots_standings(request):
     )
 
 
-@cache_page(60 * CACHED_PAGES_MINUTES)
+@cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
 def view_pilots_standings_json(request):
@@ -737,7 +740,7 @@ def view_groups_standings(request):
     )
 
 
-@cache_page(60 * CACHED_PAGES_MINUTES)
+@cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
 def view_groups_standings_json(request):

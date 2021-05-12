@@ -576,13 +576,6 @@ class CorporationDetails(models.Model):
         on_delete=models.CASCADE,
         related_name="+",
     )
-    home_station = models.ForeignKey(
-        EveEntity,
-        on_delete=models.SET_DEFAULT,
-        null=True,
-        default=None,
-        related_name="+",
-    )
     faction = models.ForeignKey(
         EveEntity,
         on_delete=models.SET_DEFAULT,
