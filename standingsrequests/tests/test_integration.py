@@ -100,13 +100,12 @@ class TestMainUseCases(WebTest):
             ],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, cls.user_manager
         )
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
         )
-        cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
     @patch(TASKS_PATH + ".ContactSet.objects.create_new_from_api")
     def _process_standing_requests(self, mock_create_new_from_api):
@@ -183,10 +182,9 @@ class TestMainUseCases(WebTest):
         Notification.objects.all().delete()
 
         # requestor as permission
-        AuthUtils.add_permission_to_user_by_name(
+        self.user_requestor = AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user_requestor
         )
-        self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
 
     @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
     @patch("standingsrequests.helpers.esi_fetch._esi_client")

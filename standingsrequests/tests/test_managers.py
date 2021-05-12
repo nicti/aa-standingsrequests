@@ -89,6 +89,7 @@ class TestContactSetManager(NoSocketsTestCase):
             (1008, -5),
             (1009, -10),
             (1010, 5),
+            (2001, 10.0),
             (2003, 5.0),
             (2102, -10.0),
             (3010, -10.0),
