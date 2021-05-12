@@ -581,37 +581,31 @@ def view_pilots_standings_json(request):
         except (AttributeError, ObjectDoesNotExist):
             main = None
             state = ""
-            corporation_ticker = None
             main_character_name = None
             main_character_ticker = None
             main_character_icon_url = None
-            try:
-                assoc = contact.eve_entity.character_affiliation
-            except ObjectDoesNotExist:
-                corporation_id = None
-                corporation_name = "?"
-                alliance_id = None
-                alliance_name = "?"
-                faction_id = None
-                faction_name = "?"
-            else:
-                corporation_id = assoc.corporation.id
-                corporation_name = assoc.corporation.name
-                alliance_id = assoc.alliance.id if assoc.alliance else None
-                alliance_name = assoc.alliance.name if assoc.alliance else ""
-                faction_id = assoc.faction.id if assoc.faction else None
-                faction_name = assoc.faction.name if assoc.faction else None
         else:
             main = user.profile.main_character
             state = user.profile.state.name if user.profile.state else ""
-            corporation_id = character.corporation_id
-            corporation_name = character.corporation_name
-            corporation_ticker = character.corporation_ticker
-            alliance_id = character.alliance_id
-            alliance_name = character.alliance_name
             main_character_name = main.character_name
             main_character_ticker = main.corporation_ticker
             main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+        try:
+            assoc = contact.eve_entity.character_affiliation
+        except (AttributeError, ObjectDoesNotExist):
+            corporation_id = None
+            corporation_name = "?"
+            alliance_id = None
+            alliance_name = "?"
+            faction_id = None
+            faction_name = "?"
+        else:
+            corporation_id = assoc.corporation.id
+            corporation_name = assoc.corporation.name
+            alliance_id = assoc.alliance.id if assoc.alliance else None
+            alliance_name = assoc.alliance.name if assoc.alliance else ""
+            faction_id = assoc.faction.id if assoc.faction else None
+            faction_name = assoc.faction.name if assoc.faction else None
 
         labels = [label.name for label in contact.labels.all()]
         characters_data.append(
@@ -621,7 +615,6 @@ def view_pilots_standings_json(request):
                 "character_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
-                "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
                 "faction_id": faction_id,
