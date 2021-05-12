@@ -12,13 +12,13 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
+from .core import BaseConfig
 from .models import (
-    AllianceContact,
-    CharacterAssociation,
-    CharacterContact,
+    CharacterAffiliation,
+    Contact,
     ContactLabel,
     ContactSet,
-    CorporationContact,
+    CorporationDetails,
     StandingRequest,
     StandingRevocation,
 )
@@ -28,11 +28,10 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 @shared_task(name="standings_requests.update_all")
 def update_all(user_pk: int = None):
-    """Updates standings, names cache and associations"""
+    """Updates standings and affiliations"""
     my_chain = chain(
         [
             standings_update.si(),
-            update_associations_auth.si(),
             update_associations_api.si(),
             report_result_to_user.si(user_pk),
         ]
@@ -49,7 +48,7 @@ def report_result_to_user(user_pk: int = None):
             logger.warning("Can not find a user with pk %d", user_pk)
             return
         else:
-            source_entity = ContactSet.standings_source_entity()
+            source_entity = BaseConfig.standings_source_entity()
             notify(
                 user,
                 _("%s: Standings loaded" % __title__),
@@ -87,18 +86,33 @@ def validate_requests():
 
 @shared_task(name="standings_requests.update_associations_auth")
 def update_associations_auth():
-    """Update associations from local auth data (Main character, corporations)"""
-    logger.info("Associations updating from Auth")
-    CharacterAssociation.objects.update_from_auth()
-    logger.info("Finished Associations update from Auth")
+    ...
 
 
 @shared_task(name="standings_requests.update_associations_api")
 def update_associations_api():
-    """Update character associations from the EVE API (corporations)"""
-    logger.info("Associations updating from EVE API")
-    CharacterAssociation.objects.update_from_api()
-    logger.info("Finished associations update from EVE API")
+    """Update character affiliations from ESI and relations to Eve Characters"""
+    chain(
+        [
+            _update_character_affiliations_from_esi.si(),
+            _update_character_affiliations_to_auth.si(),
+            update_all_corporation_details.si(),
+        ]
+    ).delay()
+
+
+@shared_task
+def _update_character_affiliations_from_esi():
+    logger.info("Running character affiliations updating from ESI...")
+    CharacterAffiliation.objects.update_from_esi()
+    logger.info("Finished character affiliations from ESI.")
+
+
+@shared_task
+def _update_character_affiliations_to_auth():
+    logger.info("Updating character affiliations relations to Auth...")
+    CharacterAffiliation.objects.update_evecharacter_relations()
+    logger.info("Finished updating character affiliations to Auth.")
 
 
 @shared_task(name="standings_requests.purge_stale_data")
@@ -128,9 +142,9 @@ def purge_stale_standings_data():
             # because with lots of them it uses lots of memory
             # lets go over them one by one and delete
             for contact_set in stale_contacts_qs:
-                CharacterContact.objects.filter(contact_set=contact_set).delete()
-                CorporationContact.objects.filter(contact_set=contact_set).delete()
-                AllianceContact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
+                Contact.objects.filter(contact_set=contact_set).delete()
                 ContactLabel.objects.filter(contact_set=contact_set).delete()
 
             stale_contacts_qs.delete()
@@ -139,3 +153,27 @@ def purge_stale_standings_data():
 
     except ContactSet.DoesNotExist:
         logger.warn("No ContactSets available, nothing to delete")
+
+
+@shared_task
+def update_all_corporation_details():
+    existing_corporation_ids = (
+        CorporationDetails.objects.corporation_ids_from_contacts()
+    )
+    CorporationDetails.objects.exclude(
+        corporation_id__in=existing_corporation_ids
+    ).delete()
+    if existing_corporation_ids:
+        logger.info(
+            "Updating corporation details for %d corporations.",
+            len(existing_corporation_ids),
+        )
+        for corporation_id in existing_corporation_ids:
+            update_corporation_detail.delay(corporation_id)
+    else:
+        logger.info("No corporations to update.")
+
+
+@shared_task
+def update_corporation_detail(corporation_id: int):
+    CorporationDetails.objects.update_or_create_from_esi(corporation_id)

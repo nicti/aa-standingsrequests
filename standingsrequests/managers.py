@@ -1,26 +1,23 @@
+from typing import Tuple
+
 from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.db.models import Case, Q, Value, When
-from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
+from eveuniverse.models import EveEntity
 
-from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
-from allianceauth.eveonline.providers import ObjectNotFound
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.helpers import chunks
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_NOTIFICATIONS_ENABLED,
-    SR_OPERATION_MODE,
-    STANDINGS_API_CHARID,
-)
+from .app_settings import SR_NOTIFICATIONS_ENABLED
+from .core import BaseConfig, ContactType
 from .helpers.esi_fetch import esi_fetch
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -34,7 +31,7 @@ class ContactSetManager(models.Manager):
         Returns new ContactSet on success, else None
         """
         token = (
-            Token.objects.filter(character_id=STANDINGS_API_CHARID)
+            Token.objects.filter(character_id=BaseConfig.standings_character_id)
             .require_scopes(self.model.required_esi_scope())
             .require_valid()
             .first()
@@ -43,7 +40,7 @@ class ContactSetManager(models.Manager):
             logger.warning("Token for standing char could not be found")
             return None
         try:
-            contacts = _ContactsWrapper(token, STANDINGS_API_CHARID)
+            contacts = _ContactsWrapper(token, BaseConfig.standings_character_id)
         except HTTPError as ex:
             logger.exception(
                 "APIError occurred while trying to query api server: %s", ex
@@ -78,16 +75,18 @@ class ContactSetManager(models.Manager):
         :param contact_set: Django ContactSet to add contacts to
         :param contacts: List of _ContactsWrapper.Contact to add
         """
+        from .models import Contact
+
         for contact in contacts:
-            flat_labels = [label.id for label in contact.labels]
-            labels = contact_set.contactlabel_set.filter(label_id__in=flat_labels)
-            contact_set.create_contact(
-                contact_type_id=contact.type_id,
-                contact_id=contact.id,
-                name=contact.name,
+            eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact.id)
+            obj = Contact.objects.create(
+                contact_set=contact_set,
+                eve_entity=eve_entity,
                 standing=contact.standing,
-                labels=labels,
             )
+            flat_labels = [label.id for label in contact.labels]
+            labels = contact_set.labels.filter(label_id__in=flat_labels)
+            obj.labels.add(*labels)
 
 
 class _ContactsWrapper:
@@ -149,12 +148,10 @@ class _ContactsWrapper:
             return str(self)
 
     def __init__(self, token, character_id):
-        from .models import EveEntity
-
         self.alliance = []
         self.allianceLabels = []
 
-        if SR_OPERATION_MODE == "alliance":
+        if BaseConfig.operation_mode == "alliance":
             alliance_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).alliance_id
@@ -172,7 +169,7 @@ class _ContactsWrapper:
                 token=token,
                 has_pages=True,
             )
-        elif SR_OPERATION_MODE == "corporation":
+        elif BaseConfig.operation_mode == "corporation":
             corporation_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).corporation_id
@@ -198,9 +195,22 @@ class _ContactsWrapper:
         for contact in contacts:
             entity_ids.append(contact["contact_id"])
 
-        name_info = EveEntity.objects.get_names(entity_ids)
+        resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
         for contact in contacts:
-            self.alliance.append(self.Contact(contact, self.allianceLabels, name_info))
+            self.alliance.append(
+                self.Contact(contact, self.allianceLabels, resolver._names_map)
+            )
+
+
+class ContactQuerySet(models.QuerySet):
+    def filter_characters(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_CHARACTER)
+
+    def filter_corporations(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_CORPORATION)
+
+    def filter_alliances(self):
+        return self.filter(eve_entity__category=EveEntity.CATEGORY_ALLIANCE)
 
 
 class AbstractStandingsRequestQuerySet(models.QuerySet):
@@ -224,6 +234,12 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
 
 
 class AbstractStandingsRequestManager(models.Manager):
+    def filter_characters(self) -> models.QuerySet:
+        return self.filter(contact_type_id__in=ContactType.character_ids)
+
+    def filter_corporations(self) -> models.QuerySet:
+        return self.filter(contact_type_id__in=ContactType.corporation_ids)
+
     def get_queryset(self) -> models.QuerySet:
         return AbstractStandingsRequestQuerySet(self.model, using=self._db)
 
@@ -231,8 +247,6 @@ class AbstractStandingsRequestManager(models.Manager):
         """Process all the Standing requests/revocation objects"""
         from .models import (
             AbstractStandingsRequest,
-            ContactSet,
-            EveEntity,
             StandingRequest,
             StandingRevocation,
         )
@@ -240,10 +254,12 @@ class AbstractStandingsRequestManager(models.Manager):
         if self.model == AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
-        organization = ContactSet.standings_source_entity()
+        organization = BaseConfig.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
-            contact = EveEntity.objects.get_object(standing_request.contact_id)
+            contact, dummy = EveEntity.objects.get_or_create_esi(
+                id=standing_request.contact_id
+            )
             is_currently_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.evaluate_effective_standing()
             if is_satisfied_standing and not is_currently_effective:
@@ -383,7 +399,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         returns the number of invalid requests
         """
-        from .models import CorporationContact, StandingRevocation
+        from .models import StandingRevocation
 
         logger.debug("Validating standings requests")
         invalid_count = 0
@@ -395,7 +411,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 logger.debug("Request is invalid, user does not have permission")
                 is_valid = False
 
-            elif CorporationContact.is_corporation(
+            elif ContactType.is_corporation(
                 standing_request.contact_type_id
             ) and not self.model.can_request_corporation_standing(
                 standing_request.contact_id, standing_request.user
@@ -505,261 +521,171 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         return instance
 
 
-class CharacterAssociationManager(models.Manager):
-    def update_from_auth(self) -> None:
-        """Update all character associations based on auth relationship data"""
-        from .models import EveEntity
+class CharacterAffiliationManager(models.Manager):
+    def update_evecharacter_relations(self) -> None:
+        """Update links to eve character in auth if any"""
 
-        for character in EveCharacter.objects.all():
-            logger.debug(
-                "Updating Association from Auth for %s", character.character_name
+        eve_character_id_map = {
+            obj["character_id"]: obj["id"]
+            for obj in EveCharacter.objects.values("id", "character_id")
+        }
+        with transaction.atomic():
+            affiliations = [
+                obj for obj in self.filter(character_id__in=eve_character_id_map.keys())
+            ]
+            for affiliation in affiliations:
+                affiliation.eve_character_id = eve_character_id_map[
+                    affiliation.character_id
+                ]
+            self.bulk_update(
+                objs=affiliations, fields=["eve_character_id"], batch_size=500
             )
-            try:
-                ownership = CharacterOwnership.objects.get(character=character)
-            except CharacterOwnership.DoesNotExist:
-                main = None
-            else:
-                main = (
-                    ownership.user.profile.main_character.character_id
-                    if ownership.user.profile.main_character
-                    else None
-                )
 
-            self.update_or_create(
-                character_id=character.character_id,
-                defaults={
-                    "corporation_id": character.corporation_id,
-                    "main_character_id": main,
-                    "alliance_id": character.alliance_id,
-                    "updated": now(),
-                },
-            )
-            EveEntity.objects.update_or_create_from_evecharacter(character)
+    def update_from_esi(self) -> None:
+        """Update all character affiliations we have contacts or requests for."""
+        character_ids = self._gather_character_ids()
+        if character_ids:
+            affiliations = self._fetch_characters_affiliation_from_esi(character_ids)
+            if affiliations:
+                self._store_affiliations(affiliations)
 
-    def update_from_api(self) -> None:
-        """Update all character corp associations we have standings for that
-        aren't being updated locally
-        Cache timeout should be longer than update_from_auth
-        update schedule to
-        prevent unnecessarily updating characters we already have local data for.
-        """
-        # gather character associations of pilots which meed to be updated
-        from .models import ContactSet, EveEntity
+    def _gather_character_ids(self) -> list:
+        from .models import ContactSet, StandingRequest, StandingRevocation
 
         try:
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Could not find a contact set")
-        else:
-            all_pilots = contact_set.charactercontact_set.values_list(
-                "contact_id", flat=True
-            )
-            expired_character_associations = self.get_api_expired_items(
-                all_pilots
-            ).values_list("character_id", flat=True)
-            expired_pilots = set(all_pilots).intersection(
-                expired_character_associations
-            )
-            known_pilots = self.values_list("character_id", flat=True)
-            unknown_pilots = [
-                pilot for pilot in all_pilots if pilot not in known_pilots
-            ]
-            pilots_to_fetch = list(expired_pilots | set(unknown_pilots))
+            return []
 
-            # Fetch the data in acceptable sizes from the API
-            chunk_size = 1000
-            for pilots_chunk in chunks(pilots_to_fetch, chunk_size):
-                try:
-                    esi_response = esi_fetch(
-                        "Character.post_characters_affiliation",
-                        args={"characters": pilots_chunk},
-                    )
-                except HTTPError:
-                    logger.exception(
-                        "Could not fetch associations pilots_chunk from ESI"
-                    )
-                else:
-                    entity_ids = []
-                    for association in esi_response:
-                        corporation_id = association["corporation_id"]
-                        alliance_id = (
-                            association["alliance_id"]
-                            if "alliance_id" in association
-                            else None
-                        )
-                        character_id = association["character_id"]
-                        self.update_or_create(
-                            character_id=character_id,
-                            defaults={
-                                "corporation_id": corporation_id,
-                                "alliance_id": alliance_id,
-                                "updated": now(),
-                            },
-                        )
-                        entity_ids.append(character_id)
-                        entity_ids.append(corporation_id)
-                        if alliance_id:
-                            entity_ids.append(alliance_id)
-
-                    # make sure we have all names resolved
-                    EveEntity.objects.get_names(entity_ids)
-
-    def get_api_expired_items(self, items_in=None) -> models.QuerySet:
-        """Get all API timer expired items
-
-        items_in: list optional parameter to limit the results
-        to character_ids in the list
-
-        returns: QuerySet of CharacterAssociation items
-        """
-        expired = self.filter(updated__lt=now() - self.model.API_CACHE_TIMER)
-        if items_in is not None:
-            expired = expired.filter(character_id__in=items_in)
-
-        return expired
-
-
-class EveEntityManager(models.Manager):
-    def get_names(self, entity_ids: list) -> dict:
-        """Get the names of the given entity ids from catch or other locations
-
-        eve_entity_ids: array of int entity ids who's names to fetch
-
-        returns dict with entity_id as key and name as value
-        """
-        entity_ids = set(entity_ids)  # remove duplicates
-        entity_ids_known = set(
-            self.filter(entity_id__in=entity_ids).values_list("entity_id", flat=True)
+        character_ids_contacts = set(
+            contact_set.contacts.filter_characters()
+            .values_list("eve_entity_id", flat=True)
+            .distinct()
         )
-        entity_ids_unknown = entity_ids - entity_ids_known
-        entities_expired = self.filter(
-            entity_id__in=entity_ids, updated__lt=now() - self.model.CACHE_TIME
+        character_ids_requests = set(
+            StandingRequest.objects.filter_characters()
+            .values_list("contact_id", flat=True)
+            .distinct()
         )
-        entity_ids_need_update = list(entity_ids_unknown) + list(
-            entities_expired.values_list("entity_id", flat=True)
+        character_ids_revocations = set(
+            StandingRevocation.objects.filter_characters()
+            .values_list("contact_id", flat=True)
+            .distinct()
         )
-        if entity_ids_need_update:
-            entities_api_info = self._get_names_from_api(entity_ids_need_update)
+        return list(
+            character_ids_contacts | character_ids_requests | character_ids_revocations
+        )
 
-            # update existing entities
-            entities_to_update = list()
-            for entity in entities_expired:
-                if entity.entity_id in entities_api_info:
-                    entity.name = entities_api_info[entity.entity_id]["name"]
-                    entity.category = entities_api_info[entity.entity_id]["category"]
-                    entities_to_update.append(entity)
-
-            if entities_to_update:
-                self.bulk_update(
-                    entities_to_update, fields=["name", "category"], batch_size=500
-                )
-
-            # create missing entities
-            entities_to_create = list()
-            for entity_id in entity_ids_unknown:
-                if entity_id in entities_api_info:
-                    entity = self.model(
-                        entity_id=entity_id,
-                        name=entities_api_info[entity_id]["name"],
-                        category=entities_api_info[entity_id]["category"],
-                    )
-                    entities_to_create.append(entity)
-
-            if entities_to_create:
-                self.bulk_create(
-                    entities_to_create, ignore_conflicts=True, batch_size=500
-                )
-
-        return {
-            entity.entity_id: entity.name
-            for entity in self.filter(entity_id__in=entity_ids)
-        }
-
-    @classmethod
-    def _get_names_from_api(cls, eve_entity_ids) -> dict:
-        """
-        Get the names of the given entity ids from the EVE API servers
-        :param eve_entity_ids: array of int entity ids who's names to fetch
-        :return: dict with entity_id as key and name as value
-        """
-        # this is to make sure there are no duplicates
-        eve_entity_ids = list(set(eve_entity_ids))
-
-        entities_list = list()
+    def _fetch_characters_affiliation_from_esi(self, character_ids) -> list:
         chunk_size = 1000
-        for ids_chunk in chunks(eve_entity_ids, chunk_size):
-            entities_list += cls._make_api_request(ids_chunk)
+        affiliations = []
+        for character_ids_chunk in chunks(character_ids, chunk_size):
+            try:
+                response = esi_fetch(
+                    "Character.post_characters_affiliation",
+                    args={"characters": character_ids_chunk},
+                )
+            except HTTPError:
+                logger.exception("Could not fetch character affiliations from ESI")
+                return []
+            else:
+                affiliations += response
+        return affiliations
 
-        return {entity["id"]: entity for entity in entities_list}
+    def _store_affiliations(self, affiliations) -> None:
+        affiliation_objects = list()
+        for affiliation in affiliations:
+            character, _ = EveEntity.objects.get_or_create(
+                id=affiliation["character_id"]
+            )
+            corporation, _ = EveEntity.objects.get_or_create(
+                id=affiliation["corporation_id"]
+            )
+            if affiliation.get("alliance_id"):
+                alliance, _ = EveEntity.objects.get_or_create(
+                    id=affiliation["alliance_id"]
+                )
+            else:
+                alliance = None
+            if affiliation.get("faction_id"):
+                faction, _ = EveEntity.objects.get_or_create(
+                    id=affiliation["faction_id"]
+                )
+            else:
+                faction = None
+            affiliation_objects.append(
+                self.model(
+                    character=character,
+                    corporation=corporation,
+                    alliance=alliance,
+                    faction=faction,
+                )
+            )
+        with transaction.atomic():
+            self.all().delete()
+            self.bulk_create(affiliation_objects, batch_size=500)
 
-    @classmethod
-    def _make_api_request(cls, eve_entity_ids: list) -> list:
-        """
-        Get the names of the given entity ids from the EVE API servers
-        :param eve_entity_ids: array of int entity ids who's names to fetch
-        :return: array of objects with keys id and name or None if unsuccessful
-        """
-        logger.debug(
-            "Attempting to get entity name from API for ids %s", eve_entity_ids
+        EveEntity.objects.bulk_create_esi(
+            filter(
+                lambda x: x is not None,
+                [
+                    affiliation["character_id"],
+                    affiliation["corporation_id"],
+                    affiliation["alliance_id"],
+                ],
+            )
         )
-        try:
-            return esi_fetch(
-                "Universe.post_universe_names", args={"ids": eve_entity_ids}
+
+
+class CorporationDetailsManager(models.Manager):
+    def corporation_ids_from_contacts(self) -> set:
+        from .models import Contact
+
+        contact_corporation_ids = set(
+            Contact.objects.filter_corporations().values_list(
+                "eve_entity_id", flat=True
             )
-
-        except HTTPError:
-            logger.exception(
-                "Error occurred while trying to query api for entity id=%s",
-                eve_entity_ids,
+        )
+        character_affiliation_corporation_ids = set(
+            Contact.objects.filter_characters().values_list(
+                "eve_entity__character_affiliation__corporation_id", flat=True
             )
-            raise ObjectNotFound(eve_entity_ids, "universe_entities")
+        )
+        return set(contact_corporation_ids | character_affiliation_corporation_ids)
 
-    def get_name(self, entity_id: int) -> str:
-        """Get the name for the given entity
-
-        entity_id: EVE id of the entity
-
-        returns name if it exists or None
-        """
-        if not entity_id:
-            return None
-
-        names_info = self.get_names([entity_id])
-        return names_info[entity_id] if entity_id in names_info else None
-
-    def get_object(self, entity_id: int) -> object:
-        self.get_name(entity_id)
-        return self.get(entity_id=entity_id)
-
-    def update_name(self, entity_id, name, category=None):
-        self.update_or_create(
-            entity_id=entity_id,
+    def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
+        """Updates or create an obj from ESI"""
+        logger.info("%s: Fetching corporation from ESI", id)
+        data = esi_fetch(
+            "Corporation.get_corporations_corporation_id",
+            args={"corporation_id": id},
+        )
+        corporation = EveEntity.objects.get_or_create(id=id)[0]
+        alliance = (
+            EveEntity.objects.get_or_create(id=data["alliance_id"])[0]
+            if data.get("alliance_id")
+            else None
+        )
+        ceo = EveEntity.objects.get_or_create(id=data["ceo_id"])[0]
+        faction = (
+            EveEntity.objects.get_or_create(id=data["faction_id"])[0]
+            if data.get("faction_id")
+            else None
+        )
+        EveEntity.objects.bulk_create_esi(
+            filter(
+                lambda x: x is not None,
+                [id, data.get("alliance_id"), data["ceo_id"], data.get("faction_id")],
+            )
+        )
+        return self.update_or_create(
+            corporation=corporation,
             defaults={
-                "name": name,
-                "category": category,
+                "alliance": alliance,
+                "ceo": ceo,
+                "faction": faction,
+                "member_count": data["member_count"],
+                "ticker": data["ticker"],
             },
         )
-
-    def update_or_create_from_evecharacter(self, character: EveCharacter) -> None:
-        self.update_or_create(
-            entity_id=character.character_id,
-            defaults={
-                "name": character.character_name,
-                "category": self.model.CATEGORY_CHARACTER,
-            },
-        )
-        self.update_or_create(
-            entity_id=character.corporation_id,
-            defaults={
-                "name": character.corporation_name,
-                "category": self.model.CATEGORY_CORPORATION,
-            },
-        )
-        if character.alliance_id:
-            self.update_or_create(
-                entity_id=character.alliance_id,
-                defaults={
-                    "name": character.alliance_name,
-                    "category": self.model.CATEGORY_ALLIANCE,
-                },
-            )

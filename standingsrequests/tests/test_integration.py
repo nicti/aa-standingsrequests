@@ -13,13 +13,8 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
 from .. import tasks
-from ..models import (
-    CharacterContact,
-    ContactSet,
-    CorporationContact,
-    StandingRequest,
-    StandingRevocation,
-)
+from ..core import ContactType
+from ..models import Contact, ContactSet, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,
@@ -27,23 +22,23 @@ from .my_test_data import (
     create_eve_objects,
     create_standings_char,
     esi_get_corporations_corporation_id,
-    esi_post_universe_names,
+    load_eve_entities,
 )
 
-MODULE_PATH_MODELS = "standingsrequests.models"
-MODULE_PATH_MANAGERS = "standingsrequests.managers"
-MODULE_PATH_TASKS = "standingsrequests.tasks"
+CORE_PATH = "standingsrequests.core"
+MODELS_PATH = "standingsrequests.models"
+MANAGERS_PATH = "standingsrequests.managers"
+TASKS_PATH = "standingsrequests.tasks"
 TEST_REQUIRED_SCOPE = "publicData"
 
 
 @patch(
-    MODULE_PATH_MODELS + ".SR_REQUIRED_SCOPES",
+    MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(MODULE_PATH_MODELS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MANAGERS + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(MODULE_PATH_MANAGERS + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(MODULE_PATH_MODELS + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
+@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
 
     csrf_checks = False
@@ -54,6 +49,7 @@ class TestMainUseCases(WebTest):
 
         create_standings_char()
         create_eve_objects()
+        load_eve_entities()
 
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
@@ -104,41 +100,30 @@ class TestMainUseCases(WebTest):
             ],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, cls.user_manager
         )
-        AuthUtils.add_permission_to_user_by_name(
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
             "standingsrequests.affect_standings", cls.user_manager
         )
-        cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
 
-    @patch(MODULE_PATH_TASKS + ".ContactSet.objects.create_new_from_api")
+    @patch(TASKS_PATH + ".ContactSet.objects.create_new_from_api")
     def _process_standing_requests(self, mock_create_new_from_api):
         mock_create_new_from_api.return_value = self.contact_set
         tasks.standings_update()
 
     def _set_standing_for_alt_in_game(self, alt: object) -> None:
         if isinstance(alt, EveCharacter):
-            contact_id = alt.character_id
-            contact_name = alt.character_name
-            CharacterContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=alt.character_id,
+                defaults={"standing": 10},
             )
         elif isinstance(alt, EveCorporationInfo):
-            contact_id = alt.corporation_id
-            contact_name = alt.corporation_name
-            CorporationContact.objects.update_or_create(
+            Contact.objects.update_or_create(
                 contact_set=self.contact_set,
-                contact_id=contact_id,
-                defaults={
-                    "name": contact_name,
-                    "standing": 10,
-                },
+                eve_entity_id=alt.corporation_id,
+                defaults={"standing": 10},
             )
         else:
             raise NotImplementedError()
@@ -148,10 +133,10 @@ class TestMainUseCases(WebTest):
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = CharacterContact.get_contact_type_id()
+            contact_type_id = ContactType.character_id
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = CorporationContact.get_contact_type_id()
+            contact_type_id = ContactType.corporation_id
         else:
             raise NotImplementedError()
 
@@ -167,12 +152,12 @@ class TestMainUseCases(WebTest):
 
     def _remove_standing_for_alt_in_game(self, alt: object) -> None:
         if isinstance(alt, EveCharacter):
-            CharacterContact.objects.get(
-                contact_set=self.contact_set, contact_id=alt.character_id
+            Contact.objects.get(
+                contact_set=self.contact_set, eve_entity_id=alt.character_id
             ).delete()
         elif isinstance(alt, EveCorporationInfo):
-            CorporationContact.objects.get(
-                contact_set=self.contact_set, contact_id=alt.corporation_id
+            Contact.objects.get(
+                contact_set=self.contact_set, eve_entity_id=alt.corporation_id
             ).delete()
         else:
             raise NotImplementedError()
@@ -187,9 +172,6 @@ class TestMainUseCases(WebTest):
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
-            esi_post_universe_names
-        )
 
     def setUp(self) -> None:
         cache.clear()
@@ -200,10 +182,9 @@ class TestMainUseCases(WebTest):
         Notification.objects.all().delete()
 
         # requestor as permission
-        AuthUtils.add_permission_to_user_by_name(
+        self.user_requestor = AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user_requestor
         )
-        self.user_requestor = User.objects.get(pk=self.user_requestor.pk)
 
     @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
     @patch("standingsrequests.helpers.esi_fetch._esi_client")
@@ -773,7 +754,7 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    @patch(TASKS_PATH + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_requests_for_valid_alts(self):
         """
         given user's alt has no standing record
@@ -794,7 +775,7 @@ class TestMainUseCases(WebTest):
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
 
-    @patch(MODULE_PATH_TASKS + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
+    @patch(TASKS_PATH + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_revocation_for_invalid_alts_2(self):
         """
         given user's alt has no standing record

@@ -6,6 +6,8 @@ from unittest.mock import Mock
 
 from bravado.exception import HTTPNotFound
 
+from eveuniverse.models import EveEntity
+
 from allianceauth.eveonline.models import (
     EveAllianceInfo,
     EveCharacter,
@@ -13,14 +15,7 @@ from allianceauth.eveonline.models import (
 )
 
 from ..managers import _ContactsWrapper
-from ..models import (
-    AllianceContact,
-    CharacterAssociation,
-    CharacterContact,
-    ContactSet,
-    CorporationContact,
-    EveEntity,
-)
+from ..models import CharacterAffiliation, Contact, ContactSet, CorporationDetails
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
@@ -143,10 +138,9 @@ def esi_post_universe_names(ids, *args, **kwargs) -> object:
 
 def esi_post_characters_affiliation(characters, *args, **kwargs) -> object:
     result = []
-    for assoc in _my_test_data["CharacterAssociation"]:
+    for assoc in _my_test_data["CharacterAffiliation"]:
         if assoc["character_id"] in characters:
             row = assoc.copy()
-            del row["main_character_id"]
             result.append(row)
 
     return BravadoOperationStub(result)
@@ -194,27 +188,6 @@ def create_standings_char():
             "alliance_name": TEST_STANDINGS_ALLIANCE_NAME,
         },
     )
-    EveEntity.objects.update_or_create(
-        entity_id=character.character_id,
-        defaults={
-            "name": character.character_name,
-            "category": EveEntity.CATEGORY_CHARACTER,
-        },
-    )
-    EveEntity.objects.update_or_create(
-        entity_id=character.corporation_id,
-        defaults={
-            "name": character.corporation_name,
-            "category": EveEntity.CATEGORY_CORPORATION,
-        },
-    )
-    EveEntity.objects.update_or_create(
-        entity_id=character.alliance_id,
-        defaults={
-            "name": character.alliance_name,
-            "category": EveEntity.CATEGORY_ALLIANCE,
-        },
-    )
     return character
 
 
@@ -240,7 +213,7 @@ def get_test_contacts():
     return contacts
 
 
-def create_contacts_set(my_set: object = None) -> object:
+def create_contacts_set(my_set: ContactSet = None, include_assoc=True) -> ContactSet:
 
     if not my_set:
         my_set = ContactSet.objects.create(name="Dummy Set")
@@ -251,37 +224,40 @@ def create_contacts_set(my_set: object = None) -> object:
     # create contacts for ContactSet
     for contact in _my_test_data["alliance_contacts"]:
         if contact["contact_type"] == "character":
-            MyStandingClass = CharacterContact
-
+            category = EveEntity.CATEGORY_CHARACTER
         elif contact["contact_type"] == "corporation":
-            MyStandingClass = CorporationContact
-
+            category = EveEntity.CATEGORY_CORPORATION
         elif contact["contact_type"] == "alliance":
-            MyStandingClass = AllianceContact
-
+            category = EveEntity.CATEGORY_ALLIANCE
         else:
             raise ValueError("Invalid contact type")
 
-        my_standing = MyStandingClass.objects.create(
+        eve_entity, _ = EveEntity.objects.get_or_create(
+            id=contact["contact_id"],
+            defaults={
+                "name": get_entity_name(contact["contact_id"]),
+                "category": category,
+            },
+        )
+        my_standing = Contact.objects.create(
             contact_set=my_set,
-            contact_id=contact["contact_id"],
-            name=get_entity_name(contact["contact_id"]),
+            eve_entity=eve_entity,
             standing=contact["standing"],
         )
         for label_id in contact["label_ids"]:
-            my_standing.labels.add(my_set.contactlabel_set.get(label_id=label_id))
+            my_standing.labels.add(my_set.labels.get(label_id=label_id))
 
     # update EveEntity based on characters
     for character_id, character_data in _my_test_data["EveCharacter"].items():
         EveEntity.objects.get_or_create(
-            entity_id=character_id,
+            id=character_id,
             defaults={
                 "name": character_data["character_name"],
                 "category": EveEntity.CATEGORY_CHARACTER,
             },
         )
         EveEntity.objects.get_or_create(
-            entity_id=character_data["corporation_id"],
+            id=character_data["corporation_id"],
             defaults={
                 "name": character_data["corporation_name"],
                 "category": EveEntity.CATEGORY_CORPORATION,
@@ -289,17 +265,18 @@ def create_contacts_set(my_set: object = None) -> object:
         )
         if character_data["alliance_id"]:
             EveEntity.objects.get_or_create(
-                entity_id=character_data["alliance_id"],
+                id=character_data["alliance_id"],
                 defaults={
                     "name": character_data["alliance_name"],
                     "category": EveEntity.CATEGORY_ALLIANCE,
                 },
             )
 
-    # create CharacterAssociation
-    CharacterAssociation.objects.all().delete()
-    for assoc in _my_test_data["CharacterAssociation"]:
-        CharacterAssociation.objects.create(**assoc)
+    # create CharacterAffiliation
+    if include_assoc:
+        CharacterAffiliation.objects.all().delete()
+        for assoc in _my_test_data["CharacterAffiliation"]:
+            CharacterAffiliation.objects.create(**assoc)
 
     return my_set
 
@@ -337,14 +314,14 @@ def create_eve_objects():
 def add_eve_object_to_eve_entities(obj: object):
     if isinstance(obj, EveCharacter):
         EveEntity.objects.update_or_create(
-            entity_id=obj.character_id,
+            id=obj.character_id,
             defaults={
                 "name": obj.character_name,
                 "category": EveEntity.CATEGORY_CHARACTER,
             },
         )
         EveEntity.objects.update_or_create(
-            entity_id=obj.corporation_id,
+            id=obj.corporation_id,
             defaults={
                 "name": obj.corporation_name,
                 "category": EveEntity.CATEGORY_CORPORATION,
@@ -352,7 +329,7 @@ def add_eve_object_to_eve_entities(obj: object):
         )
         if obj.alliance_id:
             EveEntity.objects.update_or_create(
-                entity_id=obj.alliance_id,
+                id=obj.alliance_id,
                 defaults={
                     "name": obj.alliance_name,
                     "category": EveEntity.CATEGORY_ALLIANCE,
@@ -360,7 +337,7 @@ def add_eve_object_to_eve_entities(obj: object):
             )
     elif isinstance(obj, EveCorporationInfo):
         EveEntity.objects.update_or_create(
-            entity_id=obj.corporation_id,
+            id=obj.corporation_id,
             defaults={
                 "name": obj.corporation_name,
                 "category": EveEntity.CATEGORY_CORPORATION,
@@ -368,7 +345,7 @@ def add_eve_object_to_eve_entities(obj: object):
         )
     elif isinstance(obj, EveAllianceInfo):
         EveEntity.objects.update_or_create(
-            entity_id=obj.alliance_id,
+            id=obj.alliance_id,
             defaults={
                 "name": obj.alliance_name,
                 "category": EveEntity.CATEGORY_ALLIANCE,
@@ -376,3 +353,101 @@ def add_eve_object_to_eve_entities(obj: object):
         )
     else:
         raise NotImplementedError()
+
+
+def generate_eve_entities_from_allianceauth():
+    for character in EveCharacter.objects.all():
+        EveEntity.objects.get_or_create(
+            id=character.character_id,
+            defaults={
+                "name": character.character_name,
+                "category": EveEntity.CATEGORY_CHARACTER,
+            },
+        )
+        EveEntity.objects.get_or_create(
+            id=character.corporation_id,
+            defaults={
+                "name": character.corporation_name,
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+        if character.alliance_id:
+            EveEntity.objects.get_or_create(
+                id=character.alliance_id,
+                defaults={
+                    "name": character.alliance_name,
+                    "category": EveEntity.CATEGORY_ALLIANCE,
+                },
+            )
+    for corporation in EveCorporationInfo.objects.all():
+        EveEntity.objects.get_or_create(
+            id=corporation.corporation_id,
+            defaults={
+                "name": corporation.corporation_name,
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+    for alliance in EveAllianceInfo.objects.all():
+        EveEntity.objects.get_or_create(
+            id=alliance.alliance_id,
+            defaults={
+                "name": alliance.alliance_name,
+                "category": EveEntity.CATEGORY_ALLIANCE,
+            },
+        )
+
+
+def load_eve_entities():
+    for character in _my_test_data["EveCharacter"].values():
+        EveEntity.objects.get_or_create(
+            id=character["character_id"],
+            defaults={
+                "name": character["character_name"],
+                "category": EveEntity.CATEGORY_CHARACTER,
+            },
+        )
+        EveEntity.objects.get_or_create(
+            id=character["corporation_id"],
+            defaults={
+                "name": character["corporation_name"],
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+        if character["alliance_id"]:
+            EveEntity.objects.get_or_create(
+                id=character["alliance_id"],
+                defaults={
+                    "name": character["alliance_name"],
+                    "category": EveEntity.CATEGORY_ALLIANCE,
+                },
+            )
+    for corporation in _my_test_data["EveCorporationInfo"].values():
+        EveEntity.objects.get_or_create(
+            id=corporation["corporation_id"],
+            defaults={
+                "name": corporation["corporation_name"],
+                "category": EveEntity.CATEGORY_CORPORATION,
+            },
+        )
+    for alliance in _my_test_data["EveAllianceInfo"].values():
+        EveEntity.objects.get_or_create(
+            id=alliance["alliance_id"],
+            defaults={
+                "name": alliance["alliance_name"],
+                "category": EveEntity.CATEGORY_ALLIANCE,
+            },
+        )
+
+
+def load_corporation_details():
+    for record in _my_test_data["EveCorporationInfo"].values():
+        alliance_id = record["alliance_id"] if record.get("alliance_id") else None
+        CorporationDetails.objects.update_or_create(
+            corporation_id=record["corporation_id"],
+            defaults={
+                "alliance_id": alliance_id,
+                "ceo_id": 2102,
+                "member_count": 99,
+                "ticker": record["corporation_ticker"],
+            },
+        )

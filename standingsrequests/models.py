@@ -3,30 +3,26 @@ from datetime import timedelta
 from django.contrib.auth.models import User
 from django.core import exceptions
 from django.db import models
+from django.utils.functional import cached_property
 from django.utils.timezone import now
 from esi.models import Token
+from eveuniverse.models import EveEntity
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
-from .app_settings import (
-    SR_OPERATION_MODE,
-    SR_REQUIRED_SCOPES,
-    SR_STANDING_TIMEOUT_HOURS,
-    STANDINGS_API_CHARID,
-    STR_ALLIANCE_IDS,
-    STR_CORP_IDS,
-)
+from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
+from .core import BaseConfig, ContactType, MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
-    CharacterAssociationManager,
+    CharacterAffiliationManager,
+    ContactQuerySet,
     ContactSetManager,
-    EveEntityManager,
+    CorporationDetailsManager,
     StandingRequestManager,
     StandingRevocationManager,
 )
@@ -57,169 +53,13 @@ class ContactSet(models.Model):
     def __repr__(self):
         return f"{type(self).__name__}(pk={self.pk}, date='{self.date}')"
 
-    def get_contact_by_id(self, contact_id: int, contact_type_id: int) -> object:
-        """Attempts to fetch the contact for the given ID and type
-
-        Params:
-        - contact_id: Integer contact ID
-        - contact_type_id: Integer contact type from the contact_type_ids attribute
-        in concrete models
-
-        Returns concrete contact Object or ObjectDoesNotExist exception
-        """
-        if contact_type_id in CharacterContact.contact_type_ids:
-            return self.charactercontact_set.get(contact_id=contact_id)
-        elif contact_type_id in CorporationContact.contact_type_ids:
-            return self.corporationcontact_set.get(contact_id=contact_id)
-        elif contact_type_id in AllianceContact.contact_type_ids:
-            return self.alliancecontact_set.get(contact_id=contact_id)
-        raise exceptions.ObjectDoesNotExist()
-
-    def create_contact(
-        self,
-        contact_type_id: int,
-        contact_id: int,
-        name: str,
-        standing: float,
-        labels: list,
-    ) -> object:
-        """creates new contact"""
-        StandingType = self.get_class_for_contact_type(contact_type_id)
-        contact = StandingType.objects.create(
-            contact_set=self,
-            contact_id=contact_id,
-            name=name,
-            standing=standing,
-        )
-        for label in labels:
-            contact.labels.add(label)
-
-        return contact
-
-    def character_has_satisfied_standing(self, contact_id: int) -> bool:
-        return self.contact_has_satisfied_standing(
-            contact_id, CharacterContact.get_contact_type_id()
-        )
-
-    def corporation_has_satisfied_standing(self, contact_id: int) -> bool:
-        return self.contact_has_satisfied_standing(
-            contact_id, CorporationContact.get_contact_type_id()
-        )
-
-    def contact_has_satisfied_standing(
-        self, contact_id: int, contact_type_id: int
-    ) -> bool:
+    def contact_has_satisfied_standing(self, contact_id: int) -> bool:
         """Return True if give contact has standing exists"""
-        if contact_type_id in CharacterContact.contact_type_ids:
-            try:
-                contact = self.charactercontact_set.get(contact_id=contact_id)
-            except CharacterContact.DoesNotExist:
-                return False
-
-        elif contact_type_id in CorporationContact.contact_type_ids:
-            try:
-                contact = self.corporationcontact_set.get(contact_id=contact_id)
-            except CorporationContact.DoesNotExist:
-                return False
-
-        elif contact_type_id in AllianceContact.contact_type_ids:
-            try:
-                contact = self.alliancecontact_set.get(contact_id=contact_id)
-            except CorporationContact.DoesNotExist:
-                return False
-
-        else:
-            raise ValueError("Invalid contact type ID: %s" % contact_type_id)
-
-        return StandingRequest.is_standing_satisfied(contact.standing)
-
-    @staticmethod
-    def get_class_for_contact_type(contact_type_id):
-        if contact_type_id in CharacterContact.contact_type_ids:
-            return CharacterContact
-        elif contact_type_id in CorporationContact.contact_type_ids:
-            return CorporationContact
-        elif contact_type_id in AllianceContact.contact_type_ids:
-            return AllianceContact
-        raise ValueError("Invalid contact type ID: %s" % contact_type_id)
-
-    @classmethod
-    def is_character_in_organisation(cls, character: EveCharacter) -> bool:
-        """Check if the Pilot is in the auth instances organisation
-
-        character: EveCharacter
-
-        returns True if the character is in the organisation, False otherwise
-        """
-        return (
-            character.corporation_id in cls.corporation_ids_in_organization()
-            or character.alliance_id in cls.alliance_ids_in_organization()
-        )
-
-    def corporation_ids_in_organization() -> set:
-        return {int(org_id) for org_id in list(STR_CORP_IDS)}
-
-    @staticmethod
-    def alliance_ids_in_organization() -> set:
-        return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
-
-    @staticmethod
-    def required_esi_scope() -> str:
-        """returns the required ESI scopes for syncing"""
-        if SR_OPERATION_MODE == "alliance":
-            return "esi-alliances.read_contacts.v1"
-        elif SR_OPERATION_MODE == "corporation":
-            return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
-
-    @staticmethod
-    def standings_character() -> EveCharacter:
-        """returns the configured standings character"""
         try:
-            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
-        except EveCharacter.DoesNotExist:
-            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
-            EveEntity.objects.get_or_create(
-                entity_id=character.character_id,
-                defaults={
-                    "name": character.character_name,
-                    "category": EveEntity.CATEGORY_CHARACTER,
-                },
-            )
-
-        return character
-
-    @classmethod
-    def standings_source_entity(cls) -> object:
-        """returns the entity that all standings are fetched from
-
-        returns None when in alliance mode, but character has no alliance
-        """
-        character = cls.standings_character()
-        if SR_OPERATION_MODE == "alliance":
-            if character.alliance_id:
-                entity, _ = EveEntity.objects.get_or_create(
-                    entity_id=character.alliance_id,
-                    defaults={
-                        "name": character.alliance_name,
-                        "category": EveEntity.CATEGORY_ALLIANCE,
-                    },
-                )
-            else:
-                entity = None
-        elif SR_OPERATION_MODE == "corporation":
-            entity, _ = EveEntity.objects.get_or_create(
-                entity_id=character.corporation_id,
-                defaults={
-                    "name": character.corporation_name,
-                    "category": EveEntity.CATEGORY_CORPORATION,
-                },
-            )
-        else:
-            raise NotImplementedError()
-
-        return entity
+            contact = self.contacts.get(eve_entity_id=contact_id)
+        except Contact.DoesNotExist:
+            return False
+        return contact.is_standing_satisfied
 
     def generate_standing_requests_for_blue_alts(self) -> int:
         """Automatically creates effective standings requests for
@@ -230,19 +70,19 @@ class ContactSet(models.Model):
         logger.info("Started generating standings request for blue alts.")
         owned_characters_qs = EveCharacter.objects.filter(
             character_ownership__isnull=False
-        ).select_related()
+        )
         created_counter = 0
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not self.is_character_in_organisation(alt)
+                not MainOrganizations.is_character_a_member(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
                 and not StandingRevocation.objects.filter(
                     contact_id=alt.character_id
                 ).exists()
-                and self.character_has_satisfied_standing(alt.character_id)
+                and self.contact_has_satisfied_standing(alt.character_id)
             ):
                 sr = StandingRequest.objects.add_request(
                     user=user,
@@ -265,11 +105,23 @@ class ContactSet(models.Model):
         )
         return created_counter
 
+    @staticmethod
+    def required_esi_scope() -> str:
+        """returns the required ESI scopes for syncing"""
+        if BaseConfig.operation_mode == "alliance":
+            return "esi-alliances.read_contacts.v1"
+        elif BaseConfig.operation_mode == "corporation":
+            return "esi-corporations.read_contacts.v1"
+        else:
+            raise NotImplementedError()
+
 
 class ContactLabel(models.Model):
     """A contact label"""
 
-    contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
+    contact_set = models.ForeignKey(
+        ContactSet, on_delete=models.CASCADE, related_name="labels"
+    )
     label_id = models.BigIntegerField(db_index=True)
     name = models.CharField(max_length=254, db_index=True)
 
@@ -283,105 +135,38 @@ class ContactLabel(models.Model):
         )
 
 
-class AbstractContact(models.Model):
-    """Base class for a contact"""
+class Contact(models.Model):
+    """An Eve Online contact."""
 
-    CHARACTER_AMARR_TYPE_ID = 1373
-    CHARACTER_NI_KUNNI_TYPE_ID = 1374
-    CHARACTER_CIVRE_TYPE_ID = 1375
-    CHARACTER_DETEIS_TYPE_ID = 1376
-    CHARACTER_GALLENTE_TYPE_ID = 1377
-    CHARACTER_INTAKI_TYPE_ID = 1378
-    CHARACTER_SEBIESTOR_TYPE_ID = 1379
-    CHARACTER_BRUTOR_TYPE_ID = 1380
-    CHARACTER_STATIC_TYPE_ID = 1381
-    CHARACTER_MODIFIER_TYPE_ID = 1382
-    CHARACTER_ACHURA_TYPE_ID = 1383
-    CHARACTER_JIN_MEI_TYPE_ID = 1384
-    CHARACTER_KHANID_TYPE_ID = 1385
-    CHARACTER_VHEROKIOR_TYPE_ID = 1386
-    CHARACTER_DRIFTER_TYPE_ID = 34574
-    ALLIANCE_TYPE_ID = 16159
-    CORPORATION_TYPE_ID = 2
-
-    contact_set = models.ForeignKey(ContactSet, on_delete=models.CASCADE)
-    contact_id = models.PositiveIntegerField(db_index=True)
-    name = models.CharField(max_length=254, db_index=True)
+    contact_set = models.ForeignKey(
+        ContactSet, on_delete=models.CASCADE, related_name="contacts"
+    )
+    eve_entity = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="standingrequests_contact"
+    )
     standing = models.FloatField(db_index=True)
-    labels = models.ManyToManyField(ContactLabel)
+    labels = models.ManyToManyField(ContactLabel, related_name="contacts")
+    is_watched = models.BooleanField(default=False)
 
-    class Meta:
-        abstract = True
+    objects = ContactQuerySet.as_manager()
+
+    def __str__(self):
+        return self.eve_entity.name
 
     def __repr__(self):
         return (
             f"{type(self).__name__}(pk={self.pk}, "
-            f"contact_id={self.contact_id}, name='{self.name}', "
+            f"contact_id={self.eve_entity_id}, name='{self.eve_entity.name}', "
             f"standing={self.standing})"
         )
 
-    @classmethod
-    def get_contact_type_id(cls) -> int:
-        """returns the contact type ID for this type of contact"""
-        try:
-            return cls.contact_type_ids[0]
-        except AttributeError:
-            raise NotImplementedError() from None
+    @property
+    def name(self) -> str:
+        return self.eve_entity.name
 
-    @classmethod
-    def get_contact_type_ids(cls) -> int:
-        """returns the list of valid contact type IDs for this type of contact"""
-        try:
-            return cls.contact_type_ids
-        except AttributeError:
-            raise NotImplementedError() from None
-
-    @staticmethod
-    def is_character(type_id):
-        return type_id in CharacterContact.contact_type_ids
-
-    @staticmethod
-    def is_corporation(type_id):
-        return type_id in CorporationContact.contact_type_ids
-
-    @staticmethod
-    def is_alliance(type_id):
-        return type_id in AllianceContact.contact_type_ids
-
-
-class CharacterContact(AbstractContact):
-    """A character contact"""
-
-    contact_type_ids = [
-        AbstractContact.CHARACTER_AMARR_TYPE_ID,
-        AbstractContact.CHARACTER_NI_KUNNI_TYPE_ID,
-        AbstractContact.CHARACTER_CIVRE_TYPE_ID,
-        AbstractContact.CHARACTER_DETEIS_TYPE_ID,
-        AbstractContact.CHARACTER_GALLENTE_TYPE_ID,
-        AbstractContact.CHARACTER_INTAKI_TYPE_ID,
-        AbstractContact.CHARACTER_SEBIESTOR_TYPE_ID,
-        AbstractContact.CHARACTER_BRUTOR_TYPE_ID,
-        AbstractContact.CHARACTER_STATIC_TYPE_ID,
-        AbstractContact.CHARACTER_MODIFIER_TYPE_ID,
-        AbstractContact.CHARACTER_ACHURA_TYPE_ID,
-        AbstractContact.CHARACTER_JIN_MEI_TYPE_ID,
-        AbstractContact.CHARACTER_KHANID_TYPE_ID,
-        AbstractContact.CHARACTER_VHEROKIOR_TYPE_ID,
-        AbstractContact.CHARACTER_DRIFTER_TYPE_ID,
-    ]
-    is_watched = models.BooleanField(default=False)
-
-
-class CorporationContact(AbstractContact):
-    """A corporation contact"""
-
-    contact_type_ids = [AbstractContact.CORPORATION_TYPE_ID]
-
-
-class AllianceContact(AbstractContact):
-    """An alliance contact"""
-
-    contact_type_ids = [AbstractContact.ALLIANCE_TYPE_ID]
+    @property
+    def is_standing_satisfied(self) -> str:
+        return StandingRequest.is_standing_satisfied(self.standing)
 
 
 class AbstractStandingsRequest(models.Model):
@@ -450,11 +235,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_character(self) -> bool:
-        return AbstractContact.is_character(self.contact_type_id)
+        return ContactType.is_character(self.contact_type_id)
 
     @property
     def is_corporation(self) -> bool:
-        return AbstractContact.is_corporation(self.contact_type_id)
+        return ContactType.is_corporation(self.contact_type_id)
 
     @property
     def is_actioned(self) -> bool:
@@ -476,17 +261,17 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
         if contact_type == cls.CHARACTER_CONTACT_TYPE:
-            return CharacterContact.get_contact_type_id()
+            return ContactType.character_id
         elif contact_type == cls.CORPORATION_CONTACT_TYPE:
-            return CorporationContact.get_contact_type_id()
+            return ContactType.corporation_id
         else:
             raise ValueError("Invalid contact type")
 
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
-        if contact_type_id in CharacterContact.get_contact_type_ids():
+        if contact_type_id in ContactType.character_ids:
             return cls.CHARACTER_CONTACT_TYPE
-        elif contact_type_id in CorporationContact.get_contact_type_ids():
+        elif contact_type_id in ContactType.corporation_ids:
             return cls.CORPORATION_CONTACT_TYPE
         else:
             raise ValueError("Invalid contact type")
@@ -499,7 +284,7 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.get_contact_by_id(self.contact_id, self.contact_type_id)
+            contact = latest.contacts.get(eve_entity_id=self.contact_id)
             if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)
@@ -722,92 +507,86 @@ class StandingRevocation(AbstractStandingsRequest):
     objects = StandingRevocationManager()
 
 
-class CharacterAssociation(models.Model):
-    """
-    Alt Character Associations with declared mains
-    Main characters are associated with themselves
-    """
+class CharacterAffiliation(models.Model):
+    """Affiliation of a character."""
 
-    API_CACHE_TIMER = timedelta(days=3)
-
-    character_id = models.PositiveIntegerField(primary_key=True)
-    corporation_id = models.PositiveIntegerField(null=True)
-    alliance_id = models.PositiveIntegerField(null=True)
-    main_character_id = models.PositiveIntegerField(null=True)
+    character = models.OneToOneField(
+        EveEntity,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="character_affiliation",
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="+"
+    )
+    alliance = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    faction = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    eve_character = models.ForeignKey(
+        EveCharacter,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+        help_text="Related auth character (if any)",
+    )
     updated = models.DateTimeField(auto_now_add=True)
 
-    objects = CharacterAssociationManager()
+    objects = CharacterAffiliationManager()
 
-    @property
-    def character_name(self):
-        """
-        Character name property for character_id
-        :return: str character name
-        """
-        name = EveEntity.objects.get_name(self.character_id)
-        return name
+    def __str__(self) -> str:
+        return self.character.name
 
-    @property
-    def main_character_name(self):
-        """
-        Character name property for character_id
-        :return: str character name
-        """
-        if self.main_character_id:
-            name = EveEntity.objects.get_name(self.main_character_id)
-        else:
-            name = None
-        return name
+    @cached_property
+    def character_name(self) -> str:
+        """Return character name for main."""
+        return self.character.name if self.character.name else None
 
 
-class EveEntity(models.Model):
-    """An Eve Online entity like a character or a corporation
+class CorporationDetails(models.Model):
+    """A corporation affiliation."""
 
-    A main function of this class is to enable name matching for Eve IDs
-    """
-
-    CACHE_TIME = timedelta(days=30)
-
-    CATEGORY_ALLIANCE = "alliance"
-    CATEGORY_CHARACTER = "character"
-    CATEGORY_CONSTELLATION = "constellation"
-    CATEGORY_CORPORATION = "corporation"
-    CATEGORY_FACTION = "faction"
-    CATEGORY_INVENTORY_TYPE = "inventory_type"
-    CATEGORY_REGION = "region"
-    CATEGORY_SOLAR_SYSTEM = "solar_system"
-    CATEGORY_STATION = "station"
-
-    CATEGORY_CHOICES = (
-        (CATEGORY_ALLIANCE, "alliance"),
-        (CATEGORY_CHARACTER, "character"),
-        (CATEGORY_CONSTELLATION, "constellation"),
-        (CATEGORY_CORPORATION, "corporation"),
-        (CATEGORY_FACTION, "faction"),
-        (CATEGORY_INVENTORY_TYPE, "inventory_type"),
-        (CATEGORY_REGION, "region"),
-        (CATEGORY_SOLAR_SYSTEM, "solar_system"),
-        (CATEGORY_STATION, "station"),
+    corporation = models.OneToOneField(
+        EveEntity,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="corporation_details",
     )
 
-    entity_id = models.PositiveIntegerField(primary_key=True)
-    name = models.CharField(max_length=254)
-    category = models.CharField(
-        max_length=16, choices=CATEGORY_CHOICES, default=None, null=True
+    alliance = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
     )
-    updated = models.DateTimeField(auto_now=True, db_index=True)
+    ceo = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    faction = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
+        related_name="+",
+    )
+    member_count = models.PositiveIntegerField()
+    ticker = models.CharField(max_length=255)
 
-    objects = EveEntityManager()
+    objects = CorporationDetailsManager()
 
-    def icon_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
-        map_category_2_other = {
-            self.CATEGORY_ALLIANCE: "alliance_logo_url",
-            self.CATEGORY_CHARACTER: "character_portrait_url",
-            self.CATEGORY_CORPORATION: "corporation_logo_url",
-            self.CATEGORY_INVENTORY_TYPE: "type_icon_url",
-        }
-        if self.category not in map_category_2_other:
-            return ""
-        else:
-            func = map_category_2_other[self.category]
-            return getattr(eveimageserver, func)(self.entity_id, size=size)
+    def __str__(self) -> str:
+        return self.corporation.name

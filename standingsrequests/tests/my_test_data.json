@@ -104,6 +104,12 @@
             "standing": 5
         },
         {
+            "contact_id": 2001,
+            "contact_type": "corporation",
+            "label_ids": [],
+            "standing": 10
+        },
+        {
             "contact_id": 2003,
             "contact_type": "corporation",
             "label_ids": [],
@@ -122,66 +128,56 @@
             "standing": -10
         }
     ],
-    "CharacterAssociation": [
+    "CharacterAffiliation": [
         {
             "character_id": 1001,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1002,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1003,
             "alliance_id": 3001,
-            "corporation_id": 2001,
-            "main_character_id": 1001
+            "corporation_id": 2001
         },
         {
             "character_id": 1004,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1001
+            "corporation_id": 2003
         },
         {
             "character_id": 1005,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1005
+            "corporation_id": 2003
         },
         {
             "character_id": 1006,
             "alliance_id": null,
-            "corporation_id": 2003,
-            "main_character_id": 1006
+            "corporation_id": 2003
         },
         {
             "character_id": 1007,
             "alliance_id": null,
-            "corporation_id": 2004,
-            "main_character_id": 1007
+            "corporation_id": 2004
         },
         {
             "character_id": 1008,
             "alliance_id": null,
-            "corporation_id": 2004,
-            "main_character_id": 1008
+            "corporation_id": 2004
         },
         {
             "character_id": 1009,
             "alliance_id": null,
-            "corporation_id": 2102,
-            "main_character_id": 1009
+            "corporation_id": 2102
         },
         {
             "character_id": 1010,
             "alliance_id": null,
-            "corporation_id": 2102,
-            "main_character_id": 1002
+            "corporation_id": 2102
         }
     ],
     "EveAllianceInfo": {
@@ -207,7 +203,7 @@
             "alliance_id": 3001
         },
         "2002": {
-            "": 2002,
+            "corporation_id": 2002,
             "corporation_name": "Wayne Foods",
             "corporation_ticker": "WYF",
             "member_count": 8875,

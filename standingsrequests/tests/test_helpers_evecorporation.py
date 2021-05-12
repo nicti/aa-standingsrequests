@@ -1,9 +1,10 @@
 from unittest.mock import patch
 
+from eveuniverse.models import EveEntity
+
 from app_utils.testing import NoSocketsTestCase
 
 from ..helpers.evecorporation import EveCorporation
-from ..models import EveEntity
 from .my_test_data import esi_get_corporations_corporation_id
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
@@ -25,9 +26,7 @@ class TestEveCorporation(NoSocketsTestCase):
             alliance_name="Wayne Enterprises",
         )
         EveEntity.objects.all().delete()
-        EveEntity.objects.create(
-            entity_id=3001, name="Wayne Enterprises", category="alliance"
-        )
+        EveEntity.objects.create(id=3001, name="Wayne Enterprises", category="alliance")
         cls.maxDiff = None
 
     def test_init(self, mock_esi_client, mock_cache):

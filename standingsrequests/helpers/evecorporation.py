@@ -4,6 +4,7 @@ from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.evelinks import eveimageserver
 from allianceauth.eveonline.models import EveCharacter
@@ -128,8 +129,6 @@ class EveCorporation:
 
     @classmethod
     def fetch_corporation_from_api(cls, corporation_id):
-        from ..models import EveEntity
-
         logger.debug(
             "Attempting to fetch corporation from ESI with id %s", corporation_id
         )
@@ -154,7 +153,9 @@ class EveCorporation:
             }
             if "alliance_id" in info and info["alliance_id"]:
                 args["alliance_id"] = info["alliance_id"]
-                args["alliance_name"] = EveEntity.objects.get_name(info["alliance_id"])
+                args["alliance_name"] = EveEntity.objects.resolve_name(
+                    info["alliance_id"]
+                )
 
             return cls(**args)
 
@@ -170,25 +171,22 @@ class EveCorporation:
         Fetches requested corporations from cache or API as needed.
         Uses threads to fetch them in parallel.
         """
-        if len(corporation_ids) == 0:
+        corporation_ids = set(corporation_ids)
+        if not corporation_ids:
             return []
-        else:
-            _esi_client()  # make sure client is loaded before starting threads
-            logger.info(
-                "Starting to fetch the %d corporations from ESI with up to %d workers",
-                len(corporation_ids),
-                MAX_WORKERS,
-            )
-            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-                futures = [
-                    executor.submit(cls.thread_fetch_corporation, corporation_id)
-                    for corporation_id in corporation_ids
-                ]
-                logger.info(
-                    "Waiting for all threads fetching corporations to complete..."
-                )
 
-            logger.info(
-                "Completed fetching %d corporations from ESI", len(corporation_ids)
-            )
-            return [f.result() for f in futures]
+        _esi_client()  # make sure client is loaded before starting threads
+        logger.info(
+            "Starting to fetch the %d corporations from ESI with up to %d workers",
+            len(corporation_ids),
+            MAX_WORKERS,
+        )
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            futures = [
+                executor.submit(cls.thread_fetch_corporation, corporation_id)
+                for corporation_id in corporation_ids
+            ]
+            logger.info("Waiting for all threads fetching corporations to complete...")
+
+        logger.info("Completed fetching %d corporations from ESI", len(corporation_ids))
+        return [f.result() for f in futures]

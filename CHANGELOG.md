@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.8.0] - ALPHA
+
+> **Note**<br>This release is currently in alpha test phase and therefore not yet released for production use.
+
+### Update Notes
+
+This app now requires django-eveuniverse to be installed. If you have not yet installed eveuniverse on your system please refer to the installation guide in the README for further instructions.
+
+Please update all contacts after completing the installation. You can do that simply by clicking the new "Update Now" button on the admin site under "Contact Sets". Alternatively you can start the update_all celery task.
+
+### Added
+
+- Contact sets are now visible on the admin site
+- New button for updating all contacts from the admin site
+- Faction info for characters and corporations on standing pages
+- Setting `SR_PAGE_CACHE_SECONDS`
+
+### Changed
+
+- Now requires django-eveuniverse
+- Replaced own EveEntity with eveuniverse version
+- Task `standings_requests.update_associations_auth` is now obsolete
+- Significant improved performance of pilot standings page and others.
+
 ## [0.7.2] - 2021-05-10
 
 ### Fixed

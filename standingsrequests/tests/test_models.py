@@ -2,9 +2,9 @@ from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 from django.utils.timezone import now
+from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
@@ -16,54 +16,40 @@ from app_utils.testing import (
     add_new_token,
 )
 
+from ..core import MainOrganizations
 from ..helpers.evecorporation import EveCorporation
 from ..models import (
-    AbstractContact,
     AbstractStandingsRequest,
-    AllianceContact,
-    CharacterAssociation,
-    CharacterContact,
+    CharacterAffiliation,
+    Contact,
     ContactLabel,
     ContactSet,
-    CorporationContact,
-    EveEntity,
     StandingRequest,
     StandingRevocation,
 )
-from .entity_type_ids import (
-    ALLIANCE_TYPE_ID,
-    CHARACTER_ACHURA_TYPE_ID,
-    CHARACTER_BRUTOR_TYPE_ID,
-    CHARACTER_CIVRE_TYPE_ID,
-    CHARACTER_DETEIS_TYPE_ID,
-    CHARACTER_DRIFTER_TYPE_ID,
-    CHARACTER_GALLENTE_TYPE_ID,
-    CHARACTER_INTAKI_TYPE_ID,
-    CHARACTER_JIN_MEI_TYPE_ID,
-    CHARACTER_KHANID_TYPE_ID,
-    CHARACTER_MODIFIER_TYPE_ID,
-    CHARACTER_NI_KUNNI_TYPE_ID,
-    CHARACTER_SEBIESTOR_TYPE_ID,
-    CHARACTER_STATIC_TYPE_ID,
-    CHARACTER_TYPE_ID,
-    CHARACTER_VHEROKIOR_TYPE_ID,
-    CORPORATION_TYPE_ID,
-)
+from .entity_type_ids import CHARACTER_BRUTOR_TYPE_ID, CHARACTER_TYPE_ID
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     create_contacts_set,
     create_entity,
     create_standings_char,
-    get_entity_name,
     get_my_test_data,
+    load_eve_entities,
 )
 
-MODULE_PATH = "standingsrequests.models"
+CORE_PATH = "standingsrequests.core"
+MODELS_PATH = "standingsrequests.models"
 TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
 class TestContactSet(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.character_1001 = create_entity(EveCharacter, 1001)
+        load_eve_entities()
+
     def setUp(self):
         ContactSet.objects.all().delete()
 
@@ -71,76 +57,25 @@ class TestContactSet(NoSocketsTestCase):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
 
-    def test_get_contact_by_id_pilot(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        CharacterContact.objects.create(
-            contact_set=my_set, contact_id=1001, name="Bruce Wayne", standing=5
-        )
-        # look for existing pilot
-        obj = my_set.get_contact_by_id(1001, CHARACTER_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing pilot
-        with self.assertRaises(CharacterContact.DoesNotExist):
-            my_set.get_contact_by_id(1999, CHARACTER_TYPE_ID)
-
-    def test_get_contact_by_id_corporation(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        CorporationContact.objects.create(
-            contact_set=my_set, contact_id=2001, name="Dummy Corp 1", standing=5
-        )
-        # look for existing corp
-        obj = my_set.get_contact_by_id(2001, CORPORATION_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing corp
-        with self.assertRaises(CorporationContact.DoesNotExist):
-            my_set.get_contact_by_id(2999, CORPORATION_TYPE_ID)
-
-    def test_get_contact_by_id_alliance(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceContact.objects.create(
-            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
-        )
-        # look for existing alliance
-        obj = my_set.get_contact_by_id(3001, ALLIANCE_TYPE_ID)
-        self.assertEqual(obj.standing, 5)
-
-        # look for non existing alliance
-        with self.assertRaises(AllianceContact.DoesNotExist):
-            my_set.get_contact_by_id(3999, ALLIANCE_TYPE_ID)
-
-    def test_get_contact_by_id_other_type(self):
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        AllianceContact.objects.create(
-            contact_set=my_set, contact_id=3001, name="Dummy Alliance 1", standing=5
-        )
-        with self.assertRaises(ObjectDoesNotExist):
-            my_set.get_contact_by_id(9999, 99)
-
-    @patch(MODULE_PATH + ".STR_CORP_IDS", ["2001"])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".STR_CORP_IDS", ["2001"])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_corp(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(character))
+        self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
     def test_pilot_in_organisation_matches_alliance(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertTrue(ContactSet.is_character_in_organisation(character))
+        self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [3001])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3101])
     def test_pilot_in_organisation_doest_not_exist(self):
-        character = create_entity(EveCharacter, 1007)
-        self.assertFalse(ContactSet.is_character_in_organisation(character))
+        self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(MODULE_PATH + ".STR_CORP_IDS", [])
-    @patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
     def test_pilot_in_organisation_matches_none(self):
-        character = create_entity(EveCharacter, 1001)
-        self.assertFalse(ContactSet.is_character_in_organisation(character))
+        self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
 
 class TestContactSetCreateStanding(NoSocketsTestCase):
@@ -150,51 +85,39 @@ class TestContactSetCreateStanding(NoSocketsTestCase):
         cls.contact_set = create_contacts_set()
 
     def test_can_create_pilot_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_type_id=CHARACTER_TYPE_ID,
-            name="Lex Luthor",
-            contact_id=1009,
-            standing=-10,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=1009, standing=-10
         )
-        self.assertIsInstance(obj, CharacterContact)
-        self.assertEqual(obj.name, "Lex Luthor")
-        self.assertEqual(obj.contact_id, 1009)
+        obj.labels.add(*ContactLabel.objects.all())
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 1009)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_corp_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_type_id=CORPORATION_TYPE_ID,
-            name="Lexcorp",
-            contact_id=2102,
-            standing=-10,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=2102, standing=-10
         )
-        self.assertIsInstance(obj, CorporationContact)
-        self.assertEqual(obj.name, "Lexcorp")
-        self.assertEqual(obj.contact_id, 2102)
+        obj.labels.add(*ContactLabel.objects.all())
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 2102)
         self.assertEqual(obj.standing, -10)
 
     def test_can_create_alliance_standing(self):
-        obj = self.contact_set.create_contact(
-            contact_type_id=ALLIANCE_TYPE_ID,
-            name="Wayne Enterprises",
-            contact_id=3001,
-            standing=5,
-            labels=ContactLabel.objects.all(),
+        obj = Contact.objects.create(
+            contact_set=self.contact_set, eve_entity_id=3001, standing=5
         )
-        self.assertIsInstance(obj, AllianceContact)
-        self.assertEqual(obj.name, "Wayne Enterprises")
-        self.assertEqual(obj.contact_id, 3001)
+        obj.labels.add(*ContactLabel.objects.all())
+        self.assertIsInstance(obj, Contact)
+        self.assertEqual(obj.eve_entity_id, 3001)
         self.assertEqual(obj.standing, 5)
 
 
 @patch(
-    MODULE_PATH + ".SR_REQUIRED_SCOPES",
+    MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(MODULE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
-class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
+@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -252,69 +175,6 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(NoSocketsTestCase):
         self.contacts_set.generate_standing_requests_for_blue_alts()
 
         self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
-
-
-class TestAbstractStanding(TestCase):
-    def test_get_contact_type(self):
-        with self.assertRaises(NotImplementedError):
-            AbstractContact.get_contact_type_id()
-
-
-class TestPilotStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(CharacterContact.get_contact_type_id(), CHARACTER_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(CharacterContact.is_character(CHARACTER_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_NI_KUNNI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_CIVRE_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_DETEIS_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_GALLENTE_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_INTAKI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_SEBIESTOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_BRUTOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_STATIC_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_MODIFIER_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_ACHURA_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_JIN_MEI_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_KHANID_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_VHEROKIOR_TYPE_ID))
-        self.assertTrue(CharacterContact.is_character(CHARACTER_DRIFTER_TYPE_ID))
-
-        self.assertFalse(CharacterContact.is_character(CORPORATION_TYPE_ID))
-        self.assertFalse(CharacterContact.is_character(ALLIANCE_TYPE_ID))
-        self.assertFalse(CharacterContact.is_character(1))
-        self.assertFalse(CharacterContact.is_character(None))
-        self.assertFalse(CharacterContact.is_character(-1))
-        self.assertFalse(CharacterContact.is_character(0))
-
-
-class TestCorpStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(CorporationContact.get_contact_type_id(), CORPORATION_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(CorporationContact.is_corporation(CORPORATION_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(CHARACTER_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(ALLIANCE_TYPE_ID))
-        self.assertFalse(CorporationContact.is_corporation(1))
-        self.assertFalse(CorporationContact.is_corporation(None))
-        self.assertFalse(CorporationContact.is_corporation(-1))
-        self.assertFalse(CorporationContact.is_corporation(0))
-
-
-class TestAllianceStanding(TestCase):
-    def test_get_contact_type(self):
-        self.assertEqual(AllianceContact.get_contact_type_id(), ALLIANCE_TYPE_ID)
-
-    def test_is_pilot(self):
-        self.assertTrue(AllianceContact.is_alliance(ALLIANCE_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(CHARACTER_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(CORPORATION_TYPE_ID))
-        self.assertFalse(AllianceContact.is_alliance(1))
-        self.assertFalse(AllianceContact.is_alliance(None))
-        self.assertFalse(AllianceContact.is_alliance(-1))
-        self.assertFalse(AllianceContact.is_alliance(0))
 
 
 class TestStandingsRequest(TestCase):
@@ -581,8 +441,8 @@ class TestStandingsRequest(TestCase):
 
 
 class TestStandingsRequestClassMethods(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good(self, mock_get_corp_by_id):
         """user has tokens for all 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -603,8 +463,8 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
 
         self.assertTrue(StandingRequest.can_request_corporation_standing(2001, my_user))
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_incomplete(self, mock_get_corp_by_id):
         """user has tokens for only 2 / 3 chars of corp"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -628,10 +488,10 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         )
 
     @patch(
-        MODULE_PATH + ".SR_REQUIRED_SCOPES",
+        MODELS_PATH + ".SR_REQUIRED_SCOPES",
         {"Guest": ["publicData", "esi-mail.read_mail.v1"]},
     )
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_wrong_scope(self, mock_get_corp_by_id):
         """user has tokens for only 3 / 3 chars of corp, but wrong scopes"""
         mock_get_corp_by_id.return_value = EveCorporation(
@@ -654,8 +514,8 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
             StandingRequest.can_request_corporation_standing(2001, my_user)
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-    @patch(MODULE_PATH + ".EveCorporation.get_by_id")
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+    @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good_another_user(
         self, mock_get_corp_by_id
     ):
@@ -678,21 +538,21 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
 
 
 class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_scopes_if_defined_for_state(self):
         expected = ["abc"]
         self.assertListEqual(
             StandingRequest.get_required_scopes_for_state("member"), expected
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_empty_list_if_not_defined_for_state(self):
         expected = []
         self.assertListEqual(
             StandingRequest.get_required_scopes_for_state("guest"), expected
         )
 
-    @patch(MODULE_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
+    @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_empty_list_if_state_is_note(self):
         expected = []
         self.assertListEqual(
@@ -700,7 +560,7 @@ class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
         )
 
 
-@patch(MODULE_PATH + ".StandingRequest.get_required_scopes_for_state")
+@patch(MODELS_PATH + ".StandingRequest.get_required_scopes_for_state")
 class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
     def test_true_when_user_has_required_scopes(
         self, mock_get_required_scopes_for_state
@@ -740,72 +600,21 @@ class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
         self.assertFalse(StandingRequest.has_required_scopes_for_request(character))
 
 
-class TestCharacterAssociation(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-        CharacterAssociation.objects.all().delete()
+class TestCharacterAffiliation(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eve_entities()
 
-    @patch(MODULE_PATH + ".EveEntity")
-    def test_get_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
+    def test_get_character_name_exists(self):
+        my_assoc = CharacterAffiliation.objects.create(
+            character_id=1002, corporation_id=2001
+        )
         self.assertEqual(my_assoc.character_name, "Peter Parker")
 
-    @patch(MODULE_PATH + ".EveEntity")
-    def test_get_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1999, main_character_id=1001)
+    def test_get_character_name_not_exists(self):
+        character = EveEntity.objects.create(id=1999)
+        my_assoc = CharacterAffiliation.objects.create(
+            character=character, corporation_id=2001
+        )
         self.assertIsNone(my_assoc.character_name)
-
-    @patch(MODULE_PATH + ".EveEntity")
-    def test_get_main_character_name_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=1001)
-        self.assertEqual(my_assoc.main_character_name, "Bruce Wayne")
-
-    @patch(MODULE_PATH + ".EveEntity")
-    def test_get_main_character_name_not_exists(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002, main_character_id=19999)
-        self.assertIsNone(my_assoc.main_character_name)
-
-    @patch(MODULE_PATH + ".EveEntity")
-    def test_get_main_character_name_not_defined(self, mock_EveEntity):
-        mock_EveEntity.objects.get_name.side_effect = get_entity_name
-        my_assoc = CharacterAssociation(character_id=1002)
-        self.assertIsNone(my_assoc.main_character_name)
-
-
-class TestEveEntity(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-        EveEntity.objects.all().delete()
-
-    """
-    @patch(MODULE_PATH + '.EveEntityHelper')
-    def test_get_names_from_contacts(self, mock_EveEntityHelper):
-        mock_EveEntityHelper.get_names.side_effect = \
-            get_entity_names
-
-        contact_set = ContactSet.objects.create(
-            name='Dummy Pilots Set'
-        )
-        CharacterContact.objects.create(
-            contact_set=contact_set
-            contact_id=1001,
-            name='Bruce Wayne',
-            standing=0
-        )
-        entities = EveEntity.objects.get_names([1001])
-        self.assertDictEqual(
-            entities,
-            {
-                1001: 'Bruce Wayne'
-            }
-        )
-        self.assertListEqual(
-            mock_EveEntityHelper.get_names.call_args[0][0],
-            []
-        )
-    """

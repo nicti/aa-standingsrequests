@@ -5,6 +5,9 @@ from app_utils.django import clean_setting
 # switch to enable/disable ability to request standings for corporations
 SR_CORPORATIONS_ENABLED = clean_setting("SR_CORPORATIONS_ENABLED", True)
 
+# Number of seconds to cache heavy pages like character and groups standing
+SR_PAGE_CACHE_SECONDS = clean_setting("SR_PAGE_CACHE_SECONDS", 600)
+
 # whether ESI requests have a timeout
 SR_ESI_TIMEOUT_ENABLED = clean_setting("SR_ESI_TIMEOUT_ENABLED", True)
 

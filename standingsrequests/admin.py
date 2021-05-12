@@ -1,12 +1,9 @@
 from django.contrib import admin
+from django.db.models import Count
+from eveuniverse.models import EveEntity
 
-from .models import (
-    CharacterContact,
-    CorporationContact,
-    EveEntity,
-    StandingRequest,
-    StandingRevocation,
-)
+from .core import ContactType
+from .models import ContactSet, StandingRequest, StandingRevocation
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
@@ -26,12 +23,12 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     ordering = ("-id",)
 
     def _contact_name(self, obj):
-        return EveEntity.objects.get_name(obj.contact_id)
+        return EveEntity.objects.resolve_name(obj.contact_id)
 
     def _contact_type_str(self, obj):
-        if obj.contact_type_id in CharacterContact.contact_type_ids:
+        if obj.contact_type_id in ContactType.character_ids:
             return "Character"
-        elif obj.contact_type_id in CorporationContact.contact_type_ids:
+        elif obj.contact_type_id in ContactType.corporation_ids:
             return "Corporation"
         else:
             return "(undefined)"
@@ -59,3 +56,24 @@ class StandingsRequestAdmin(AbstractStandingsRequestAdmin):
 @admin.register(StandingRevocation)
 class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
     pass
+
+
+@admin.register(ContactSet)
+class ContactSetAdmin(admin.ModelAdmin):
+    change_list_template = "admin/standingsrequests/contactset/change_list.html"
+    list_display = ("date", "_contacts_count")
+    list_display_links = None
+    ordering = ("-date",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(contacts_count=Count("contacts"))
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def _contacts_count(self, obj):
+        return obj.contacts_count
