@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.8.0] - TBD
+## [0.8.0] - ALPHA
 
->**Update Notes**<br>This app now requires eveuniverse to be installed. If you have not installed eveuniverse on your system please refer to the installation guide in the README for further instructions on how to install it.
+> **Note**<br>This release is currently in alpha test phase and therefore not yet released for production use.
+
+### Update Notes
+
+This app now requires django-eveuniverse to be installed. If you have not yet installed eveuniverse on your system please refer to the installation guide in the README for further instructions.
+
+Please update all contacts after completing the installation. You can do that simply by clicking the new "Update Now" button on the admin site under "Contact Sets". Alternatively you can start the update_all celery task.
 
 ### Added
 
-- Contact sets are now visble on the admin site
+- Contact sets are now visible on the admin site
 - New button for updating all contacts from the admin site
 - Faction info for characters and corporations on standing pages
 - Setting `SR_PAGE_CACHE_SECONDS`
