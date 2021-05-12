@@ -1,3 +1,4 @@
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
@@ -751,12 +752,13 @@ def view_groups_standings_json(request):
         )
     }
     corporations_data = list()
-    standing_requests_qs = StandingRequest.objects.filter(
-        contact_type_id=ContactType.corporation_id
-    )
     standings_requests = {
         obj.contact_id: obj
-        for obj in standing_requests_qs.filter(contact_id__in=eve_corporations.keys())
+        for obj in (
+            StandingRequest.objects.filter(
+                contact_type_id=ContactType.corporation_id
+            ).filter(contact_id__in=eve_corporations.keys())
+        )
     }
     for contact in corporations_qs:
         if contact.eve_entity_id in eve_corporations:
@@ -1142,3 +1144,17 @@ def view_requester_add_scopes(request, token):
         % {"char_name": EveEntity.objects.resolve_name(token.character_id)},
     )
     return redirect("standingsrequests:create_requests")
+
+
+@login_required
+@staff_member_required
+def admin_changeset_update_now(request):
+    update_all.delay(user_pk=request.user.pk)
+    messages_plus.info(
+        request,
+        _(
+            "Started updating contacts and affiliations. "
+            "You will receive a notification when completed."
+        ),
+    )
+    return redirect("admin:standingsrequests_contactset_changelist")

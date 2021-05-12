@@ -84,6 +84,11 @@ local_urlpatterns = [
         views.view_requester_add_scopes,
         name="view_requester_add_scopes",
     ),
+    url(
+        r"^admin_changeset_update_now/$",
+        views.admin_changeset_update_now,
+        name="admin_changeset_update_now",
+    ),
 ]
 
 urlpatterns = [

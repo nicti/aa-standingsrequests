@@ -1,8 +1,9 @@
 from django.contrib import admin
+from django.db.models import Count
 from eveuniverse.models import EveEntity
 
 from .core import ContactType
-from .models import StandingRequest, StandingRevocation
+from .models import ContactSet, StandingRequest, StandingRevocation
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
@@ -55,3 +56,24 @@ class StandingsRequestAdmin(AbstractStandingsRequestAdmin):
 @admin.register(StandingRevocation)
 class StandingsRevocationAdmin(AbstractStandingsRequestAdmin):
     pass
+
+
+@admin.register(ContactSet)
+class ContactSetAdmin(admin.ModelAdmin):
+    change_list_template = "admin/standingsrequests/contactset/change_list.html"
+    list_display = ("date", "_contacts_count")
+    list_display_links = None
+    ordering = ("-date",)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.annotate(contacts_count=Count("contacts"))
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    def _contacts_count(self, obj):
+        return obj.contacts_count

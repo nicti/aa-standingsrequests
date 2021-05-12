@@ -11,9 +11,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 >**Update Notes**<br>This app now requires eveuniverse to be installed. If you have not installed eveuniverse on your system please refer to the installation guide in the README for further instructions on how to install it.
 
+### Added
+
+- Contact sets are now visble on the admin site
+- New button for updating all contacts from the admin site
+
 ### Changed
 
 - Now requires django-eveuniverse
+- Replaced own EveEntity with eveuniverse version
 - Task `standings_requests.update_associations_auth` is now obsolete
 - Significant improved performance of pilot standings page and others.
 
