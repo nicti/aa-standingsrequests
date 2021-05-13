@@ -974,6 +974,11 @@ def _compose_standing_requests_data(
             alliance_name = ""
             has_scopes = False
 
+        if type(req) is StandingRevocation:
+            reason = req.get_reason_display()
+        else:
+            reason = None
+
         requests_data.append(
             {
                 "contact_id": req.contact_id,
@@ -988,6 +993,7 @@ def _compose_standing_requests_data(
                 "action_date": req.action_date.isoformat() if req.action_date else None,
                 "has_scopes": has_scopes,
                 "state": state_name,
+                "reason": reason,
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,
