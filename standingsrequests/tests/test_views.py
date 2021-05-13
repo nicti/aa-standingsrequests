@@ -39,6 +39,7 @@ from .my_test_data import (
 CORE_PATH = "standingsrequests.core"
 MODELS_PATH = "standingsrequests.models"
 MANAGERS_PATH = "standingsrequests.managers"
+HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 VIEWS_PATH = "standingsrequests.views"
 TEST_SCOPE = "publicData"
 
@@ -432,21 +433,18 @@ class TestViewPagesBase(TestCase):
 
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewsBasics(TestViewPagesBase):
-    def _setup_mocks(self, mock_esi_client):
-        mock_Corporation = mock_esi_client.return_value.Corporation
+    def _setup_mocks(self, mock_esi):
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+        mock_esi.client.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
 
-    def test_should_redirect_to_create_requests_page_for_requestor_1(
-        self, mock_esi_client
-    ):
+    def test_should_redirect_to_create_requests_page_for_requestor_1(self, mock_esi):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
@@ -456,9 +454,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
-    def test_should_redirect_to_create_requests_page_for_requestor_2(
-        self, mock_esi_client
-    ):
+    def test_should_redirect_to_create_requests_page_for_requestor_2(self, mock_esi):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
@@ -473,7 +469,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
-    def test_should_redirect_to_create_requests_page_for_manger(self, mock_esi_client):
+    def test_should_redirect_to_create_requests_page_for_manger(self, mock_esi):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
@@ -483,7 +479,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
-    def test_should_redirect_to_manage_requests_page_1(self, mock_esi_client):
+    def test_should_redirect_to_manage_requests_page_1(self, mock_esi):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_manager
@@ -498,7 +494,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:manage"))
 
-    def test_should_redirect_to_manage_requests_page_2(self, mock_esi_client):
+    def test_should_redirect_to_manage_requests_page_2(self, mock_esi):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_manager
@@ -514,31 +510,31 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:manage"))
 
-    def test_user_can_open_create_requests_page(self, mock_esi_client):
+    def test_user_can_open_create_requests_page(self, mock_esi):
         request = self.factory.get(reverse("standingsrequests:create_requests"))
         request.user = self.user_requestor
         response = views.create_requests(request)
         self.assertEqual(response.status_code, 200)
 
-    def test_user_can_open_pilots_standing(self, mock_esi_client):
+    def test_user_can_open_pilots_standing(self, mock_esi):
         request = self.factory.get(reverse("standingsrequests:view_pilots"))
         request.user = self.user_manager
         response = views.view_pilots_standings(request)
         self.assertEqual(response.status_code, 200)
 
-    def test_user_can_open_groups_standing(self, mock_esi_client):
+    def test_user_can_open_groups_standing(self, mock_esi):
         request = self.factory.get(reverse("standingsrequests:view_groups"))
         request.user = self.user_manager
         response = views.view_groups_standings(request)
         self.assertEqual(response.status_code, 200)
 
-    def test_user_can_open_manage_requests(self, mock_esi_client):
+    def test_user_can_open_manage_requests(self, mock_esi):
         request = self.factory.get(reverse("standingsrequests:manage"))
         request.user = self.user_manager
         response = views.manage_standings(request)
         self.assertEqual(response.status_code, 200)
 
-    def test_user_can_open_accepted_requests(self, mock_esi_client):
+    def test_user_can_open_accepted_requests(self, mock_esi):
         request = self.factory.get(reverse("standingsrequests:view_requests"))
         request.user = self.user_manager
         response = views.view_active_requests(request)
@@ -690,17 +686,16 @@ class TestRemovePilotStanding(TestViewPagesBase):
         )
 
 
-@patch("standingsrequests.helpers.evecorporation.cache")
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+@patch(HELPERS_EVECORPORATION_PATH + ".cache")
+@patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewManageRequestsJson(TestViewPagesBase):
-    def test_request_character(self, mock_esi_client, mock_cache):
+    def test_request_character(self, mock_esi, mock_cache):
         # setup
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+        mock_esi.client.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
@@ -752,13 +747,13 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
-    def test_request_corporation(self, mock_esi_client, mock_cache):
+    def test_request_corporation(self, mock_esi, mock_cache):
         # setup
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+        mock_esi.client.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
@@ -809,11 +804,10 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
 
-@patch("standingsrequests.helpers.evecorporation.cache")
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+@patch(HELPERS_EVECORPORATION_PATH + ".cache")
+@patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewManageRevocationsJson(TestViewPagesBase):
-    def test_revoke_character(self, mock_esi_client, mock_cache):
+    def test_revoke_character(self, mock_esi, mock_cache):
         # setup
         alt_id = self.alt_character_1.character_id
         self._create_standing_for_alt(self.alt_character_1)
@@ -861,13 +855,13 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
-    def test_revoke_corporation(self, mock_esi_client, mock_cache):
+    def test_revoke_corporation(self, mock_esi, mock_cache):
         # setup
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+        mock_esi.client.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
@@ -919,7 +913,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
-    def test_can_show_user_without_main(self, mock_esi_client, mock_cache):
+    def test_can_show_user_without_main(self, mock_esi, mock_cache):
         # setup
         alt_id = self.alt_character_3.character_id
         self._create_standing_for_alt(self.alt_character_3)
@@ -969,7 +963,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
-    def test_can_handle_requests_without_user(self, mock_esi_client, mock_cache):
+    def test_can_handle_requests_without_user(self, mock_esi, mock_cache):
         # setup
         alt_id = 1006
         my_alt = EveCharacter.objects.get(character_id=alt_id)
@@ -1019,11 +1013,10 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
 
-@patch("standingsrequests.helpers.evecorporation.cache")
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
-@patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
+@patch(HELPERS_EVECORPORATION_PATH + ".cache")
+@patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewActiveRequestsJson(TestViewPagesBase):
-    def test_request_character(self, mock_esi_client, mock_cache):
+    def test_request_character(self, mock_esi, mock_cache):
         # setup
         alt_id = self.alt_character_1.character_id
         standing_request = self._create_standing_for_alt(self.alt_character_1)
@@ -1066,13 +1059,13 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
-    def test_request_corporation(self, mock_esi_client, mock_cache):
+    def test_request_corporation(self, mock_esi, mock_cache):
         # setup
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
-        mock_esi_client.return_value.Universe.post_universe_names.side_effect = (
+        mock_esi.client.Universe.post_universe_names.side_effect = (
             esi_post_universe_names
         )
         mock_cache.get.return_value = None

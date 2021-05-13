@@ -6,7 +6,6 @@ from bravado.exception import HTTPError
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
-# from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
@@ -59,9 +58,9 @@ class TestContactSetManager(NoSocketsTestCase):
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_can_create_new_from_api(self, mock_esi_client):
-        mock_Contacts = mock_esi_client.return_value.Contacts
+    @patch(MANAGERS_PATH + ".esi")
+    def test_can_create_new_from_api(self, mock_esi):
+        mock_Contacts = mock_esi.client.Contacts
         mock_Contacts.get_alliances_alliance_id_contacts_labels.side_effect = (
             esi_get_alliances_alliance_id_contacts_labels
         )
@@ -493,7 +492,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
         self.assertTrue(my_revocation.is_effective)
 
 
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(MANAGERS_PATH + ".esi")
 class TestCharacterAffiliationsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -501,9 +500,9 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         cls.user_manager = AuthUtils.create_user("Mike Manager")
         cls.user_requestor = AuthUtils.create_user("Roger Requestor")
 
-    def test_should_create_new_assocs(self, mock_esi_client):
+    def test_should_create_new_assocs(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = (
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=False)
@@ -524,9 +523,9 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
             existing_objects, {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
         )
 
-    def test_should_update_existing_assocs(self, mock_esi_client):
+    def test_should_update_existing_assocs(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = (
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=True)
@@ -546,16 +545,16 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         assoc.refresh_from_db()
         self.assertEqual(assoc.corporation_id, 2001)
 
-    def test_should_handle_exception_from_api(self, mock_esi_client):
+    def test_should_handle_exception_from_api(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = HTTPError(
+        mock_esi.client.Character.post_characters_affiliation.side_effect = HTTPError(
             Mock()
         )
         create_contacts_set(include_assoc=False)
         # when
         CharacterAffiliation.objects.update_from_esi()
 
-    def test_should_add_new_eve_character_relations(self, mock_esi_client):
+    def test_should_add_new_eve_character_relations(self, mock_esi):
         # given
         create_contacts_set(include_assoc=True)
         eve_character_1001 = create_entity(EveCharacter, 1001)
@@ -565,7 +564,7 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         assoc = CharacterAffiliation.objects.get(character_id=1001)
         self.assertEqual(assoc.eve_character, eve_character_1001)
 
-    def test_should_update_existing_eve_character_relations(self, mock_esi_client):
+    def test_should_update_existing_eve_character_relations(self, mock_esi):
         # given
         create_contacts_set(include_assoc=True)
         eve_character_1001 = create_entity(EveCharacter, 1001)
@@ -580,16 +579,16 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         self.assertEqual(assoc.eve_character, eve_character_1001)
 
 
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(MANAGERS_PATH + ".esi")
 class TestCorporationDetailsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         load_eve_entities()
 
-    def test_should_update_corporations(self, mock_esi_client):
+    def test_should_update_corporations(self, mock_esi):
         # given
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )

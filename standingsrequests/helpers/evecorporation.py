@@ -12,7 +12,7 @@ from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from .. import __title__
-from .esi_fetch import _esi_client, esi_fetch
+from ..providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -133,10 +133,9 @@ class EveCorporation:
             "Attempting to fetch corporation from ESI with id %s", corporation_id
         )
         try:
-            info = esi_fetch(
-                "Corporation.get_corporations_corporation_id",
-                args={"corporation_id": corporation_id},
-            )
+            info = esi.client.Corporation.get_corporations_corporation_id(
+                corporation_id=corporation_id
+            ).results()
         except HTTPError:
             logger.exception(
                 "Failed to fetch corporation from ESI with id %i", corporation_id
@@ -175,7 +174,8 @@ class EveCorporation:
         if not corporation_ids:
             return []
 
-        _esi_client()  # make sure client is loaded before starting threads
+        # make sure client is loaded before starting threads
+        esi.client
         logger.info(
             "Starting to fetch the %d corporations from ESI with up to %d workers",
             len(corporation_ids),

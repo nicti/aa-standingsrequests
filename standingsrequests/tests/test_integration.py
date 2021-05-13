@@ -30,6 +30,7 @@ MODELS_PATH = "standingsrequests.models"
 MANAGERS_PATH = "standingsrequests.managers"
 TASKS_PATH = "standingsrequests.tasks"
 TEST_REQUIRED_SCOPE = "publicData"
+HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
 
 @patch(
@@ -167,8 +168,8 @@ class TestMainUseCases(WebTest):
     def _parse_json_response(self, response):
         return {row["contact_id"]: row for row in response.json}
 
-    def _setup_mocks(self, mock_esi_client):
-        mock_Corporation = mock_esi_client.return_value.Corporation
+    def _setup_mocks(self, mock_esi):
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
@@ -186,16 +187,15 @@ class TestMainUseCases(WebTest):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user_requestor
         )
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_standing_for_his_alt_character(self, mock_esi_client):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_standing_for_his_alt_character(self, mock_esi):
         """
         given user has permission and user's alt has no standing
         when user requests standing and request is actioned by manager
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
@@ -258,16 +258,15 @@ class TestMainUseCases(WebTest):
         self.assertIsNotNone(my_request.effective_date)
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_revocation_for_his_alt_character(self, mock_esi_client):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_revocation_for_his_alt_character(self, mock_esi):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
         my_request = self._create_standing_for_alt(self.alt_character_1)
@@ -331,9 +330,8 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_standing_for_his_alt_corporation(self, mock_esi_client):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_standing_for_his_alt_corporation(self, mock_esi):
         """
         given user has permission and user's alt has no standing
         and all corporation members have tokens
@@ -341,7 +339,7 @@ class TestMainUseCases(WebTest):
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_corporation.corporation_id
 
         # user opens create requests page
@@ -404,16 +402,15 @@ class TestMainUseCases(WebTest):
         self.assertIsNotNone(my_request.effective_date)
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_revocation_for_his_alt_corporation(self, mock_esi_client):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_revocation_for_his_alt_corporation(self, mock_esi):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_corporation.corporation_id
         self._set_standing_for_alt_in_game(self.alt_corporation)
         my_request = self._create_standing_for_alt(self.alt_corporation)
@@ -477,18 +474,15 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_standing_for_his_alt_character_but_refused(
-        self, mock_esi_client
-    ):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_standing_for_his_alt_character_but_refused(self, mock_esi):
         """
         given user has permission and user's alt has no standing
         when user requests standing and request is refused by manager
         then request is reset, alt has no standing and user gets notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
@@ -539,11 +533,8 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_standing_for_his_alt_corporation_but_refused(
-        self, mock_esi_client
-    ):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_standing_for_his_alt_corporation_but_refused(self, mock_esi):
         """
         given user has permission and user's alt has no standing
         and all corporation members have tokens
@@ -551,7 +542,7 @@ class TestMainUseCases(WebTest):
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_corporation.corporation_id
 
         # user opens create requests page
@@ -599,18 +590,15 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
-    @patch("standingsrequests.helpers.evecorporation._esi_client", lambda: None)
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_user_requests_revocation_for_his_alt_character_but_refused(
-        self, mock_esi_client
-    ):
+    @patch(HELPERS_EVECORPORATION_PATH + ".esi")
+    def test_user_requests_revocation_for_his_alt_character_but_refused(self, mock_esi):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi_client)
+        self._setup_mocks(mock_esi)
         alt_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
         my_request = self._create_standing_for_alt(self.alt_character_1)

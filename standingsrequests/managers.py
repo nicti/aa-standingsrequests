@@ -18,7 +18,7 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .core import BaseConfig, ContactType
-from .helpers.esi_fetch import esi_fetch
+from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -155,38 +155,27 @@ class _ContactsWrapper:
             alliance_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).alliance_id
-            labels = esi_fetch(
-                "Contacts.get_alliances_alliance_id_contacts_labels",
-                args={"alliance_id": alliance_id},
-                token=token,
-            )
-            for label in labels:
-                self.allianceLabels.append(self.Label(label))
+            labels = esi.client.Contacts.get_alliances_alliance_id_contacts_labels(
+                alliance_id=alliance_id, token=token.valid_access_token()
+            ).results()
+            self.allianceLabels = [self.Label(label) for label in labels]
+            contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=alliance_id, token=token.valid_access_token()
+            ).results()
 
-            contacts = esi_fetch(
-                "Contacts.get_alliances_alliance_id_contacts",
-                args={"alliance_id": alliance_id},
-                token=token,
-                has_pages=True,
-            )
         elif BaseConfig.operation_mode == "corporation":
             corporation_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).corporation_id
-            labels = esi_fetch(
-                "Contacts.get_corporations_corporation_id_contacts_labels",
-                args={"corporation_id": corporation_id},
-                token=token,
+            labels = (
+                esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
+                    corporation_id=corporation_id, token=token.valid_access_token()
+                ).results()
             )
-            for label in labels:
-                self.allianceLabels.append(self.Label(label))
-
-            contacts = esi_fetch(
-                "Contacts.get_corporations_corporation_id_contacts",
-                args={"corporation_id": corporation_id},
-                token=token,
-                has_pages=True,
-            )
+            self.allianceLabels = [self.Label(label) for label in labels]
+            contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
+                corporation_id=corporation_id, token=token.valid_access_token()
+            ).results()
         else:
             raise NotImplementedError()
 
@@ -594,10 +583,9 @@ class CharacterAffiliationManager(models.Manager):
         affiliations = []
         for character_ids_chunk in chunks(character_ids, chunk_size):
             try:
-                response = esi_fetch(
-                    "Character.post_characters_affiliation",
-                    args={"characters": character_ids_chunk},
-                )
+                response = esi.client.Character.post_characters_affiliation(
+                    characters=character_ids_chunk
+                ).results()
             except HTTPError:
                 logger.exception("Could not fetch character affiliations from ESI")
                 return []
@@ -669,10 +657,9 @@ class CorporationDetailsManager(models.Manager):
     def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
         """Updates or create an obj from ESI"""
         logger.info("%s: Fetching corporation from ESI", id)
-        data = esi_fetch(
-            "Corporation.get_corporations_corporation_id",
-            args={"corporation_id": id},
-        )
+        data = esi.client.Corporation.get_corporations_corporation_id(
+            corporation_id=id
+        ).results()
         corporation = EveEntity.objects.get_or_create(id=id)[0]
         alliance = (
             EveEntity.objects.get_or_create(id=data["alliance_id"])[0]
