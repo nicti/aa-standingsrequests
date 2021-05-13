@@ -896,7 +896,7 @@ def _compose_standing_requests_data(
     requests_qs = requests_qs.select_related(
         "user", "user__profile__state", "user__profile__main_character"
     )
-    # preload character ids in bulk
+    # preload data in bulk
     eve_characters = {
         character.character_id: character
         for character in EveCharacter.objects.filter(
@@ -907,7 +907,7 @@ def _compose_standing_requests_data(
             )
         )
     }
-    # preload corporations in bulk
+    # TODO: remove EveCorporation usage
     eve_corporations = {
         corporation.corporation_id: corporation
         for corporation in EveCorporation.get_many_by_id(
@@ -916,6 +916,18 @@ def _compose_standing_requests_data(
             )
         )
     }
+    all_contact_ids = set(eve_characters.keys()) | set(eve_corporations.keys())
+    try:
+        contact_set = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = dict()
+    else:
+        contacts = {
+            obj.eve_entity_id: obj
+            for obj in contact_set.contacts.prefetch_related("labels").filter(
+                eve_entity_id__in=all_contact_ids
+            )
+        }
     requests_data = list()
     for req in requests_qs:
         main_character_name = ""
@@ -982,6 +994,12 @@ def _compose_standing_requests_data(
             reason = req.get_reason_display()
         else:
             reason = None
+        try:
+            my_contact = contacts[req.contact_id]
+        except KeyError:
+            labels = []
+        else:
+            labels = [obj.name for obj in my_contact.labels.all()]
 
         requests_data.append(
             {
@@ -998,6 +1016,7 @@ def _compose_standing_requests_data(
                 "has_scopes": has_scopes,
                 "state": state_name,
                 "reason": reason,
+                "labels": sorted(labels),
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,

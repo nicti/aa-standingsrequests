@@ -652,7 +652,12 @@ class CorporationDetailsManager(models.Manager):
                 "eve_entity__character_affiliation__corporation_id", flat=True
             )
         )
-        return set(contact_corporation_ids | character_affiliation_corporation_ids)
+        return set(
+            filter(
+                lambda x: x is not None,
+                contact_corporation_ids | character_affiliation_corporation_ids,
+            )
+        )
 
     def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
         """Updates or create an obj from ESI"""

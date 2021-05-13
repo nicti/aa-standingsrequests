@@ -171,7 +171,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response, "character_id")
-        expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
+        expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010, 1110}
         self.assertSetEqual(set(data.keys()), expected)
 
         data_character_1002 = data[1002]
@@ -744,6 +744,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -800,6 +801,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": "(System)",
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -807,22 +809,24 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewManageRevocationsJson(TestViewPagesBase):
-    def test_revoke_character(self, mock_esi, mock_cache):
-        # setup
-        alt_id = self.alt_character_1.character_id
-        self._create_standing_for_alt(self.alt_character_1)
+    def test_should_show_character_revocation(self, mock_esi, mock_cache):
+        # given
+        alt_character = EveCharacter.objects.get(character_id=1110)
+        alt_id = alt_character.character_id
+        self._create_standing_for_alt(alt_character)
         standing_request = StandingRevocation.objects.add_revocation(
-            alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
+            alt_id,
+            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
+            reason=StandingRevocation.Reason.LOST_PERMISSION,
         )
-
-        # make request
         request = self.factory.get(
             reverse("standingsrequests:manage_get_revocations_json")
         )
         request.user = self.user_manager
+        # when
         response = views.manage_get_revocations_json(request)
-
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
@@ -831,15 +835,15 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         data_alt_1 = data[alt_id]
         expected_alt_1 = {
-            "contact_id": 1007,
-            "contact_name": "James Gordon",
-            "contact_icon_url": "https://images.evetech.net/characters/1007/portrait?size=32",
-            "corporation_id": 2004,
-            "corporation_name": "Metro Police",
-            "corporation_ticker": "MP",
+            "contact_id": 1110,
+            "contact_name": "Phil Coulson",
+            "contact_icon_url": "https://images.evetech.net/characters/1110/portrait?size=32",
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH",
             "alliance_id": None,
             "alliance_name": "",
-            "has_scopes": True,
+            "has_scopes": False,
             "request_date": standing_request.request_date.isoformat(),
             "action_date": None,
             "state": "Member",
@@ -851,7 +855,8 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
-            "reason": "None recorded",
+            "reason": "Character owner has lost permission",
+            "labels": ["red", "yellow"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -910,6 +915,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -960,6 +966,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": ["red"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1009,6 +1016,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": ["yellow"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1056,6 +1064,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": self.user_manager.username,
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1106,5 +1115,6 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": self.user_manager.username,
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)

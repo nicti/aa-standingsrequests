@@ -20,6 +20,8 @@ Please update all contacts after completing the installation. You can do that si
 ### Added
 
 - Standing revocations now show reason to managers (#11)
+- Standing revocations now shows related contact labels
+- Shows contact labels for all effective standing requests
 - Contact sets are now visible on the admin site
 - New button for updating all contacts from the admin site
 - Faction info for characters and corporations on standing pages
