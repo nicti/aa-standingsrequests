@@ -748,6 +748,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
+            "reason": None,
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -803,6 +804,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_corporation": True,
             "is_character": False,
             "action_by": "(System)",
+            "reason": None,
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -855,6 +857,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
+            "reason": "None recorded",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -912,6 +915,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": True,
             "is_character": False,
             "action_by": "(System)",
+            "reason": "None recorded",
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -961,6 +965,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
+            "reason": "None recorded",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1009,6 +1014,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
+            "reason": "None recorded",
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1056,6 +1062,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": self.user_manager.username,
+            "reason": None,
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1105,5 +1112,6 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_corporation": True,
             "is_character": False,
             "action_by": self.user_manager.username,
+            "reason": None,
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)

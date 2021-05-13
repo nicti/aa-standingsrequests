@@ -366,7 +366,9 @@ def remove_pilot_standing(request, character_id):
                 character_id,
                 request.user,
             )
-            StandingRequest.objects.remove_requests(character_id)
+            StandingRequest.objects.remove_requests(
+                character_id, reason=StandingRevocation.Reason.OWNER_REQUEST
+            )
         else:
             try:
                 contact_set = ContactSet.objects.latest()
@@ -384,6 +386,7 @@ def remove_pilot_standing(request, character_id):
                         contact_id=character_id,
                         contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
                         user=request.user,
+                        reason=StandingRevocation.Reason.OWNER_REQUEST,
                     )
                 else:
                     logger.debug("No standings exist for characterID %d", character_id)
@@ -493,6 +496,7 @@ def remove_corp_standing(request, corporation_id):
                             contact_id=corporation_id,
                             contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
                             user=request.user,
+                            reason=StandingRevocation.Reason.OWNER_REQUEST,
                         )
                     else:
                         logger.debug(

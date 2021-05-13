@@ -281,8 +281,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing",
-            args=[alt_id],
+            "standingsrequests:remove_pilot_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -293,6 +292,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_request.user, self.user_requestor)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(my_revocation.reason, StandingRevocation.Reason.OWNER_REQUEST)
 
         # manager opens manage page
         self.app.set_user(self.user_manager)
@@ -591,10 +591,7 @@ class TestMainUseCases(WebTest):
 
         # Manage refused request
         response = self.app.delete(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
         self.assertEqual(response.status_code, 204)
 
@@ -627,8 +624,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing",
-            args=[alt_id],
+            "standingsrequests:remove_pilot_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -639,6 +635,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_request.user, self.user_requestor)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(my_revocation.reason, StandingRevocation.Reason.OWNER_REQUEST)
 
         # manager opens manage page
         self.app.set_user(self.user_manager)
@@ -655,10 +652,7 @@ class TestMainUseCases(WebTest):
 
         # Manage refused request
         response = self.app.delete(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
         self.assertEqual(response.status_code, 204)
 
@@ -716,6 +710,9 @@ class TestMainUseCases(WebTest):
         self.assertTrue(my_request.is_effective)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(
+            my_revocation.reason, StandingRevocation.Reason.LOST_PERMISSION
+        )
 
         # manager opens manage page
         self.app.set_user(self.user_manager)
@@ -807,6 +804,9 @@ class TestMainUseCases(WebTest):
         self.assertTrue(StandingRequest.objects.has_effective_request(alt_id))
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(
+            my_revocation.reason, StandingRevocation.Reason.LOST_PERMISSION
+        )
 
         # manager opens manage page
         self.app.set_user(self.user_manager)

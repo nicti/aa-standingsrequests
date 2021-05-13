@@ -251,7 +251,7 @@ class AbstractStandingsRequestManager(models.Manager):
             StandingRevocation,
         )
 
-        if self.model == AbstractStandingsRequest:
+        if self.model is AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
         organization = BaseConfig.standings_source_entity()
@@ -265,7 +265,7 @@ class AbstractStandingsRequestManager(models.Manager):
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
                     # send notification to user about standing change if enabled
-                    if type(standing_request) == StandingRequest:
+                    if type(standing_request) is StandingRequest:
                         notify(
                             user=standing_request.user,
                             title=_(
@@ -284,7 +284,7 @@ class AbstractStandingsRequestManager(models.Manager):
                                 "contact_name": contact.name,
                             },
                         )
-                    elif type(standing_request) == StandingRevocation:
+                    elif type(standing_request) is StandingRevocation:
                         if standing_request.user:
                             notify(
                                 user=standing_request.user,
@@ -325,7 +325,9 @@ class AbstractStandingsRequestManager(models.Manager):
                     "Standing for %d is marked as effective but is not "
                     "satisfied in game. Deleting." % standing_request.contact_id
                 )
-                standing_request.delete()
+                standing_request.delete(
+                    reason=StandingRevocation.Reason.REVOKED_IN_GAME
+                )
 
             else:
                 # Check the standing hasn't been set actioned
@@ -407,8 +409,10 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             logger.debug(
                 "Checking request for contact_id %d", standing_request.contact_id
             )
+            reason = StandingRevocation.Reason.NONE
             if not standing_request.user.has_perm(self.model.REQUEST_PERMISSION_NAME):
                 logger.debug("Request is invalid, user does not have permission")
+                reason = StandingRevocation.Reason.LOST_PERMISSION
                 is_valid = False
 
             elif ContactType.is_corporation(
@@ -417,6 +421,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 standing_request.contact_id, standing_request.user
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
+                reason = StandingRevocation.Reason.MISSING_CORP_TOKEN
                 is_valid = False
 
             else:
@@ -434,6 +439,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                         standing_request.contact_type_id
                     ),
                     user=standing_request.user,
+                    reason=reason,
                 )
                 invalid_count += 1
 
@@ -469,7 +475,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return instance
 
-    def remove_requests(self, contact_id: int):
+    def remove_requests(self, contact_id: int, reason=None):
         """
         Remove the requests for the given contact_id. If any of these requests
         have been actioned or are effective
@@ -480,16 +486,18 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         - user_responsible: User responsible for removing.
         When provided will sent notification to requestor.
         """
-        logger.debug("Removing requests for contact_id %d", contact_id)
         standing_requests = self.filter(contact_id=contact_id)
         if standing_requests:
-            logger.debug("%d requests to be removed", standing_requests.count())
-            standing_requests.delete()
+            logger.debug(
+                "%s: Removing %d requests", contact_id, standing_requests.count()
+            )
+            for req in standing_requests:
+                req.delete(reason=reason)
 
 
 class StandingRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
-        self, contact_id: int, contact_type: str, user: User = None
+        self, contact_id: int, contact_type: str, user: User = None, reason: str = None
     ) -> object:
         """Add a new standings revocation
 
@@ -509,14 +517,18 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         pending = self.filter(contact_id=contact_id).filter(is_effective=False)
         if pending.exists():
             logger.debug(
-                "Cannot add revocation for contact %d %s, " "pending revocation exists",
+                "Cannot add revocation for contact %d %s, pending revocation exists",
                 contact_id,
                 contact_type_id,
             )
             return None
-
+        if not reason:
+            reason = self.model.Reason.NONE
         instance = self.create(
-            contact_id=contact_id, contact_type_id=contact_type_id, user=user
+            contact_id=contact_id,
+            contact_type_id=contact_type_id,
+            user=user,
+            reason=reason,
         )
         return instance
 
