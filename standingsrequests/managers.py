@@ -18,7 +18,7 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .core import BaseConfig, ContactType
-from .helpers.esi_fetch import esi_fetch
+from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -155,38 +155,27 @@ class _ContactsWrapper:
             alliance_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).alliance_id
-            labels = esi_fetch(
-                "Contacts.get_alliances_alliance_id_contacts_labels",
-                args={"alliance_id": alliance_id},
-                token=token,
-            )
-            for label in labels:
-                self.allianceLabels.append(self.Label(label))
+            labels = esi.client.Contacts.get_alliances_alliance_id_contacts_labels(
+                alliance_id=alliance_id, token=token.valid_access_token()
+            ).results()
+            self.allianceLabels = [self.Label(label) for label in labels]
+            contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=alliance_id, token=token.valid_access_token()
+            ).results()
 
-            contacts = esi_fetch(
-                "Contacts.get_alliances_alliance_id_contacts",
-                args={"alliance_id": alliance_id},
-                token=token,
-                has_pages=True,
-            )
         elif BaseConfig.operation_mode == "corporation":
             corporation_id = EveCharacter.objects.get_character_by_id(
                 character_id
             ).corporation_id
-            labels = esi_fetch(
-                "Contacts.get_corporations_corporation_id_contacts_labels",
-                args={"corporation_id": corporation_id},
-                token=token,
+            labels = (
+                esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
+                    corporation_id=corporation_id, token=token.valid_access_token()
+                ).results()
             )
-            for label in labels:
-                self.allianceLabels.append(self.Label(label))
-
-            contacts = esi_fetch(
-                "Contacts.get_corporations_corporation_id_contacts",
-                args={"corporation_id": corporation_id},
-                token=token,
-                has_pages=True,
-            )
+            self.allianceLabels = [self.Label(label) for label in labels]
+            contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
+                corporation_id=corporation_id, token=token.valid_access_token()
+            ).results()
         else:
             raise NotImplementedError()
 
@@ -251,7 +240,7 @@ class AbstractStandingsRequestManager(models.Manager):
             StandingRevocation,
         )
 
-        if self.model == AbstractStandingsRequest:
+        if self.model is AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
         organization = BaseConfig.standings_source_entity()
@@ -265,7 +254,7 @@ class AbstractStandingsRequestManager(models.Manager):
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
                     # send notification to user about standing change if enabled
-                    if type(standing_request) == StandingRequest:
+                    if type(standing_request) is StandingRequest:
                         notify(
                             user=standing_request.user,
                             title=_(
@@ -284,7 +273,7 @@ class AbstractStandingsRequestManager(models.Manager):
                                 "contact_name": contact.name,
                             },
                         )
-                    elif type(standing_request) == StandingRevocation:
+                    elif type(standing_request) is StandingRevocation:
                         if standing_request.user:
                             notify(
                                 user=standing_request.user,
@@ -325,7 +314,9 @@ class AbstractStandingsRequestManager(models.Manager):
                     "Standing for %d is marked as effective but is not "
                     "satisfied in game. Deleting." % standing_request.contact_id
                 )
-                standing_request.delete()
+                standing_request.delete(
+                    reason=StandingRevocation.Reason.REVOKED_IN_GAME
+                )
 
             else:
                 # Check the standing hasn't been set actioned
@@ -407,8 +398,10 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             logger.debug(
                 "Checking request for contact_id %d", standing_request.contact_id
             )
+            reason = StandingRevocation.Reason.NONE
             if not standing_request.user.has_perm(self.model.REQUEST_PERMISSION_NAME):
                 logger.debug("Request is invalid, user does not have permission")
+                reason = StandingRevocation.Reason.LOST_PERMISSION
                 is_valid = False
 
             elif ContactType.is_corporation(
@@ -417,6 +410,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 standing_request.contact_id, standing_request.user
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
+                reason = StandingRevocation.Reason.MISSING_CORP_TOKEN
                 is_valid = False
 
             else:
@@ -434,6 +428,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                         standing_request.contact_type_id
                     ),
                     user=standing_request.user,
+                    reason=reason,
                 )
                 invalid_count += 1
 
@@ -469,7 +464,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return instance
 
-    def remove_requests(self, contact_id: int):
+    def remove_requests(self, contact_id: int, reason=None):
         """
         Remove the requests for the given contact_id. If any of these requests
         have been actioned or are effective
@@ -480,16 +475,18 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         - user_responsible: User responsible for removing.
         When provided will sent notification to requestor.
         """
-        logger.debug("Removing requests for contact_id %d", contact_id)
         standing_requests = self.filter(contact_id=contact_id)
         if standing_requests:
-            logger.debug("%d requests to be removed", standing_requests.count())
-            standing_requests.delete()
+            logger.debug(
+                "%s: Removing %d requests", contact_id, standing_requests.count()
+            )
+            for req in standing_requests:
+                req.delete(reason=reason)
 
 
 class StandingRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
-        self, contact_id: int, contact_type: str, user: User = None
+        self, contact_id: int, contact_type: str, user: User = None, reason: str = None
     ) -> object:
         """Add a new standings revocation
 
@@ -509,14 +506,18 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         pending = self.filter(contact_id=contact_id).filter(is_effective=False)
         if pending.exists():
             logger.debug(
-                "Cannot add revocation for contact %d %s, " "pending revocation exists",
+                "Cannot add revocation for contact %d %s, pending revocation exists",
                 contact_id,
                 contact_type_id,
             )
             return None
-
+        if not reason:
+            reason = self.model.Reason.NONE
         instance = self.create(
-            contact_id=contact_id, contact_type_id=contact_type_id, user=user
+            contact_id=contact_id,
+            contact_type_id=contact_type_id,
+            user=user,
+            reason=reason,
         )
         return instance
 
@@ -582,10 +583,9 @@ class CharacterAffiliationManager(models.Manager):
         affiliations = []
         for character_ids_chunk in chunks(character_ids, chunk_size):
             try:
-                response = esi_fetch(
-                    "Character.post_characters_affiliation",
-                    args={"characters": character_ids_chunk},
-                )
+                response = esi.client.Character.post_characters_affiliation(
+                    characters=character_ids_chunk
+                ).results()
             except HTTPError:
                 logger.exception("Could not fetch character affiliations from ESI")
                 return []
@@ -657,10 +657,9 @@ class CorporationDetailsManager(models.Manager):
     def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
         """Updates or create an obj from ESI"""
         logger.info("%s: Fetching corporation from ESI", id)
-        data = esi_fetch(
-            "Corporation.get_corporations_corporation_id",
-            args={"corporation_id": id},
-        )
+        data = esi.client.Corporation.get_corporations_corporation_id(
+            corporation_id=id
+        ).results()
         corporation = EveEntity.objects.get_or_create(id=id)[0]
         alliance = (
             EveEntity.objects.get_or_create(id=data["alliance_id"])[0]

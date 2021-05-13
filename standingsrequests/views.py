@@ -366,7 +366,9 @@ def remove_pilot_standing(request, character_id):
                 character_id,
                 request.user,
             )
-            StandingRequest.objects.remove_requests(character_id)
+            StandingRequest.objects.remove_requests(
+                character_id, reason=StandingRevocation.Reason.OWNER_REQUEST
+            )
         else:
             try:
                 contact_set = ContactSet.objects.latest()
@@ -384,6 +386,7 @@ def remove_pilot_standing(request, character_id):
                         contact_id=character_id,
                         contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
                         user=request.user,
+                        reason=StandingRevocation.Reason.OWNER_REQUEST,
                     )
                 else:
                     logger.debug("No standings exist for characterID %d", character_id)
@@ -493,6 +496,7 @@ def remove_corp_standing(request, corporation_id):
                             contact_id=corporation_id,
                             contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
                             user=request.user,
+                            reason=StandingRevocation.Reason.OWNER_REQUEST,
                         )
                     else:
                         logger.debug(
@@ -974,6 +978,11 @@ def _compose_standing_requests_data(
             alliance_name = ""
             has_scopes = False
 
+        if type(req) is StandingRevocation:
+            reason = req.get_reason_display()
+        else:
+            reason = None
+
         requests_data.append(
             {
                 "contact_id": req.contact_id,
@@ -988,6 +997,7 @@ def _compose_standing_requests_data(
                 "action_date": req.action_date.isoformat() if req.action_date else None,
                 "has_scopes": has_scopes,
                 "state": state_name,
+                "reason": reason,
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,

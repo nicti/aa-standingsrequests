@@ -13,6 +13,7 @@ from allianceauth.eveonline.models import (
     EveCharacter,
     EveCorporationInfo,
 )
+from app_utils.esi_testing import BravadoOperationStub
 
 from ..managers import _ContactsWrapper
 from ..models import CharacterAffiliation, Contact, ContactSet, CorporationDetails
@@ -105,26 +106,6 @@ def create_entity(EntityClass: type, entity_id: int) -> object:
 
 ##########################
 # esi emulation
-
-
-class BravadoOperationStub:
-    """Stub to simulate the operation object return from bravado via django-esi"""
-
-    class RequestConfig:
-        def __init__(self, also_return_response):
-            self.also_return_response = also_return_response
-
-    def __init__(self, data, headers: dict = None, also_return_response: bool = False):
-        self._data = data
-        self._headers = headers if headers else {"x-pages": 1}
-        self.request_config = BravadoOperationStub.RequestConfig(also_return_response)
-
-    def result(self, **kwargs):
-        if self.request_config.also_return_response:
-            mock_response = Mock(**{"headers": self._headers})
-            return [self._data, mock_response]
-        else:
-            return self._data
 
 
 def esi_post_universe_names(ids, *args, **kwargs) -> object:

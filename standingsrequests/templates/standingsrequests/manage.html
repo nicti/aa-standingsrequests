@@ -34,7 +34,7 @@
                             <th class="col-md-2">{% trans "Contact Name" %}</th>
                             <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
                             <th class="col-md-2">{% trans "Main Character" %}</th>
-                            <th class="col-md-1">{% trans "Scopes / State" %}</th>
+                            <th class="col-md-3">{% trans "Scopes / State" %}</th>
                             <th class="col-md-2">{% trans "Actions" %}</th>
                         </tr>
                         {% verbatim %}
@@ -111,12 +111,13 @@
                             <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
                             <th class="col-md-2">{% trans "Main Character" %}</th>
                             <th class="col-md-1">{% trans "Scopes / State" %}</th>
+                            <th class="col-md-2">{% trans "Reason" %}</th>
                             <th class="col-md-2">{% trans "Actions" %}</th>
                         </tr>
                         {% verbatim %}
                         <tr ng-repeat="contact in revocations">
                             <td>
-                                {{contact.request_date | date:'yyyy-MM-dd HH:mm'}}
+                                {{ contact.request_date | date:'yyyy-MM-dd HH:mm' }}
                             </td>
                             <td>
                                 <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
@@ -139,7 +140,10 @@
                             </td>
                             <td>
                                 <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
-                                {{contact.state}}
+                                {{ contact.state }}
+                            </td>
+                            <td>
+                                {{ contact.reason }}
                             </td>
                             <td>
                                 <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Confirm the standing was REMOVED in game">

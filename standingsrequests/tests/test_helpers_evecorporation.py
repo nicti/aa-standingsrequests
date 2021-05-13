@@ -11,7 +11,7 @@ MODULE_PATH = "standingsrequests.helpers.evecorporation"
 
 
 @patch(MODULE_PATH + ".cache")
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(MODULE_PATH + ".esi")
 class TestEveCorporation(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,7 +29,7 @@ class TestEveCorporation(NoSocketsTestCase):
         EveEntity.objects.create(id=3001, name="Wayne Enterprises", category="alliance")
         cls.maxDiff = None
 
-    def test_init(self, mock_esi_client, mock_cache):
+    def test_init(self, mock_esi, mock_cache):
         self.assertEqual(self.corporation.corporation_id, 2001)
         self.assertEqual(self.corporation.corporation_name, "Wayne Technologies")
         self.assertEqual(self.corporation.ticker, "WYT")
@@ -37,12 +37,12 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(self.corporation.alliance_id, 3001)
         self.assertEqual(self.corporation.alliance_name, "Wayne Enterprises")
 
-    def test_str(self, mock_esi_client, mock_cache):
+    def test_str(self, mock_esi, mock_cache):
         expected = "Wayne Technologies"
         self.assertEqual(str(self.corporation), expected)
 
-    def test_get_corp_by_id_not_in_cache(self, mock_esi_client, mock_cache):
-        mock_Corporation = mock_esi_client.return_value.Corporation
+    def test_get_corp_by_id_not_in_cache(self, mock_esi, mock_cache):
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
@@ -53,10 +53,8 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(obj, expected)
         self.assertTrue(mock_cache.set.called)
 
-    def test_get_corp_by_id_not_in_cache_and_esi_failed(
-        self, mock_esi_client, mock_cache
-    ):
-        mock_Corporation = mock_esi_client.return_value.Corporation
+    def test_get_corp_by_id_not_in_cache_and_esi_failed(self, mock_esi, mock_cache):
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
@@ -65,16 +63,15 @@ class TestEveCorporation(NoSocketsTestCase):
         obj = EveCorporation.get_by_id(9876)
         self.assertIsNone(obj)
 
-    def test_get_corp_by_id_in_cache(self, mock_esi_client, mock_cache):
+    def test_get_corp_by_id_in_cache(self, mock_esi, mock_cache):
         expected = self.corporation
         mock_cache.get.return_value = expected
 
         obj = EveCorporation.get_by_id(2001)
         self.assertEqual(obj, expected)
 
-    def test_get_corp_esi(self, mock_esi_client, mock_cache):
-        mock_Corporation = mock_esi_client.return_value.Corporation
-        mock_Corporation.get_corporations_corporation_id.side_effect = (
+    def test_get_corp_esi(self, mock_esi, mock_cache):
+        mock_esi.client.Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
         obj = EveCorporation.fetch_corporation_from_api(2102)
@@ -84,7 +81,7 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(obj.member_count, 2500)
         self.assertIsNone(obj.alliance_id)
 
-    def test_normal_corp_is_not_npc(self, mock_esi_client, mock_cache):
+    def test_normal_corp_is_not_npc(self, mock_esi, mock_cache):
         normal_corp = EveCorporation(
             corporation_id=98397665,
             corporation_name="Rancid Rabid Rabis",
@@ -95,7 +92,7 @@ class TestEveCorporation(NoSocketsTestCase):
         )
         self.assertFalse(normal_corp.is_npc)
 
-    def test_npc_corp_is_npc(self, mock_esi_client, mock_cache):
+    def test_npc_corp_is_npc(self, mock_esi, mock_cache):
         normal_corp = EveCorporation(
             corporation_id=1000134,
             corporation_name="Blood Raiders",
@@ -104,7 +101,7 @@ class TestEveCorporation(NoSocketsTestCase):
         )
         self.assertTrue(normal_corp.is_npc)
 
-    def test_corp_without_members(self, mock_esi_client, mock_cache):
+    def test_corp_without_members(self, mock_esi, mock_cache):
         normal_corp = EveCorporation(
             corporation_id=98397665,
             corporation_name="Rancid Rabid Rabis",

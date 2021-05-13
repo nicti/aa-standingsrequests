@@ -17,12 +17,12 @@ App for managing character standing requests, made for [Alliance Auth](https://g
 
 ## Features
 
-- User can requests standings for their characters
+- User can requests standings for their characters and corporations
 - Standing managers can approve / deny standings requests from users
 - Automatic verification that approved / revoked standings are added / removed in-game
 - When user leaves the corporation or alliance, the app will automatically suggest to revoke the standing in-game
 - Either an alliance or a corporation can be defined as master for in-game standings
-- Tool for researching all current alliance standing incl. link to their owners
+- Review current standings of your alliance or corporation and see which auth user requested it (if any)
 
 ## Screenshots
 

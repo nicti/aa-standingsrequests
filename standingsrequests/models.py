@@ -5,6 +5,7 @@ from django.core import exceptions
 from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
+from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
 
@@ -399,7 +400,7 @@ class StandingRequest(AbstractStandingsRequest):
 
     objects = StandingRequestManager()
 
-    def delete(self, using=None, keep_parents=False):
+    def delete(self, using=None, keep_parents=False, reason=None):
         """
         Add a revocation before deleting if the standing has been
         actioned (pending) or is effective and
@@ -418,6 +419,7 @@ class StandingRequest(AbstractStandingsRequest):
                     contact_id=self.contact_id,
                     contact_type=self.contact_id_2_type(self.contact_type_id),
                     user=self.user,
+                    reason=reason,
                 )
             else:
                 logger.debug(
@@ -500,9 +502,19 @@ class StandingRevocation(AbstractStandingsRequest):
 
     EXPECT_STANDING_LTEQ = 0.0
 
+    class Reason(models.TextChoices):
+        """Reason for revoking a standing."""
+
+        NONE = "NO", _("None recorded")
+        OWNER_REQUEST = "OR", _("Requested by character owner")
+        LOST_PERMISSION = "LP", _("Character owner has lost permission")
+        MISSING_CORP_TOKEN = "CT", _("Not all corp tokens are recorded in Auth.")
+        REVOKED_IN_GAME = "RG", _("Standing has been revoked in game")
+
     user = models.ForeignKey(
         User, on_delete=models.SET_DEFAULT, default=None, null=True
     )
+    reason = models.CharField(max_length=2, choices=Reason.choices, default=Reason.NONE)
 
     objects = StandingRevocationManager()
 

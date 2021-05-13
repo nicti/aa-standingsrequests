@@ -6,7 +6,6 @@ from bravado.exception import HTTPError
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
-# from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
@@ -59,9 +58,9 @@ class TestContactSetManager(NoSocketsTestCase):
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
-    @patch("standingsrequests.helpers.esi_fetch._esi_client")
-    def test_can_create_new_from_api(self, mock_esi_client):
-        mock_Contacts = mock_esi_client.return_value.Contacts
+    @patch(MANAGERS_PATH + ".esi")
+    def test_can_create_new_from_api(self, mock_esi):
+        mock_Contacts = mock_esi.client.Contacts
         mock_Contacts.get_alliances_alliance_id_contacts_labels.side_effect = (
             esi_get_alliances_alliance_id_contacts_labels
         )
@@ -341,7 +340,10 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         StandingRequest.objects.validate_requests()
-        self.assertTrue(StandingRevocation.objects.filter(contact_id=1002).exists())
+        my_revocation = StandingRevocation.objects.get(contact_id=1002)
+        self.assertEqual(
+            my_revocation.reason, StandingRevocation.Reason.LOST_PERMISSION
+        )
 
     def test_create_revocation_if_users_corporation_is_missing_apis(
         self, mock_can_request_corporation_standing
@@ -355,7 +357,10 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         )
 
         StandingRequest.objects.validate_requests()
-        self.assertTrue(StandingRevocation.objects.filter(contact_id=2001).exists())
+        my_revocation = StandingRevocation.objects.get(contact_id=2001)
+        self.assertEqual(
+            my_revocation.reason, StandingRevocation.Reason.MISSING_CORP_TOKEN
+        )
 
     def test_keep_corp_standing_request_if_all_apis_recorded(
         self, mock_can_request_corporation_standing
@@ -457,7 +462,10 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
     def test_add_revocation_new(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
+            1001,
+            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
+            reason=StandingRevocation.Reason.OWNER_REQUEST,
         )
         self.assertIsInstance(my_revocation, StandingRevocation)
 
@@ -484,65 +492,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
         self.assertTrue(my_revocation.is_effective)
 
 
-# class TestCharacterAffiliationsManagerAuth(NoSocketsTestCase):
-#     @classmethod
-#     def setUpClass(cls):
-#         super().setUpClass()
-#         cls.user = AuthUtils.create_user("Bruce Wayne")
-
-#     def setUp(self):
-#         EveCharacter.objects.all().delete()
-#         CharacterOwnership.objects.all().delete()
-#         CharacterAffiliation.objects.all().delete()
-#         EveEntity.objects.all().delete()
-
-#     def test_can_update_from_one_character(self):
-#         my_character = create_entity(EveCharacter, 1001)
-#         add_character_to_user(self.user, my_character, is_main=True)
-
-#         CharacterAffiliation.objects.update_evecharacter_relations()
-#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
-#         assoc = CharacterAffiliation.objects.first()
-#         self.assertEqual(assoc.character_id, 1001)
-#         self.assertEqual(assoc.corporation_id, 2001)
-#         self.assertEqual(assoc.main_character_id, 1001)
-#         self.assertEqual(assoc.alliance_id, 3001)
-#         self.assertEqual(
-#             EveEntity.objects.get(id=1001).name, my_character.character_name
-#         )
-
-#     def test_can_handle_no_main(self):
-#         my_character = create_entity(EveCharacter, 1001)
-#         add_character_to_user(self.user, my_character)
-
-#         CharacterAffiliation.objects.update_evecharacter_relations()
-#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
-#         assoc = CharacterAffiliation.objects.first()
-#         self.assertEqual(assoc.character_id, 1001)
-#         self.assertEqual(assoc.corporation_id, 2001)
-#         self.assertIsNone(assoc.main_character_id)
-#         self.assertEqual(assoc.alliance_id, 3001)
-#         self.assertEqual(
-#             EveEntity.objects.get(id=1001).name, my_character.character_name
-#         )
-
-#     def test_can_handle_no_character_without_alliance(self):
-#         my_character = create_entity(EveCharacter, 1004)
-#         add_character_to_user(self.user, my_character)
-
-#         CharacterAffiliation.objects.update_evecharacter_relations()
-#         self.assertEqual(CharacterAffiliation.objects.count(), 1)
-#         assoc = CharacterAffiliation.objects.first()
-#         self.assertEqual(assoc.character_id, 1004)
-#         self.assertEqual(assoc.corporation_id, 2003)
-#         self.assertIsNone(assoc.main_character_id)
-#         self.assertIsNone(assoc.alliance_id)
-#         self.assertEqual(
-#             EveEntity.objects.get(id=1004).name, my_character.character_name
-#         )
-
-
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(MANAGERS_PATH + ".esi")
 class TestCharacterAffiliationsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -550,9 +500,9 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         cls.user_manager = AuthUtils.create_user("Mike Manager")
         cls.user_requestor = AuthUtils.create_user("Roger Requestor")
 
-    def test_should_create_new_assocs(self, mock_esi_client):
+    def test_should_create_new_assocs(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = (
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=False)
@@ -573,9 +523,9 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
             existing_objects, {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
         )
 
-    def test_should_update_existing_assocs(self, mock_esi_client):
+    def test_should_update_existing_assocs(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = (
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
             esi_post_characters_affiliation
         )
         create_contacts_set(include_assoc=True)
@@ -595,16 +545,16 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         assoc.refresh_from_db()
         self.assertEqual(assoc.corporation_id, 2001)
 
-    def test_should_handle_exception_from_api(self, mock_esi_client):
+    def test_should_handle_exception_from_api(self, mock_esi):
         # given
-        mock_esi_client.return_value.Character.post_characters_affiliation.side_effect = HTTPError(
+        mock_esi.client.Character.post_characters_affiliation.side_effect = HTTPError(
             Mock()
         )
         create_contacts_set(include_assoc=False)
         # when
         CharacterAffiliation.objects.update_from_esi()
 
-    def test_should_add_new_eve_character_relations(self, mock_esi_client):
+    def test_should_add_new_eve_character_relations(self, mock_esi):
         # given
         create_contacts_set(include_assoc=True)
         eve_character_1001 = create_entity(EveCharacter, 1001)
@@ -614,7 +564,7 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         assoc = CharacterAffiliation.objects.get(character_id=1001)
         self.assertEqual(assoc.eve_character, eve_character_1001)
 
-    def test_should_update_existing_eve_character_relations(self, mock_esi_client):
+    def test_should_update_existing_eve_character_relations(self, mock_esi):
         # given
         create_contacts_set(include_assoc=True)
         eve_character_1001 = create_entity(EveCharacter, 1001)
@@ -629,16 +579,16 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
         self.assertEqual(assoc.eve_character, eve_character_1001)
 
 
-@patch("standingsrequests.helpers.esi_fetch._esi_client")
+@patch(MANAGERS_PATH + ".esi")
 class TestCorporationDetailsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         load_eve_entities()
 
-    def test_should_update_corporations(self, mock_esi_client):
+    def test_should_update_corporations(self, mock_esi):
         # given
-        mock_Corporation = mock_esi_client.return_value.Corporation
+        mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )

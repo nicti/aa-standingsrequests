@@ -19,6 +19,7 @@ Please update all contacts after completing the installation. You can do that si
 
 ### Added
 
+- Standing revocations now show reason to managers (#11)
 - Contact sets are now visible on the admin site
 - New button for updating all contacts from the admin site
 - Faction info for characters and corporations on standing pages
@@ -30,6 +31,8 @@ Please update all contacts after completing the installation. You can do that si
 - Replaced own EveEntity with eveuniverse version
 - Task `standings_requests.update_associations_auth` is now obsolete
 - Significant improved performance of pilot standings page and others.
+- Removed esi_fetch
+- Now requires django-esi v2 or higher
 
 ## [0.7.2] - 2021-05-10
 
