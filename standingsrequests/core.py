@@ -11,6 +11,7 @@ from .app_settings import (
     STR_ALLIANCE_IDS,
     STR_CORP_IDS,
 )
+from .constants import OperationMode
 
 
 class MainOrganizations:
@@ -44,8 +45,9 @@ class BaseConfig:
         return STANDINGS_API_CHARID
 
     @classproperty
-    def operation_mode(cls) -> str:
-        return SR_OPERATION_MODE
+    def operation_mode(cls) -> OperationMode:
+        """Return current operation mode."""
+        return OperationMode(SR_OPERATION_MODE)
 
     @staticmethod
     def owner_character() -> EveCharacter:
@@ -62,14 +64,14 @@ class BaseConfig:
         returns None when in alliance mode, but character has no alliance
         """
         character = cls.owner_character()
-        if cls.operation_mode == "alliance":
+        if cls.operation_mode is OperationMode.ALLIANCE:
             if character.alliance_id:
                 entity, _ = EveEntity.objects.get_or_create_esi(
                     id=character.alliance_id
                 )
             else:
                 entity = None
-        elif cls.operation_mode == "corporation":
+        elif cls.operation_mode is OperationMode.CORPORATON:
             entity, _ = EveEntity.objects.get_or_create_esi(id=character.corporation_id)
         else:
             raise NotImplementedError()

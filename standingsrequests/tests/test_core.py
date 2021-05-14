@@ -125,11 +125,3 @@ class TestBaseConfig(NoSocketsTestCase):
         result = BaseConfig.standings_source_entity()
         # then
         self.assertEqual(result.id, 2001)
-
-    @patch(MODULE_PATH + ".SR_OPERATION_MODE", "invalid")
-    def test_should_raise_exception_on_invalid_mode(self):
-        # given
-        create_entity(EveCharacter, 1001)
-        # when
-        with self.assertRaises(NotImplementedError):
-            BaseConfig.standings_source_entity()

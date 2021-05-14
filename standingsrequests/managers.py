@@ -18,6 +18,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
+from .constants import OperationMode
 from .core import BaseConfig, ContactType, MainOrganizations
 from .providers import esi
 
@@ -51,8 +52,8 @@ class ContactSetManager(models.Manager):
 
         with transaction.atomic():
             contacts_set = self.create()
-            self._add_labels_from_api(contacts_set, contacts_wrap.allianceLabels)
-            self._add_contacts_from_api(contacts_set, contacts_wrap.alliance)
+            self._add_labels_from_api(contacts_set, contacts_wrap.labels)
+            self._add_contacts_from_api(contacts_set, contacts_wrap.contacts)
 
         return contacts_set
 
@@ -126,10 +127,10 @@ class _ContactsWrapper:
             return str(self)
 
     def __init__(self, token, owner_character):
-        self.alliance = []
-        self.allianceLabels = []
+        self.contacts = []
+        self.labels = []
 
-        if BaseConfig.operation_mode == "alliance":
+        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
             if not owner_character.alliance_id:
                 raise RuntimeError(
                     "{owner_character}: owner character is not a member of an alliance"
@@ -138,20 +139,20 @@ class _ContactsWrapper:
                 alliance_id=owner_character.alliance_id,
                 token=token.valid_access_token(),
             ).results()
-            self.allianceLabels = [self.Label(label) for label in labels]
+            self.labels = [self.Label(label) for label in labels]
             contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
                 alliance_id=owner_character.alliance_id,
                 token=token.valid_access_token(),
             ).results()
 
-        elif BaseConfig.operation_mode == "corporation":
+        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
             labels = (
                 esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
                     corporation_id=owner_character.corporation_id,
                     token=token.valid_access_token(),
                 ).results()
             )
-            self.allianceLabels = [self.Label(label) for label in labels]
+            self.labels = [self.Label(label) for label in labels]
             contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
                 corporation_id=owner_character.corporation_id,
                 token=token.valid_access_token(),
@@ -162,8 +163,8 @@ class _ContactsWrapper:
         logger.debug("Got %d contacts in total", len(contacts))
         entity_ids = [contact["contact_id"] for contact in contacts]
         resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
-        self.alliance = [
-            self.Contact(contact, self.allianceLabels, resolver._names_map)
+        self.contacts = [
+            self.Contact(contact, self.labels, resolver._names_map)
             for contact in contacts
         ]
 

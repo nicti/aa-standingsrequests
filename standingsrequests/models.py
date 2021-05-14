@@ -16,6 +16,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
+from .constants import OperationMode
 from .core import BaseConfig, ContactType, MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
@@ -109,9 +110,9 @@ class ContactSet(models.Model):
     @staticmethod
     def required_esi_scope() -> str:
         """returns the required ESI scopes for syncing"""
-        if BaseConfig.operation_mode == "alliance":
+        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
-        elif BaseConfig.operation_mode == "corporation":
+        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
             return "esi-corporations.read_contacts.v1"
         else:
             raise NotImplementedError()

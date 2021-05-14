@@ -10,7 +10,7 @@ def add_common_context(request, context: dict) -> dict:
     new_context = {
         **{
             "app_title": __title__,
-            "operation_mode": BaseConfig.operation_mode,
+            "operation_mode": str(BaseConfig.operation_mode),
             "pending_total_count": (
                 StandingRequest.objects.pending_requests().count()
                 + StandingRevocation.objects.pending_requests().count()
