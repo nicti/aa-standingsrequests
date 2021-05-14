@@ -11,7 +11,7 @@ from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
-from ..core import BaseConfig
+from ..core import BaseConfig, ContactType
 from ..models import (
     AbstractStandingsRequest,
     CharacterAffiliation,
@@ -115,6 +115,44 @@ class TestContactSetManager(NoSocketsTestCase):
         mock_create_character.return_value = character
         self.assertEqual(BaseConfig.standings_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
+
+
+class TestAbstractStandingsRequestManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user_requestor = AuthUtils.create_member("Bruce Wayne")
+        cls.user_manager = AuthUtils.create_user("Mike Manager")
+
+    def test_pending_requests_empty(self):
+        self.assertEqual(StandingRequest.objects.pending_requests().count(), 0)
+
+    def test_should_count_pending_requests_correctly(self):
+        # given
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=True,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1003,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+            action_date=now(),
+        )
+        # when
+        result = StandingRequest.objects.pending_requests()
+        # then
+        self.assertEqual(result.count(), 1)
 
 
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
@@ -327,7 +365,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        request = StandingRequest.objects.add_request(
+        request = StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
 
@@ -337,7 +375,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_can_request_corporation_standing
     ):
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         StandingRequest.objects.validate_requests()
@@ -353,7 +391,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
         )
 
@@ -370,7 +408,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        request = StandingRequest.objects.add_request(
+        request = StandingRequest.objects.get_or_create_2(
             self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
         )
 
@@ -386,33 +424,37 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         cls.user_requestor = AuthUtils.create_member("Bruce Wayne")
         cls.user_manager = AuthUtils.create_user("Mike Manager")
 
-    def setUp(self):
-        StandingRequest.objects.all().delete()
-        Notification.objects.all().delete()
-
-    def test_add_request_new(self):
-        my_request = StandingRequest.objects.add_request(
+    def test_should_add_new_request(self):
+        # when
+        my_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
+        # then
         self.assertIsInstance(my_request, StandingRequest)
 
-    def test_add_request_already_exists(self):
-        my_request_1 = StandingRequest.objects.add_request(
+    def test_should_not_create_new_request_that_already_exists(self):
+        # given
+        my_request_1 = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
-        my_request_2 = StandingRequest.objects.add_request(
+        # when
+        my_request_2 = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
+        # then
         self.assertEqual(my_request_1, my_request_2)
 
-    def test_remove_requests(self):
+    def test_should_remove_requests(self):
+        # given
         StandingRequest.objects.create(
             user=self.user_requestor,
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
             is_effective=False,
         )
+        # when
         StandingRequest.objects.remove_requests(1001)
+        # then
         self.assertFalse(
             StandingRequest.objects.filter(
                 contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
@@ -420,31 +462,113 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         )
         self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
 
-    def test_pending_requests_empty(self):
-        self.assertEqual(StandingRequest.objects.pending_requests().count(), 0)
 
-    def test_pending_requests_normal(self):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
+class TestStandingRequestManagerCreateCharacterRequest(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user = AuthUtils.create_member("Bruce Wayne")
+        # alt with scopes and effective standing
+        cls.alt_character_1 = create_entity(EveCharacter, 1110)
+        add_character_to_user(cls.user, cls.alt_character_1, scopes=["publicData"])
+        # alt without scopes
+        cls.alt_character_2 = create_entity(EveCharacter, 1009)
+        add_character_to_user(cls.user, cls.alt_character_2)
+        # alt with scopes, but standing not effective
+        cls.alt_character_3 = create_entity(EveCharacter, 1008)
+        add_character_to_user(cls.user, cls.alt_character_3, scopes=["publicData"])
+
+    def test_should_create_new_request(self):
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.alt_character_3
         )
+        # then
+        self.assertTrue(result)
+        obj = StandingRequest.objects.get(contact_id=self.alt_character_3.character_id)
+        self.assertFalse(obj.is_actioned)
+        self.assertFalse(obj.is_effective)
+
+    def test_should_not_create_new_request_if_character_has_pending_request(self):
+        # given
         StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=True,
+            contact_id=self.alt_character_1.character_id,
+            contact_type_id=ContactType.character_id,
+            user=self.user,
         )
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1003,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-            action_date=now(),
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.alt_character_1
         )
-        result = StandingRequest.objects.pending_requests()
-        self.assertEqual(result.count(), 1)
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_has_pending_revocation(self):
+        # given
+        StandingRevocation.objects.create(
+            contact_id=self.alt_character_1.character_id,
+            contact_type_id=ContactType.character_id,
+            user=self.user,
+        )
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.alt_character_1
+        )
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_missing_scopes(self):
+        # given
+        StandingRevocation.objects.create(
+            contact_id=self.alt_character_2.character_id,
+            contact_type_id=ContactType.character_id,
+            user=self.user,
+        )
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.alt_character_2
+        )
+        # then
+        self.assertFalse(result)
+
+    def test_should_auto_confirm_new_request_if_standing_is_satisfied(self):
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.alt_character_1
+        )
+        # then
+        self.assertTrue(result)
+        obj = StandingRequest.objects.get(contact_id=self.alt_character_1.character_id)
+        self.assertTrue(obj.is_effective)
+
+
+# class TestStandingRequestManagerRemoveCharacterRequest(NoSocketsTestCase):
+#     @classmethod
+#     def setUpClass(cls):
+#         super().setUpClass()
+#         create_contacts_set()
+#         cls.user = AuthUtils.create_member("Bruce Wayne")
+#         # alt with scopes and effective standing
+#         cls.alt_character_1 = create_entity(EveCharacter, 1110)
+#         add_character_to_user(cls.user, cls.alt_character_1, scopes=["publicData"])
+#         # alt without scopes
+#         cls.alt_character_2 = create_entity(EveCharacter, 1009)
+#         add_character_to_user(cls.user, cls.alt_character_2)
+#         # alt with scopes, but standing not effective
+#         cls.alt_character_3 = create_entity(EveCharacter, 1008)
+#         add_character_to_user(cls.user, cls.alt_character_3, scopes=["publicData"])
+
+#     def test_should_remove_request(self):
+#         # given
+#         alt_id = self.alt_character_1.character_id
+#         # when
+#         result = StandingRequest.objects.remove_character_standing(self.user, alt_id)
+#         # then
+#         self.assertTrue(result)
+#         obj = StandingRequest.objects.get(contact_id=alt_id)
+#         self.assertFalse(obj.is_actioned)
+#         self.assertFalse(obj.is_effective)
 
 
 class TestStandingsRevocationManager(NoSocketsTestCase):

@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from esi.decorators import token_required
 from eveuniverse.models import EveEntity
 
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 from app_utils.messages import messages_plus
@@ -226,13 +227,17 @@ def request_corporations(request):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def request_pilot_standing(request, character_id):
+def request_pilot_standing(request, character_id: int):
     """For a user to request standings for their own pilots"""
-    character_id = int(character_id)
     logger.debug(
         "Standings request from user %s for characterID %d", request.user, character_id
     )
-    if not StandingRequest.objects.create_character_request(request.user, character_id):
+    try:
+        character = EveCharacter.objects.get(character_id=character_id)
+    except EveCharacter.DoesNotExist:
+        success = False
+    success = StandingRequest.objects.create_character_request(request.user, character)
+    if not success:
         messages_plus.warning(
             request,
             "An unexpected error occurred when trying to process "

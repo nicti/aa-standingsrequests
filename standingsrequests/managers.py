@@ -435,46 +435,39 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         return invalid_count
 
-    def create_character_request(self, user: User, character_id: int) -> bool:
+    def create_character_request(self, user: User, character: EveCharacter) -> bool:
         """Create new character standings request for user if possible."""
         from .models import ContactSet, StandingRequest, StandingRevocation
 
-        character = EveCharacter.objects.get_character_by_id(character_id)
-        if not character or not EveEntityHelper.is_character_owned_by_user(
-            character_id, user
-        ):
+        character_id = character.character_id
+        if not EveEntityHelper.is_character_owned_by_user(character_id, user):
             logger.warning(
-                "User %s does not own Pilot ID %d, forbidden", user, character_id
+                "%s: User %s does not own character, forbidden", character, user
             )
             return False
         if StandingRequest.objects.has_pending_request(
             character.character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
-            logger.warning("Contact ID %d already has a pending request", character_id)
+            logger.warning("%s: Character already has a pending request", character)
             return False
         elif not StandingRequest.has_required_scopes_for_request(
             character=character, user=user
         ):
-            logger.warning(
-                "Contact ID %d does not have the required scopes", character_id
-            )
+            logger.warning("%s: Character does not have the required scopes", character)
             return False
-        else:
-            sr = StandingRequest.objects.add_request(
-                user=user,
-                contact_id=character_id,
-                contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
-            )
-            try:
-                contact_set = ContactSet.objects.latest()
-            except ContactSet.DoesNotExist:
-                logger.warning("Failed to get a contact set")
-                return False
-            else:
-                if contact_set.contact_has_satisfied_standing(character_id):
-                    sr.mark_actioned(user=None)
-                    sr.mark_effective()
-
+        sr = StandingRequest.objects.get_or_create_2(
+            user=user,
+            contact_id=character_id,
+            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+        )
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
+        if contact_set.contact_has_satisfied_standing(character_id):
+            sr.mark_actioned(user=None)
+            sr.mark_effective()
         return True
 
     def remove_character_standing(self, user: User, character_id: int) -> bool:
@@ -556,7 +549,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 "Contact ID %d already has a pending request", corporation_id
             )
             return False
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             user=user,
             contact_id=corporation_id,
             contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
@@ -617,8 +610,8 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             )
             return True
 
-    def add_request(self, user: User, contact_id: int, contact_type: str) -> object:
-        """Add a new standings request
+    def get_or_create_2(self, user: User, contact_id: int, contact_type: str) -> object:
+        """Get or create a new standing request
 
         Params:
         - user: User the request and contact_id belongs to
@@ -627,23 +620,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         Restuns the created StandingRequest instance
         """
-        logger.debug(
-            "Adding new standings request for user %s, contact %d type %s",
-            user,
-            contact_id,
-            contact_type,
-        )
         contact_type_id = self.model.contact_type_2_id(contact_type)
-        if self.filter(contact_id=contact_id, contact_type_id=contact_type_id).exists():
-            logger.debug(
-                "Standings request already exists, " "returning first existing request"
-            )
-            return self.filter(contact_id=contact_id, contact_type_id=contact_type_id)[
-                0
-            ]
-
-        instance = self.create(
-            user=user, contact_id=contact_id, contact_type_id=contact_type_id
+        instance, _ = self.get_or_create(
+            contact_id=contact_id,
+            contact_type_id=contact_type_id,
+            defaults={"user": user},
         )
         return instance
 

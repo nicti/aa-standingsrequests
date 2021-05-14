@@ -85,7 +85,7 @@ class ContactSet(models.Model):
                 ).exists()
                 and self.contact_has_satisfied_standing(alt.character_id)
             ):
-                sr = StandingRequest.objects.add_request(
+                sr = StandingRequest.objects.get_or_create_2(
                     user=user,
                     contact_id=alt.character_id,
                     contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -470,7 +470,7 @@ class StandingRequest(AbstractStandingsRequest):
         if not user:
             try:
                 ownership = CharacterOwnership.objects.select_related(
-                    "user__profile__state"
+                    "user", "user__profile__state"
                 ).get(character__character_id=character.character_id)
             except CharacterOwnership.DoesNotExist:
                 return False

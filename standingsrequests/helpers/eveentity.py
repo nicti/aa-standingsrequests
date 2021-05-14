@@ -16,16 +16,15 @@ class EveEntityHelper:
         :param character_id: int character ID to get the owner for
         :return: User (django) or None
         """
-        char = EveCharacter.objects.get_character_by_id(character_id)
-        if char is not None:
-            try:
-                ownership = CharacterOwnership.objects.get(character=char)
-                return ownership.user
-
-            except CharacterOwnership.DoesNotExist:
-                return None
-        else:
+        try:
+            character = EveCharacter.objects.get(character_id=character_id)
+        except EveCharacter.DoesNotExist:
             return None
+        try:
+            ownership = CharacterOwnership.objects.get(character=character)
+        except CharacterOwnership.DoesNotExist:
+            return None
+        return ownership.user
 
     @staticmethod
     def get_characters_by_user(user):
@@ -39,10 +38,9 @@ class EveEntityHelper:
             CharacterOwnership.objects.get(
                 user=user, character__character_id=character_id
             )
-
-            return True
         except CharacterOwnership.DoesNotExist:
             return False
+        return True
 
     @staticmethod
     def get_state_of_character(char):
@@ -50,7 +48,6 @@ class EveEntityHelper:
             ownership = CharacterOwnership.objects.get(
                 character__character_id=char.character_id
             )
-            return ownership.user.profile.state.name
-
         except CharacterOwnership.DoesNotExist:
             return None
+        return ownership.user.profile.state.name

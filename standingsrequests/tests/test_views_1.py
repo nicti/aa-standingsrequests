@@ -271,7 +271,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -296,7 +296,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_manager
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -383,7 +383,7 @@ class TestRequestStanding(TestViewPagesBase):
     ):
         character_id = self.alt_character_1.character_id
 
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -429,7 +429,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
     ):
         character_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
-        sr = StandingRequest.objects.add_request(
+        sr = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -451,7 +451,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
         character_id = self.alt_character_1.character_id
 
         # default standing request
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -461,7 +461,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
             StandingRequest.objects.filter(contact_id=character_id).count(), 0
         )
         # actioned standing request
-        sr = StandingRequest.objects.add_request(
+        sr = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -477,7 +477,7 @@ class TestRemovePilotStanding(TestViewPagesBase):
     ):
         character_id = self.alt_character_1.character_id
 
-        sr = StandingRequest.objects.add_request(
+        sr = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,

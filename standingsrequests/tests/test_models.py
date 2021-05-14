@@ -148,7 +148,7 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
         alt_id = 1010
         alt = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, alt, scopes=["dummy"])
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user,
             alt_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,

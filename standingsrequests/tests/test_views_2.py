@@ -369,7 +369,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -394,7 +394,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_manager
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -467,7 +467,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         mock_cache.get.return_value = None
 
         alt_id = self.alt_character_1.character_id
-        standing_request = StandingRequest.objects.add_request(
+        standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -525,7 +525,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         )
         mock_cache.get.return_value = None
         alt_id = self.alt_character_1.corporation_id
-        standing_request = StandingRequest.objects.add_request(
+        standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
             StandingRequest.CORPORATION_CONTACT_TYPE,
