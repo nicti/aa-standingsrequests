@@ -52,9 +52,6 @@ class TestContactSetManager(NoSocketsTestCase):
         )
         load_eve_entities()
 
-    def setUp(self):
-        pass
-
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
@@ -99,7 +96,7 @@ class TestContactSetManager(NoSocketsTestCase):
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
         character = create_standings_char()
-        self.assertEqual(BaseConfig.standings_character(), character)
+        self.assertEqual(BaseConfig.owner_character(), character)
 
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(MODELS_PATH + ".EveCharacter.objects.create_character")
@@ -113,7 +110,7 @@ class TestContactSetManager(NoSocketsTestCase):
             },
         )
         mock_create_character.return_value = character
-        self.assertEqual(BaseConfig.standings_character(), character)
+        self.assertEqual(BaseConfig.owner_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
@@ -478,6 +475,11 @@ class TestStandingRequestManagerCreateCharacterRequest(NoSocketsTestCase):
         # alt with scopes, but standing not effective
         cls.alt_character_3 = create_entity(EveCharacter, 1008)
         add_character_to_user(cls.user, cls.alt_character_3, scopes=["publicData"])
+        # charater not owned by user
+        cls.random_character = create_entity(EveCharacter, 1007)
+        user = AuthUtils.create_member("Peter Parker")
+        cls.other_character = create_entity(EveCharacter, 1006)
+        add_character_to_user(user, cls.other_character, scopes=["publicData"])
 
     def test_should_create_new_request(self):
         # when
@@ -519,15 +521,25 @@ class TestStandingRequestManagerCreateCharacterRequest(NoSocketsTestCase):
         self.assertFalse(result)
 
     def test_should_not_create_new_request_if_character_is_missing_scopes(self):
-        # given
-        StandingRevocation.objects.create(
-            contact_id=self.alt_character_2.character_id,
-            contact_type_id=ContactType.character_id,
-            user=self.user,
-        )
         # when
         result = StandingRequest.objects.create_character_request(
             self.user, self.alt_character_2
+        )
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_not_owned_by_anyone(self):
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.random_character
+        )
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_owned_by_sombody_else(self):
+        # when
+        result = StandingRequest.objects.create_character_request(
+            self.user, self.other_character
         )
         # then
         self.assertFalse(result)

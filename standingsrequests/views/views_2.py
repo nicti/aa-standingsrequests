@@ -171,7 +171,10 @@ def download_pilot_standings(request):
     EveEntity.objects.bulk_resolve_names([p.contact_id for p in character_contacts])
 
     for pilot_standing in character_contacts:
-        char = EveCharacter.objects.get_character_by_id(pilot_standing.contact_id)
+        try:
+            char = EveCharacter.objects.get(character_id=pilot_standing.contact_id)
+        except EveCharacter.DoesNotExist:
+            char = None
         main = ""
         state = ""
         try:

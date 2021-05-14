@@ -3,6 +3,7 @@ from typing import Tuple
 from bravado.exception import HTTPError
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
 from django.db.models import Case, Q, Value, When
 from django.utils.translation import gettext_lazy as _
@@ -18,7 +19,6 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .core import BaseConfig, ContactType, MainOrganizations
-from .helpers.eveentity import EveEntityHelper
 from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -31,8 +31,9 @@ class ContactSetManager(models.Manager):
 
         Returns new ContactSet on success, else None
         """
+        owner_character = BaseConfig.owner_character()
         token = (
-            Token.objects.filter(character_id=BaseConfig.standings_character_id)
+            Token.objects.filter(character_id=owner_character.character_id)
             .require_scopes(self.model.required_esi_scope())
             .require_valid()
             .first()
@@ -41,7 +42,7 @@ class ContactSetManager(models.Manager):
             logger.warning("Token for standing char could not be found")
             return None
         try:
-            contacts = _ContactsWrapper(token, BaseConfig.standings_character_id)
+            contacts_wrap = _ContactsWrapper(token, owner_character)
         except HTTPError as ex:
             logger.exception(
                 "APIError occurred while trying to query api server: %s", ex
@@ -50,8 +51,8 @@ class ContactSetManager(models.Manager):
 
         with transaction.atomic():
             contacts_set = self.create()
-            self._add_labels_from_api(contacts_set, contacts.allianceLabels)
-            self._add_contacts_from_api(contacts_set, contacts.alliance)
+            self._add_labels_from_api(contacts_set, contacts_wrap.allianceLabels)
+            self._add_contacts_from_api(contacts_set, contacts_wrap.alliance)
 
         return contacts_set
 
@@ -105,29 +106,6 @@ class _ContactsWrapper:
             return str(self)
 
     class Contact:
-        @staticmethod
-        def get_type_id_from_name(type_name):
-            """
-            Maps new ESI name to old type id.
-            Character type is allways mapped to 1373
-            And faction type to 500000
-            Determines the contact type:
-            2 = Corporation
-            1373-1386 = Character
-            16159 = Alliance
-            500001 - 500024 = Faction
-            """
-            if type_name == "character":
-                return 1373
-            if type_name == "alliance":
-                return 16159
-            if type_name == "faction":
-                return 500001
-            if type_name == "corporation":
-                return 2
-
-            raise NotImplementedError("This contact type is not mapped")
-
         def __init__(self, json, labels, names_info):
             self.id = json["contact_id"]
             self.name = names_info[self.id] if self.id in names_info else ""
@@ -138,7 +116,6 @@ class _ContactsWrapper:
                 if "label_ids" in json and json["label_ids"] is not None
                 else []
             )
-            self.type_id = self.__class__.get_type_id_from_name(json["contact_type"])
             # list of labels
             self.labels = [label for label in labels if label.id in self.label_ids]
 
@@ -148,48 +125,47 @@ class _ContactsWrapper:
         def __repr__(self):
             return str(self)
 
-    def __init__(self, token, character_id):
+    def __init__(self, token, owner_character):
         self.alliance = []
         self.allianceLabels = []
 
         if BaseConfig.operation_mode == "alliance":
-            alliance_id = EveCharacter.objects.get_character_by_id(
-                character_id
-            ).alliance_id
+            if not owner_character.alliance_id:
+                raise RuntimeError(
+                    "{owner_character}: owner character is not a member of an alliance"
+                )
             labels = esi.client.Contacts.get_alliances_alliance_id_contacts_labels(
-                alliance_id=alliance_id, token=token.valid_access_token()
+                alliance_id=owner_character.alliance_id,
+                token=token.valid_access_token(),
             ).results()
             self.allianceLabels = [self.Label(label) for label in labels]
             contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
-                alliance_id=alliance_id, token=token.valid_access_token()
+                alliance_id=owner_character.alliance_id,
+                token=token.valid_access_token(),
             ).results()
 
         elif BaseConfig.operation_mode == "corporation":
-            corporation_id = EveCharacter.objects.get_character_by_id(
-                character_id
-            ).corporation_id
             labels = (
                 esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
-                    corporation_id=corporation_id, token=token.valid_access_token()
+                    corporation_id=owner_character.corporation_id,
+                    token=token.valid_access_token(),
                 ).results()
             )
             self.allianceLabels = [self.Label(label) for label in labels]
             contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
-                corporation_id=corporation_id, token=token.valid_access_token()
+                corporation_id=owner_character.corporation_id,
+                token=token.valid_access_token(),
             ).results()
         else:
             raise NotImplementedError()
 
         logger.debug("Got %d contacts in total", len(contacts))
-        entity_ids = []
-        for contact in contacts:
-            entity_ids.append(contact["contact_id"])
-
+        entity_ids = [contact["contact_id"] for contact in contacts]
         resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
-        for contact in contacts:
-            self.alliance.append(
-                self.Contact(contact, self.allianceLabels, resolver._names_map)
-            )
+        self.alliance = [
+            self.Contact(contact, self.allianceLabels, resolver._names_map)
+            for contact in contacts
+        ]
 
 
 class ContactQuerySet(models.QuerySet):
@@ -439,14 +415,17 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         """Create new character standings request for user if possible."""
         from .models import ContactSet, StandingRequest, StandingRevocation
 
-        character_id = character.character_id
-        if not EveEntityHelper.is_character_owned_by_user(character_id, user):
-            logger.warning(
-                "%s: User %s does not own character, forbidden", character, user
-            )
+        try:
+            if character.character_ownership.user != user:
+                logger.warning(
+                    "%s: User %s does not own character, forbidden", character, user
+                )
+                return False
+        except ObjectDoesNotExist:
             return False
+        character_id = character.character_id
         if StandingRequest.objects.has_pending_request(
-            character.character_id
+            character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
             return False
@@ -470,25 +449,26 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             sr.mark_effective()
         return True
 
-    def remove_character_standing(self, user: User, character_id: int) -> bool:
+    def remove_character_standing(self, user: User, character: EveCharacter) -> bool:
         """Remove effective character standing for user if possible."""
         from .models import ContactSet, StandingRequest, StandingRevocation
 
-        character = EveCharacter.objects.get_character_by_id(character_id)
-        if not character or not EveEntityHelper.is_character_owned_by_user(
-            character_id, user
-        ):
-            logger.warning(
-                "User %s does not own Pilot ID %d, forbidden", user, character_id
-            )
+        try:
+            if character.character_ownership.user != user:
+                logger.warning(
+                    "%s: User %s does not own character, forbidden", character, user
+                )
+                return False
+        except ObjectDoesNotExist:
             return False
-        elif MainOrganizations.is_character_a_member(character):
+        if MainOrganizations.is_character_a_member(character):
             logger.warning(
-                "Character %d of user %s is in organization. Can not remove standing",
-                character_id,
+                "%s: Character of user %s is in organization. Can not remove standing",
+                character,
                 user,
             )
             return False
+        character_id = character.character_id
         if StandingRevocation.objects.has_pending_request(character_id):
             logger.debug(
                 "User %s already has a pending standing revocation for character %d",

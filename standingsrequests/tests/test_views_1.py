@@ -23,6 +23,7 @@ from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
+    create_entity,
     create_eve_objects,
     create_standings_char,
     esi_get_corporations_corporation_id,
@@ -42,9 +43,12 @@ TEST_SCOPE = "publicData"
 @patch(VIEWS_PATH + ".update_all")
 @patch(VIEWS_PATH + ".messages_plus")
 class TestViewAuthPage(NoSocketsTestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
         load_eve_entities()
+        cls.owner_character = create_standings_char()
 
     def make_request(self, user, character):
         token = Mock(spec=Token)
@@ -63,11 +67,9 @@ class TestViewAuthPage(NoSocketsTestCase):
     ):
         # given
         user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user, TEST_STANDINGS_API_CHARNAME, TEST_STANDINGS_API_CHARID
-        )
+        add_character_to_user(user, self.owner_character, is_main=True)
         # when
-        response = self.make_request(user, character)
+        response = self.make_request(user, self.owner_character)
         # then
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:index"))
@@ -94,14 +96,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self, mock_messages, mock_update_all
     ):
         user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user,
-            TEST_STANDINGS_API_CHARNAME,
-            TEST_STANDINGS_API_CHARID,
-            alliance_id=3001,
-            alliance_name="Dummy Alliance",
-        )
-        response = self.make_request(user, character)
+        response = self.make_request(user, self.owner_character)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:index"))
         self.assertTrue(mock_messages.success.called)
@@ -113,9 +108,8 @@ class TestViewAuthPage(NoSocketsTestCase):
         self, mock_messages, mock_update_all
     ):
         user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user, TEST_STANDINGS_API_CHARNAME, TEST_STANDINGS_API_CHARID
-        )
+        character = create_entity(EveCharacter, 1007)
+        add_character_to_user(user, character)
         response = self.make_request(user, character)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:index"))

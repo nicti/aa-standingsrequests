@@ -16,7 +16,6 @@ from ..app_settings import SR_CORPORATIONS_ENABLED
 from ..core import BaseConfig, MainOrganizations
 from ..decorators import token_required_by_state
 from ..helpers.evecorporation import EveCorporation
-from ..helpers.eveentity import EveEntityHelper
 from ..models import ContactSet, StandingRequest, StandingRevocation
 from ..tasks import update_all
 from .helpers import DEFAULT_ICON_SIZE, add_common_context
@@ -66,7 +65,9 @@ def request_characters(request):
             request, "standingsrequests/error.html", add_common_context(request, {})
         )
 
-    eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
+    eve_characters_qs = EveCharacter.objects.filter(
+        character_ownership__user=request.user
+    ).select_related("character_ownership__user")
     eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
     characters_with_standing = {
         contact["eve_entity_id"]: contact["standing"]
@@ -148,7 +149,9 @@ def request_corporations(request):
             request, "standingsrequests/error.html", add_common_context(request, {})
         )
 
-    eve_characters_qs = EveEntityHelper.get_characters_by_user(request.user)
+    eve_characters_qs = EveCharacter.objects.filter(
+        character_ownership__user=request.user
+    ).select_related("character_ownership__user")
     corporation_ids = set(
         eve_characters_qs.exclude(corporation_id__in=MainOrganizations.corporation_ids)
         .exclude(alliance_id__in=MainOrganizations.alliance_ids)
@@ -233,10 +236,17 @@ def request_pilot_standing(request, character_id: int):
         "Standings request from user %s for characterID %d", request.user, character_id
     )
     try:
-        character = EveCharacter.objects.get(character_id=character_id)
+        character = (
+            EveCharacter.objects.select_related("character_ownership__user")
+            .filter(character_ownership__user=request.user)
+            .get(character_id=character_id)
+        )
     except EveCharacter.DoesNotExist:
         success = False
-    success = StandingRequest.objects.create_character_request(request.user, character)
+    else:
+        success = StandingRequest.objects.create_character_request(
+            request.user, character
+        )
     if not success:
         messages_plus.warning(
             request,
@@ -250,19 +260,28 @@ def request_pilot_standing(request, character_id: int):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def remove_pilot_standing(request, character_id):
+def remove_pilot_standing(request, character_id: int):
     """
     Handles both removing requests and removing existing standings
     """
-    character_id = int(character_id)
     logger.debug(
         "remove_pilot_standing called by %s for character %d",
         request.user,
         character_id,
     )
-    if not StandingRequest.objects.remove_character_standing(
-        request.user, character_id
-    ):
+    try:
+        character = (
+            EveCharacter.objects.select_related("character_ownership__user")
+            .filter(character_ownership__user=request.user)
+            .get(character_id=character_id)
+        )
+    except EveCharacter.DoesNotExist:
+        success = False
+    else:
+        success = StandingRequest.objects.remove_character_standing(
+            request.user, character
+        )
+    if not success:
         messages_plus.warning(
             request,
             "An unexpected error occurred when trying to process "
@@ -322,7 +341,7 @@ def remove_corp_standing(request, corporation_id):
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
     source_entity = BaseConfig.standings_source_entity()
-    char_name = EveEntity.objects.resolve_name(BaseConfig.standings_character_id)
+    char_name = EveEntity.objects.resolve_name(BaseConfig.owner_character_id)
     if not source_entity:
         messages_plus.error(
             request,
@@ -336,7 +355,7 @@ def view_auth_page(request, token):
                 % char_name,
             ),
         )
-    elif token.character_id == BaseConfig.standings_character_id:
+    elif token.character_id == BaseConfig.owner_character_id:
         update_all.delay(user_pk=request.user.pk)
         messages_plus.success(
             request,
@@ -360,7 +379,7 @@ def view_auth_page(request, token):
             )
             % {
                 "char_name": char_name,
-                "standings_api_char_id": BaseConfig.standings_character_id,
+                "standings_api_char_id": BaseConfig.owner_character_id,
                 "token_char_name": EveEntity.objects.resolve_name(token.character_id),
                 "token_char_id": token.character_id,
             },
