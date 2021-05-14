@@ -17,7 +17,8 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
-from .core import BaseConfig, ContactType
+from .core import BaseConfig, ContactType, MainOrganizations
+from .helpers.eveentity import EveEntityHelper
 from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -433,6 +434,188 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 invalid_count += 1
 
         return invalid_count
+
+    def create_character_request(self, user: User, character_id: int) -> bool:
+        """Create new character standings request for user if possible."""
+        from .models import ContactSet, StandingRequest, StandingRevocation
+
+        character = EveCharacter.objects.get_character_by_id(character_id)
+        if not character or not EveEntityHelper.is_character_owned_by_user(
+            character_id, user
+        ):
+            logger.warning(
+                "User %s does not own Pilot ID %d, forbidden", user, character_id
+            )
+            return False
+        if StandingRequest.objects.has_pending_request(
+            character.character_id
+        ) or StandingRevocation.objects.has_pending_request(character_id):
+            logger.warning("Contact ID %d already has a pending request", character_id)
+            return False
+        elif not StandingRequest.has_required_scopes_for_request(
+            character=character, user=user
+        ):
+            logger.warning(
+                "Contact ID %d does not have the required scopes", character_id
+            )
+            return False
+        else:
+            sr = StandingRequest.objects.add_request(
+                user=user,
+                contact_id=character_id,
+                contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+            )
+            try:
+                contact_set = ContactSet.objects.latest()
+            except ContactSet.DoesNotExist:
+                logger.warning("Failed to get a contact set")
+                return False
+            else:
+                if contact_set.contact_has_satisfied_standing(character_id):
+                    sr.mark_actioned(user=None)
+                    sr.mark_effective()
+
+        return True
+
+    def remove_character_standing(self, user: User, character_id: int) -> bool:
+        """Remove effective character standing for user if possible."""
+        from .models import ContactSet, StandingRequest, StandingRevocation
+
+        character = EveCharacter.objects.get_character_by_id(character_id)
+        if not character or not EveEntityHelper.is_character_owned_by_user(
+            character_id, user
+        ):
+            logger.warning(
+                "User %s does not own Pilot ID %d, forbidden", user, character_id
+            )
+            return False
+        elif MainOrganizations.is_character_a_member(character):
+            logger.warning(
+                "Character %d of user %s is in organization. Can not remove standing",
+                character_id,
+                user,
+            )
+            return False
+        if StandingRevocation.objects.has_pending_request(character_id):
+            logger.debug(
+                "User %s already has a pending standing revocation for character %d",
+                user,
+                character_id,
+            )
+            return False
+        if StandingRequest.objects.has_pending_request(
+            character_id
+        ) or StandingRequest.objects.has_actioned_request(character_id):
+            logger.debug(
+                "Removing standings requests for character ID %d by user %s",
+                character_id,
+                user,
+            )
+            StandingRequest.objects.remove_requests(
+                character_id, reason=StandingRevocation.Reason.OWNER_REQUEST
+            )
+            return True
+
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
+        if contact_set.contact_has_satisfied_standing(character_id):
+            logger.debug(
+                "Creating standings revocation for character ID %d by user %s",
+                character_id,
+                user,
+            )
+            StandingRevocation.objects.add_revocation(
+                contact_id=character_id,
+                contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
+                user=user,
+                reason=StandingRevocation.Reason.OWNER_REQUEST,
+            )
+            return True
+        logger.debug("No standings exist for characterID %d", character_id)
+        return False
+
+    def create_corporation_request(self, user, corporation_id) -> bool:
+        """Create new corporation standings request for user if possible."""
+        from .models import StandingRequest, StandingRevocation
+
+        if not StandingRequest.can_request_corporation_standing(corporation_id, user):
+            logger.warning(
+                "User %s does not have enough keys for corpID %d, forbidden",
+                user,
+                corporation_id,
+            )
+            return False
+        if StandingRequest.objects.has_pending_request(
+            corporation_id
+        ) or StandingRevocation.objects.has_pending_request(corporation_id):
+            # Pending request, not allowed
+            logger.warning(
+                "Contact ID %d already has a pending request", corporation_id
+            )
+            return False
+        StandingRequest.objects.add_request(
+            user=user,
+            contact_id=corporation_id,
+            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+        )
+        return True
+
+    def remove_corporation_request(self, user, corporation_id) -> bool:
+        """Remove effective corporation standing and pending requests
+        for user if possible.
+        """
+        from .models import ContactSet, StandingRequest, StandingRevocation
+
+        try:
+            st_req = StandingRequest.objects.get(contact_id=corporation_id)
+        except StandingRequest.DoesNotExist:
+            return False
+        if st_req.user != user:
+            logger.warning(
+                "User %s tried to remove standings for corpID %d but was not permitted",
+                user,
+                corporation_id,
+            )
+            return False
+        if (
+            StandingRequest.objects.has_pending_request(corporation_id)
+            or StandingRequest.objects.has_actioned_request(corporation_id)
+        ) and not StandingRevocation.objects.has_pending_request(corporation_id):
+            logger.debug(
+                "Removing standings requests for corpID %d by user %s",
+                corporation_id,
+                user,
+            )
+            StandingRequest.objects.remove_requests(corporation_id)
+            return True
+        else:
+            try:
+                contact_set = ContactSet.objects.latest()
+            except ContactSet.DoesNotExist:
+                logger.warning("Failed to get a contact set")
+                return False
+            if not contact_set.contact_has_satisfied_standing(corporation_id):
+                logger.debug(
+                    "Can not remove standing - no standings exist for corpID %d",
+                    corporation_id,
+                )
+                return False
+            # Manual revocation required
+            logger.debug(
+                "Creating standings revocation for corpID %d by user %s",
+                corporation_id,
+                user,
+            )
+            StandingRevocation.objects.add_revocation(
+                contact_id=corporation_id,
+                contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+                user=user,
+                reason=StandingRevocation.Reason.OWNER_REQUEST,
+            )
+            return True
 
     def add_request(self, user: User, contact_id: int, contact_type: str) -> object:
         """Add a new standings request
