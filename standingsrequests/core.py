@@ -11,6 +11,7 @@ from .app_settings import (
     STR_ALLIANCE_IDS,
     STR_CORP_IDS,
 )
+from .constants import OperationMode
 
 
 class MainOrganizations:
@@ -40,29 +41,21 @@ class MainOrganizations:
 
 class BaseConfig:
     @classproperty
-    def standings_character_id(cls) -> int:
+    def owner_character_id(cls) -> int:
         return STANDINGS_API_CHARID
 
     @classproperty
-    def operation_mode(cls) -> str:
-        return SR_OPERATION_MODE
+    def operation_mode(cls) -> OperationMode:
+        """Return current operation mode."""
+        return OperationMode(SR_OPERATION_MODE)
 
     @staticmethod
-    def standings_character() -> EveCharacter:
+    def owner_character() -> EveCharacter:
         """returns the configured standings character"""
         try:
-            character = EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
+            return EveCharacter.objects.get(character_id=STANDINGS_API_CHARID)
         except EveCharacter.DoesNotExist:
-            character = EveCharacter.objects.create_character(STANDINGS_API_CHARID)
-            EveEntity.objects.get_or_create(
-                id=character.character_id,
-                defaults={
-                    "name": character.character_name,
-                    "category": EveEntity.CATEGORY_CHARACTER,
-                },
-            )
-
-        return character
+            return EveCharacter.objects.create_character(STANDINGS_API_CHARID)
 
     @classmethod
     def standings_source_entity(cls) -> object:
@@ -70,26 +63,16 @@ class BaseConfig:
 
         returns None when in alliance mode, but character has no alliance
         """
-        character = cls.standings_character()
-        if cls.operation_mode == "alliance":
+        character = cls.owner_character()
+        if cls.operation_mode is OperationMode.ALLIANCE:
             if character.alliance_id:
-                entity, _ = EveEntity.objects.get_or_create(
-                    id=character.alliance_id,
-                    defaults={
-                        "name": character.alliance_name,
-                        "category": EveEntity.CATEGORY_ALLIANCE,
-                    },
+                entity, _ = EveEntity.objects.get_or_create_esi(
+                    id=character.alliance_id
                 )
             else:
                 entity = None
-        elif cls.operation_mode == "corporation":
-            entity, _ = EveEntity.objects.get_or_create(
-                id=character.corporation_id,
-                defaults={
-                    "name": character.corporation_name,
-                    "category": EveEntity.CATEGORY_CORPORATION,
-                },
-            )
+        elif cls.operation_mode is OperationMode.CORPORATON:
+            entity, _ = EveEntity.objects.get_or_create_esi(id=character.corporation_id)
         else:
             raise NotImplementedError()
 

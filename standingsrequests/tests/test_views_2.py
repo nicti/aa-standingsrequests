@@ -1,12 +1,10 @@
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
-from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
-from esi.models import Token
 
 from allianceauth.eveonline.models import (
     EveAllianceInfo,
@@ -26,7 +24,6 @@ from ..core import ContactType
 from ..models import CharacterAffiliation, Contact, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
-    TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
     create_eve_objects,
     create_standings_char,
@@ -40,94 +37,8 @@ CORE_PATH = "standingsrequests.core"
 MODELS_PATH = "standingsrequests.models"
 MANAGERS_PATH = "standingsrequests.managers"
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
-VIEWS_PATH = "standingsrequests.views"
+VIEWS_PATH = "standingsrequests.views.views_2"
 TEST_SCOPE = "publicData"
-
-
-@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-@patch(VIEWS_PATH + ".update_all")
-@patch(VIEWS_PATH + ".messages_plus")
-class TestViewAuthPage(NoSocketsTestCase):
-    def setUp(self):
-        self.factory = RequestFactory()
-        load_eve_entities()
-
-    def make_request(self, user, character):
-        token = Mock(spec=Token)
-        token.character_id = character.character_id
-        request = self.factory.get(reverse("standingsrequests:view_auth_page"))
-        request.user = user
-        request.token = token
-        middleware = SessionMiddleware()
-        middleware.process_request(request)
-        orig_view = views.view_auth_page.__wrapped__.__wrapped__.__wrapped__
-        return orig_view(request, token)
-
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "corporation")
-    def test_for_corp_when_provided_standingschar_return_success(
-        self, mock_messages, mock_update_all
-    ):
-        # given
-        user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user, TEST_STANDINGS_API_CHARNAME, TEST_STANDINGS_API_CHARID
-        )
-        # when
-        response = self.make_request(user, character)
-        # then
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
-        self.assertTrue(mock_messages.success.called)
-        self.assertFalse(mock_messages.error.called)
-        self.assertTrue(mock_update_all.delay.called)
-
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "corporation")
-    def test_when_not_provided_standingschar_return_error(
-        self, mock_messages, mock_update_all
-    ):
-        create_standings_char()
-        user = AuthUtils.create_user("Clark Kent")
-        character = AuthUtils.add_main_character_2(user, user.username, 1002)
-        response = self.make_request(user, character)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
-        self.assertFalse(mock_messages.success.called)
-        self.assertTrue(mock_messages.error.called)
-        self.assertFalse(mock_update_all.delay.called)
-
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
-    def test_for_alliance_when_provided_standingschar_return_success(
-        self, mock_messages, mock_update_all
-    ):
-        user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user,
-            TEST_STANDINGS_API_CHARNAME,
-            TEST_STANDINGS_API_CHARID,
-            alliance_id=3001,
-            alliance_name="Dummy Alliance",
-        )
-        response = self.make_request(user, character)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
-        self.assertTrue(mock_messages.success.called)
-        self.assertFalse(mock_messages.error.called)
-        self.assertTrue(mock_update_all.delay.called)
-
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
-    def test_for_alliance_when_provided_standingschar_not_in_alliance_return_error(
-        self, mock_messages, mock_update_all
-    ):
-        user = AuthUtils.create_user(TEST_STANDINGS_API_CHARNAME)
-        character = AuthUtils.add_main_character_2(
-            user, TEST_STANDINGS_API_CHARNAME, TEST_STANDINGS_API_CHARID
-        )
-        response = self.make_request(user, character)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:index"))
-        self.assertFalse(mock_messages.success.called)
-        self.assertTrue(mock_messages.error.called)
-        self.assertFalse(mock_update_all.delay.called)
 
 
 class TestViewPilotStandingsJson(NoSocketsTestCase):
@@ -171,7 +82,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response, "character_id")
-        expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010}
+        expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010, 1110}
         self.assertSetEqual(set(data.keys()), expected)
 
         data_character_1002 = data[1002]
@@ -458,7 +369,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_requestor
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -483,7 +394,7 @@ class TestViewsBasics(TestViewPagesBase):
         # given
         request = self.factory.get(reverse("standingsrequests:index"))
         request.user = self.user_manager
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -541,151 +452,6 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 200)
 
 
-@patch(VIEWS_PATH + ".messages_plus")
-class TestRequestStanding(TestViewPagesBase):
-    def make_request(self, character_id):
-        request = self.factory.get(
-            reverse(
-                "standingsrequests:request_pilot_standing",
-                args=[character_id],
-            )
-        )
-        request.user = self.user_requestor
-        response = views.request_pilot_standing(request, character_id)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
-        return response
-
-    def test_when_no_pending_request_or_revocation_for_character_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-
-    def test_when_pending_request_for_character_dont_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        StandingRequest.objects.add_request(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-
-    def test_when_pending_revocation_for_character_dont_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        StandingRevocation.objects.add_revocation(
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-            user=self.user_requestor,
-        )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
-        )
-
-
-@patch(VIEWS_PATH + ".messages_plus")
-class TestRemovePilotStanding(TestViewPagesBase):
-    def make_request(self, character_id):
-        request = self.factory.get(
-            reverse(
-                "standingsrequests:remove_pilot_standing",
-                args=[character_id],
-            )
-        )
-        request.user = self.user_requestor
-        response = views.remove_pilot_standing(request, character_id)
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
-        return response
-
-    def test_when_effective_standing_request_exists_create_revocation(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-        self._set_standing_for_alt_in_game(self.alt_character_1)
-        sr = StandingRequest.objects.add_request(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        sr.mark_effective()
-
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-        self.assertEqual(
-            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
-        )
-
-    def test_when_none_effective_standing_request_exists_remove_standing_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        # default standing request
-        StandingRequest.objects.add_request(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
-        )
-        # actioned standing request
-        sr = StandingRequest.objects.add_request(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
-        )
-
-    def test_when_effective_standing_request_exists_and_standing_revocation_exists(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        sr = StandingRequest.objects.add_request(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        sr.mark_effective()
-        StandingRevocation.objects.add_revocation(
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-            user=self.user_requestor,
-        )
-
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-        self.assertEqual(
-            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
-        )
-
-
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewManageRequestsJson(TestViewPagesBase):
@@ -701,7 +467,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         mock_cache.get.return_value = None
 
         alt_id = self.alt_character_1.character_id
-        standing_request = StandingRequest.objects.add_request(
+        standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -744,6 +510,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -758,7 +525,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         )
         mock_cache.get.return_value = None
         alt_id = self.alt_character_1.corporation_id
-        standing_request = StandingRequest.objects.add_request(
+        standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
             StandingRequest.CORPORATION_CONTACT_TYPE,
@@ -800,6 +567,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": "(System)",
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -807,22 +575,24 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewManageRevocationsJson(TestViewPagesBase):
-    def test_revoke_character(self, mock_esi, mock_cache):
-        # setup
-        alt_id = self.alt_character_1.character_id
-        self._create_standing_for_alt(self.alt_character_1)
+    def test_should_show_character_revocation(self, mock_esi, mock_cache):
+        # given
+        alt_character = EveCharacter.objects.get(character_id=1110)
+        alt_id = alt_character.character_id
+        self._create_standing_for_alt(alt_character)
         standing_request = StandingRevocation.objects.add_revocation(
-            alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE, user=self.user_requestor
+            alt_id,
+            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            user=self.user_requestor,
+            reason=StandingRevocation.Reason.LOST_PERMISSION,
         )
-
-        # make request
         request = self.factory.get(
             reverse("standingsrequests:manage_get_revocations_json")
         )
         request.user = self.user_manager
+        # when
         response = views.manage_get_revocations_json(request)
-
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
@@ -831,15 +601,15 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
 
         data_alt_1 = data[alt_id]
         expected_alt_1 = {
-            "contact_id": 1007,
-            "contact_name": "James Gordon",
-            "contact_icon_url": "https://images.evetech.net/characters/1007/portrait?size=32",
-            "corporation_id": 2004,
-            "corporation_name": "Metro Police",
-            "corporation_ticker": "MP",
+            "contact_id": 1110,
+            "contact_name": "Phil Coulson",
+            "contact_icon_url": "https://images.evetech.net/characters/1110/portrait?size=32",
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH",
             "alliance_id": None,
             "alliance_name": "",
-            "has_scopes": True,
+            "has_scopes": False,
             "request_date": standing_request.request_date.isoformat(),
             "action_date": None,
             "state": "Member",
@@ -851,7 +621,8 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_corporation": False,
             "is_character": True,
             "action_by": "(System)",
-            "reason": "None recorded",
+            "reason": "Character owner has lost permission",
+            "labels": ["red", "yellow"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -910,6 +681,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
@@ -960,6 +732,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": ["red"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1009,6 +782,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": "(System)",
             "reason": "None recorded",
+            "labels": ["yellow"],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1056,6 +830,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_character": True,
             "action_by": self.user_manager.username,
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
@@ -1106,5 +881,6 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "is_character": False,
             "action_by": self.user_manager.username,
             "reason": None,
+            "labels": [],
         }
         self.assertDictEqual(data[alt_id], expected_alt_1)

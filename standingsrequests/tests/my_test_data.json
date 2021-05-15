@@ -42,8 +42,7 @@
             "contact_id": 1002,
             "contact_type": "character",
             "label_ids": [
-                1,
-                2
+                1, 2
             ],
             "standing": 10
         },
@@ -100,6 +99,14 @@
             "contact_type": "character",
             "label_ids": [
                 4
+            ],
+            "standing": 5
+        },
+        {
+            "contact_id": 1110,
+            "contact_type": "character",
+            "label_ids": [
+                3, 4
             ],
             "standing": 5
         },
@@ -227,7 +234,14 @@
             "corporation_id": 2102,
             "corporation_name": "Lexcorp",
             "corporation_ticker": "LEX",
-            "member_count": 2500,
+            "member_count": 2,
+            "alliance_id": null
+        },
+        "2110": {
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH",
+            "member_count": 99,
             "alliance_id": null
         }
     },
@@ -322,6 +336,15 @@
             "corporation_id": 2102,
             "corporation_name": "Lexcorp",
             "corporation_ticker": "LEX",
+            "alliance_id": null,
+            "alliance_name": null
+        },
+        "1110": {
+            "character_id": 1110,
+            "character_name": "Phil Coulson",
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH",
             "alliance_id": null,
             "alliance_name": null
         }

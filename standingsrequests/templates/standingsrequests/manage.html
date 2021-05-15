@@ -111,7 +111,7 @@
                             <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
                             <th class="col-md-2">{% trans "Main Character" %}</th>
                             <th class="col-md-1">{% trans "Scopes / State" %}</th>
-                            <th class="col-md-2">{% trans "Reason" %}</th>
+                            <th class="col-md-2">{% trans "Reason / Contact Labels" %}</th>
                             <th class="col-md-2">{% trans "Actions" %}</th>
                         </tr>
                         {% verbatim %}
@@ -143,7 +143,8 @@
                                 {{ contact.state }}
                             </td>
                             <td>
-                                {{ contact.reason }}
+                                {{ contact.reason }}<br>
+                                <div ng-repeat="obj in contact.labels">{{ obj }}<span ng-if="!$last">, </span></div>
                             </td>
                             <td>
                                 <button class="btn btn-success" ng-click="actionRevocation(contact)" title="Confirm the standing was REMOVED in game">

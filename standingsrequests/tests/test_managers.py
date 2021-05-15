@@ -7,7 +7,6 @@ from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
-from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
@@ -52,9 +51,6 @@ class TestContactSetManager(NoSocketsTestCase):
         )
         load_eve_entities()
 
-    def setUp(self):
-        pass
-
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
@@ -88,6 +84,7 @@ class TestContactSetManager(NoSocketsTestCase):
             (1008, -5),
             (1009, -10),
             (1010, 5),
+            (1110, 5.0),
             (2001, 10.0),
             (2003, 5.0),
             (2102, -10.0),
@@ -98,7 +95,7 @@ class TestContactSetManager(NoSocketsTestCase):
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
         character = create_standings_char()
-        self.assertEqual(BaseConfig.standings_character(), character)
+        self.assertEqual(BaseConfig.owner_character(), character)
 
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(MODELS_PATH + ".EveCharacter.objects.create_character")
@@ -112,8 +109,46 @@ class TestContactSetManager(NoSocketsTestCase):
             },
         )
         mock_create_character.return_value = character
-        self.assertEqual(BaseConfig.standings_character(), character)
+        self.assertEqual(BaseConfig.owner_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
+
+
+class TestAbstractStandingsRequestManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user_requestor = AuthUtils.create_member("Bruce Wayne")
+        cls.user_manager = AuthUtils.create_user("Mike Manager")
+
+    def test_pending_requests_empty(self):
+        self.assertEqual(StandingRequest.objects.pending_requests().count(), 0)
+
+    def test_should_count_pending_requests_correctly(self):
+        # given
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=True,
+        )
+        StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1003,
+            contact_type_id=CHARACTER_TYPE_ID,
+            is_effective=False,
+            action_date=now(),
+        )
+        # when
+        result = StandingRequest.objects.pending_requests()
+        # then
+        self.assertEqual(result.count(), 1)
 
 
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
@@ -247,35 +282,6 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         )
         self.assertFalse(AbstractStandingsRequest.objects.has_pending_request(1002))
 
-    def test_actioned_request(self, mock_notify):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=False,
-        )
-        self.assertTrue(AbstractStandingsRequest.objects.has_actioned_request(1001))
-
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=True,
-            effective_date=now(),
-        )
-        self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1002))
-
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1003,
-            contact_type_id=CHARACTER_TYPE_ID,
-        )
-        self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1003))
-
 
 class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
     def setUp(self):
@@ -326,7 +332,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        request = StandingRequest.objects.add_request(
+        request = StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
 
@@ -336,7 +342,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_can_request_corporation_standing
     ):
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
         )
         StandingRequest.objects.validate_requests()
@@ -352,7 +358,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        StandingRequest.objects.add_request(
+        StandingRequest.objects.get_or_create_2(
             self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
         )
 
@@ -369,7 +375,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
-        request = StandingRequest.objects.add_request(
+        request = StandingRequest.objects.get_or_create_2(
             self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
         )
 
@@ -385,65 +391,25 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         cls.user_requestor = AuthUtils.create_member("Bruce Wayne")
         cls.user_manager = AuthUtils.create_user("Mike Manager")
 
-    def setUp(self):
-        StandingRequest.objects.all().delete()
-        Notification.objects.all().delete()
-
-    def test_add_request_new(self):
-        my_request = StandingRequest.objects.add_request(
+    def test_should_add_new_request(self):
+        # when
+        my_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
+        # then
         self.assertIsInstance(my_request, StandingRequest)
 
-    def test_add_request_already_exists(self):
-        my_request_1 = StandingRequest.objects.add_request(
+    def test_should_not_create_new_request_that_already_exists(self):
+        # given
+        my_request_1 = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
-        my_request_2 = StandingRequest.objects.add_request(
+        # when
+        my_request_2 = StandingRequest.objects.get_or_create_2(
             self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
         )
+        # then
         self.assertEqual(my_request_1, my_request_2)
-
-    def test_remove_requests(self):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        StandingRequest.objects.remove_requests(1001)
-        self.assertFalse(
-            StandingRequest.objects.filter(
-                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
-            ).exists()
-        )
-        self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
-
-    def test_pending_requests_empty(self):
-        self.assertEqual(StandingRequest.objects.pending_requests().count(), 0)
-
-    def test_pending_requests_normal(self):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=True,
-        )
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1003,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-            action_date=now(),
-        )
-        result = StandingRequest.objects.pending_requests()
-        self.assertEqual(result.count(), 1)
 
 
 class TestStandingsRevocationManager(NoSocketsTestCase):

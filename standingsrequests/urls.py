@@ -16,14 +16,14 @@ local_urlpatterns = [
         name="request_corporations",
     ),
     url(
-        r"^request_pilot_standing/(?P<character_id>\d+)/",
-        views.request_pilot_standing,
-        name="request_pilot_standing",
+        r"^request_character_standing/(?P<character_id>\d+)/",
+        views.request_character_standing,
+        name="request_character_standing",
     ),
     url(
-        r"^remove_pilot_standing/(?P<character_id>\d+)/",
-        views.remove_pilot_standing,
-        name="remove_pilot_standing",
+        r"^remove_character_standing/(?P<character_id>\d+)/",
+        views.remove_character_standing,
+        name="remove_character_standing",
     ),
     url(
         r"^request_corp_standing/(?P<corporation_id>\d+)/",

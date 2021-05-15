@@ -2,6 +2,8 @@ from django.conf import settings
 
 from app_utils.django import clean_setting
 
+from .constants import OperationMode
+
 # switch to enable/disable ability to request standings for corporations
 SR_CORPORATIONS_ENABLED = clean_setting("SR_CORPORATIONS_ENABLED", True)
 
@@ -20,7 +22,7 @@ SR_SYNC_BLUE_ALTS_ENABLED = clean_setting("SR_SYNC_BLUE_ALTS_ENABLED", True)
 
 # Select the entity type of your standings master
 SR_OPERATION_MODE = clean_setting(
-    "SR_OPERATION_MODE", "alliance", choices=["alliance", "corporation"]
+    "SR_OPERATION_MODE", str(OperationMode.ALLIANCE), choices=OperationMode.values
 )
 
 # This is a map, where the key is the State the user is in

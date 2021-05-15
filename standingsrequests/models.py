@@ -16,6 +16,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
+from .constants import OperationMode
 from .core import BaseConfig, ContactType, MainOrganizations
 from .helpers.evecorporation import EveCorporation
 from .managers import (
@@ -85,7 +86,7 @@ class ContactSet(models.Model):
                 ).exists()
                 and self.contact_has_satisfied_standing(alt.character_id)
             ):
-                sr = StandingRequest.objects.add_request(
+                sr = StandingRequest.objects.get_or_create_2(
                     user=user,
                     contact_id=alt.character_id,
                     contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
@@ -109,9 +110,9 @@ class ContactSet(models.Model):
     @staticmethod
     def required_esi_scope() -> str:
         """returns the required ESI scopes for syncing"""
-        if BaseConfig.operation_mode == "alliance":
+        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
-        elif BaseConfig.operation_mode == "corporation":
+        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
             return "esi-corporations.read_contacts.v1"
         else:
             raise NotImplementedError()
@@ -249,6 +250,14 @@ class AbstractStandingsRequest(models.Model):
     @property
     def is_pending(self) -> bool:
         return self.action_date is None and self.is_effective is False
+
+    @property
+    def is_standing_request(self) -> bool:
+        return type(self) is StandingRequest
+
+    @property
+    def is_standing_revocation(self) -> bool:
+        return type(self) is StandingRevocation
 
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
@@ -400,6 +409,71 @@ class StandingRequest(AbstractStandingsRequest):
 
     objects = StandingRequestManager()
 
+    def remove(self):
+        """Remove this standing request."""
+        if self.is_character:
+            return self._remove_character_standing()
+        elif self.is_corporation:
+            return self._remove_corporation_request()
+        raise NotImplementedError()
+
+    def _remove_character_standing(self) -> bool:
+        """Remove effective character standing for user if possible."""
+        try:
+            character = EveCharacter.objects.get(character_id=self.contact_id)
+        except EveCharacter.DoesNotExist:
+            return False
+        if MainOrganizations.is_character_a_member(character):
+            logger.warning(
+                "%s: Character %s of user %s is in organization. Can not remove standing",
+                self,
+                character,
+                self.user,
+            )
+            return False
+        if StandingRevocation.objects.has_pending_request(self.contact_id):
+            logger.debug(
+                "%s: User %s already has a pending standing revocation for character %d",
+                self,
+                self.user,
+                self.contact_id,
+            )
+            return False
+        self.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
+        return True
+
+    def _remove_corporation_request(self) -> bool:
+        """Remove effective corporation standing and pending requests
+        for user if possible.
+        """
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
+        if (
+            self.is_pending or self.is_actioned
+        ) and not StandingRevocation.objects.has_pending_request(self.contact_id):
+            logger.debug(
+                "%s: Removing standings requests by user %s",
+                self,
+                self.user,
+            )
+            self.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
+            return True
+        if not contact_set.contact_has_satisfied_standing(self.contact_id):
+            logger.debug("%s: Can not remove standing - no standings exist", self)
+            return False
+        # Manual revocation required
+        logger.debug("%s: Creating standings revocation by user %s", self, self.user)
+        StandingRevocation.objects.add_revocation(
+            contact_id=self.contact_id,
+            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+            user=self.user,
+            reason=StandingRevocation.Reason.OWNER_REQUEST,
+        )
+        return True
+
     def delete(self, using=None, keep_parents=False, reason=None):
         """
         Add a revocation before deleting if the standing has been
@@ -436,6 +510,7 @@ class StandingRequest(AbstractStandingsRequest):
                 self.contact_type_id,
             )
 
+        logger.debug("%s: Removing standing request by user %s", self, self.user)
         super().delete(using, keep_parents)
 
     @classmethod
@@ -470,7 +545,7 @@ class StandingRequest(AbstractStandingsRequest):
         if not user:
             try:
                 ownership = CharacterOwnership.objects.select_related(
-                    "user__profile__state"
+                    "user", "user__profile__state"
                 ).get(character__character_id=character.character_id)
             except CharacterOwnership.DoesNotExist:
                 return False
