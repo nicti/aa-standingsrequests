@@ -496,7 +496,7 @@ def _compose_standing_requests_data(
             alliance_name = ""
             has_scopes = False
 
-        if type(req) is StandingRevocation:
+        if req.is_standing_revocation:
             reason = req.get_reason_display()
         else:
             reason = None

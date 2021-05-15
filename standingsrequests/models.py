@@ -251,6 +251,14 @@ class AbstractStandingsRequest(models.Model):
     def is_pending(self) -> bool:
         return self.action_date is None and self.is_effective is False
 
+    @property
+    def is_standing_request(self) -> bool:
+        return type(self) is StandingRequest
+
+    @property
+    def is_standing_revocation(self) -> bool:
+        return type(self) is StandingRevocation
+
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
         if standing is not None:

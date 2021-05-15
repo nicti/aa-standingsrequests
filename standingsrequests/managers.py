@@ -232,7 +232,7 @@ class AbstractStandingsRequestManager(models.Manager):
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
                     # send notification to user about standing change if enabled
-                    if type(standing_request) is StandingRequest:
+                    if standing_request.is_standing_request:
                         notify(
                             user=standing_request.user,
                             title=_(
@@ -251,7 +251,7 @@ class AbstractStandingsRequestManager(models.Manager):
                                 "contact_name": contact.name,
                             },
                         )
-                    elif type(standing_request) is StandingRevocation:
+                    elif standing_request.is_standing_revocation:
                         if standing_request.user:
                             notify(
                                 user=standing_request.user,
@@ -273,7 +273,7 @@ class AbstractStandingsRequestManager(models.Manager):
 
                 # if this was a revocation the standing requests need to be remove
                 # to indicate that this character no longer has standing
-                if type(standing_request) == StandingRevocation:
+                if standing_request.is_standing_revocation:
                     StandingRequest.objects.filter(
                         contact_id=standing_request.contact_id
                     ).delete()

@@ -177,6 +177,39 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
         self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
 
 
+class TestAbstractStandingsRequest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        ContactSet.objects.all().delete()
+        create_contacts_set()
+        cls.user_requestor = User.objects.create_user(
+            "Roger Requestor", "rr@example.com", "password"
+        )
+
+    def test_should_say_standing_request(self):
+        # given
+        my_request = StandingRequest(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+        )
+        # then
+        self.assertTrue(my_request.is_standing_request)
+        self.assertFalse(my_request.is_standing_revocation)
+
+    def test_should_say_standing_revocation(self):
+        # given
+        my_request = StandingRevocation(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+        )
+        # then
+        self.assertFalse(my_request.is_standing_request)
+        self.assertTrue(my_request.is_standing_revocation)
+
+
 class TestStandingsRequest(TestCase):
     @classmethod
     def setUpClass(cls):
