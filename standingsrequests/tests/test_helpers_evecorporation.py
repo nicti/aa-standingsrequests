@@ -78,7 +78,7 @@ class TestEveCorporation(NoSocketsTestCase):
         self.assertEqual(obj.corporation_id, 2102)
         self.assertEqual(obj.corporation_name, "Lexcorp")
         self.assertEqual(obj.ticker, "LEX")
-        self.assertEqual(obj.member_count, 2500)
+        self.assertEqual(obj.member_count, 2)
         self.assertIsNone(obj.alliance_id)
 
     def test_normal_corp_is_not_npc(self, mock_esi, mock_cache):

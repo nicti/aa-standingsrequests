@@ -424,6 +424,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 return False
         except ObjectDoesNotExist:
             return False
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
         character_id = character.character_id
         if StandingRequest.objects.has_pending_request(
             character_id
@@ -440,11 +445,6 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             contact_id=character_id,
             contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-        try:
-            contact_set = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            logger.warning("Failed to get a contact set")
-            return False
         if contact_set.contact_has_satisfied_standing(character_id):
             sr.mark_actioned(user=None)
             sr.mark_effective()
@@ -469,6 +469,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 user,
             )
             return False
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
         character_id = character.character_id
         if StandingRevocation.objects.has_pending_request(character_id):
             logger.debug(
@@ -489,12 +494,6 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 character_id, reason=StandingRevocation.Reason.OWNER_REQUEST
             )
             return True
-
-        try:
-            contact_set = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            logger.warning("Failed to get a contact set")
-            return False
         if contact_set.contact_has_satisfied_standing(character_id):
             logger.debug(
                 "Creating standings revocation for character ID %d by user %s",
@@ -515,19 +514,18 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         """Create new corporation standings request for user if possible."""
         from .models import StandingRequest, StandingRevocation
 
+        if StandingRequest.objects.has_pending_request(
+            corporation_id
+        ) or StandingRevocation.objects.has_pending_request(corporation_id):
+            logger.warning(
+                "Contact ID %d already has a pending request", corporation_id
+            )
+            return False
         if not StandingRequest.can_request_corporation_standing(corporation_id, user):
             logger.warning(
                 "User %s does not have enough keys for corpID %d, forbidden",
                 user,
                 corporation_id,
-            )
-            return False
-        if StandingRequest.objects.has_pending_request(
-            corporation_id
-        ) or StandingRevocation.objects.has_pending_request(corporation_id):
-            # Pending request, not allowed
-            logger.warning(
-                "Contact ID %d already has a pending request", corporation_id
             )
             return False
         StandingRequest.objects.get_or_create_2(
@@ -549,10 +547,15 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             return False
         if st_req.user != user:
             logger.warning(
-                "User %s tried to remove standings for corpID %d but was not permitted",
+                "User %s tried to remove standings for corpID %d he does not own",
                 user,
                 corporation_id,
             )
+            return False
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
             return False
         if (
             StandingRequest.objects.has_pending_request(corporation_id)
@@ -565,31 +568,25 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             )
             StandingRequest.objects.remove_requests(corporation_id)
             return True
-        else:
-            try:
-                contact_set = ContactSet.objects.latest()
-            except ContactSet.DoesNotExist:
-                logger.warning("Failed to get a contact set")
-                return False
-            if not contact_set.contact_has_satisfied_standing(corporation_id):
-                logger.debug(
-                    "Can not remove standing - no standings exist for corpID %d",
-                    corporation_id,
-                )
-                return False
-            # Manual revocation required
+        if not contact_set.contact_has_satisfied_standing(corporation_id):
             logger.debug(
-                "Creating standings revocation for corpID %d by user %s",
+                "Can not remove standing - no standings exist for corpID %d",
                 corporation_id,
-                user,
             )
-            StandingRevocation.objects.add_revocation(
-                contact_id=corporation_id,
-                contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
-                user=user,
-                reason=StandingRevocation.Reason.OWNER_REQUEST,
-            )
-            return True
+            return False
+        # Manual revocation required
+        logger.debug(
+            "Creating standings revocation for corpID %d by user %s",
+            corporation_id,
+            user,
+        )
+        StandingRevocation.objects.add_revocation(
+            contact_id=corporation_id,
+            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+            user=user,
+            reason=StandingRevocation.Reason.OWNER_REQUEST,
+        )
+        return True
 
     def get_or_create_2(self, user: User, contact_id: int, contact_type: str) -> object:
         """Get or create a new standing request
