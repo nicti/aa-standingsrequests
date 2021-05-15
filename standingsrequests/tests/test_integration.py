@@ -207,7 +207,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_pilot_standing",
+            "standingsrequests:request_character_standing",
             args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
@@ -280,7 +280,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing", args=[alt_id]
+            "standingsrequests:remove_character_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -494,7 +494,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_pilot_standing",
+            "standingsrequests:request_character_standing",
             args=[alt_id],
         )
         response = create_page_2.click(href=request_standing_url)
@@ -612,7 +612,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_pilot_standing", args=[alt_id]
+            "standingsrequests:remove_character_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)

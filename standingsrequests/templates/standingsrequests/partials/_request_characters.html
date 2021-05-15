@@ -62,7 +62,7 @@
                                         <a
                                             class="btn btn-warning"
                                             role="button"
-                                            href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                            href="{% url 'standingsrequests:remove_character_standing' character_id=std.character.character_id %}"
                                             title="Cancel Request">
                                             Cancel
                                         </a>
@@ -72,7 +72,7 @@
                                         <a
                                             class="btn btn-primary"
                                             role="button"
-                                            href="{% url 'standingsrequests:request_pilot_standing' character_id=std.character.character_id %}"
+                                            href="{% url 'standingsrequests:request_character_standing' character_id=std.character.character_id %}"
                                             title="Request to get standing for this character"
                                             {% if not std.hasRequiredScopes %}
                                             disabled
@@ -84,7 +84,7 @@
                                         <a
                                             class="btn btn-danger"
                                             role="button"
-                                            href="{% url 'standingsrequests:remove_pilot_standing' character_id=std.character.character_id %}"
+                                            href="{% url 'standingsrequests:remove_character_standing' character_id=std.character.character_id %}"
                                             title="Request to revoke standing for this character">
                                             Revoke
                                         </a>

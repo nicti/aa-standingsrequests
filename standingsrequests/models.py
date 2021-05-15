@@ -411,10 +411,36 @@ class StandingRequest(AbstractStandingsRequest):
 
     def remove(self):
         """Remove this standing request."""
-        if self.is_corporation:
+        if self.is_character:
+            return self._remove_character_standing()
+        elif self.is_corporation:
             return self._remove_corporation_request()
-        else:
-            raise NotImplementedError()
+        raise NotImplementedError()
+
+    def _remove_character_standing(self) -> bool:
+        """Remove effective character standing for user if possible."""
+        try:
+            character = EveCharacter.objects.get(character_id=self.contact_id)
+        except EveCharacter.DoesNotExist:
+            return False
+        if MainOrganizations.is_character_a_member(character):
+            logger.warning(
+                "%s: Character %s of user %s is in organization. Can not remove standing",
+                self,
+                character,
+                self.user,
+            )
+            return False
+        if StandingRevocation.objects.has_pending_request(self.contact_id):
+            logger.debug(
+                "%s: User %s already has a pending standing revocation for character %d",
+                self,
+                self.user,
+                self.contact_id,
+            )
+            return False
+        self.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
+        return True
 
     def _remove_corporation_request(self) -> bool:
         """Remove effective corporation standing and pending requests

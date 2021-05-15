@@ -19,7 +19,7 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .constants import OperationMode
-from .core import BaseConfig, ContactType, MainOrganizations
+from .core import BaseConfig, ContactType
 from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -431,62 +431,6 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             sr.mark_actioned(user=None)
             sr.mark_effective()
         return True
-
-    def remove_character_standing(self, user: User, character: EveCharacter) -> bool:
-        """Remove effective character standing for user if possible."""
-        from .models import ContactSet, StandingRequest, StandingRevocation
-
-        try:
-            if character.character_ownership.user != user:
-                logger.warning(
-                    "%s: User %s does not own character, forbidden", character, user
-                )
-                return False
-        except ObjectDoesNotExist:
-            return False
-        if MainOrganizations.is_character_a_member(character):
-            logger.warning(
-                "%s: Character of user %s is in organization. Can not remove standing",
-                character,
-                user,
-            )
-            return False
-        try:
-            contact_set = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            logger.warning("Failed to get a contact set")
-            return False
-        character_id = character.character_id
-        if StandingRevocation.objects.has_pending_request(character_id):
-            logger.debug(
-                "User %s already has a pending standing revocation for character %d",
-                user,
-                character_id,
-            )
-            return False
-        try:
-            req = StandingRequest.objects.get(contact_id=character_id)
-        except StandingRequest.DoesNotExist:
-            pass
-        else:
-            if req.is_pending or req.is_actioned:
-                req.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
-                return True
-        if contact_set.contact_has_satisfied_standing(character_id):
-            logger.debug(
-                "Creating standings revocation for character ID %d by user %s",
-                character_id,
-                user,
-            )
-            StandingRevocation.objects.add_revocation(
-                contact_id=character_id,
-                contact_type=StandingRevocation.CHARACTER_CONTACT_TYPE,
-                user=user,
-                reason=StandingRevocation.Reason.OWNER_REQUEST,
-            )
-            return True
-        logger.debug("No standings exist for characterID %d", character_id)
-        return False
 
     def create_corporation_request(self, user, corporation_id) -> bool:
         """Create new corporation standings request for user if possible."""

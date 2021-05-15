@@ -230,8 +230,8 @@ def request_corporations(request):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def request_pilot_standing(request, character_id: int):
-    """For a user to request standings for their own pilots"""
+def request_character_standing(request, character_id: int):
+    """For a user to request standings for their own characters"""
     logger.debug(
         "Standings request from user %s for characterID %d", request.user, character_id
     )
@@ -260,27 +260,23 @@ def request_pilot_standing(request, character_id: int):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def remove_pilot_standing(request, character_id: int):
+def remove_character_standing(request, character_id: int):
     """
     Handles both removing requests and removing existing standings
     """
     logger.debug(
-        "remove_pilot_standing called by %s for character %d",
+        "remove_character_standing called by %s for character %d",
         request.user,
         character_id,
     )
     try:
-        character = (
-            EveCharacter.objects.select_related("character_ownership__user")
-            .filter(character_ownership__user=request.user)
-            .get(character_id=character_id)
+        req = StandingRequest.objects.filter(user=request.user).get(
+            contact_id=character_id
         )
-    except EveCharacter.DoesNotExist:
+    except StandingRequest.DoesNotExist:
         success = False
     else:
-        success = StandingRequest.objects.remove_character_standing(
-            request.user, character
-        )
+        success = req.remove()
     if not success:
         messages_plus.warning(
             request,
