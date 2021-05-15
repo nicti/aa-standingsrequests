@@ -14,7 +14,11 @@ from allianceauth.eveonline.models import (
     EveCorporationInfo,
 )
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
+from app_utils.testing import (
+    NoSocketsTestCase,
+    add_character_to_user,
+    create_user_from_evecharacter,
+)
 
 from .. import views
 from ..core import ContactType
@@ -491,3 +495,103 @@ class TestRemovePilotStanding(TestViewPagesBase):
         self.assertEqual(
             StandingRevocation.objects.filter(contact_id=character_id).count(), 1
         )
+
+
+class TestRemoveCorporationStanding(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        create_contacts_set()
+        create_entity(EveCharacter, 1001)
+        cls.user, _ = create_user_from_evecharacter(
+            1001, permissions=["standingsrequests.request_standings"]
+        )
+
+    def view_remove_corp_standing(self, corporation_id: int) -> bool:
+        request = self.factory.get(
+            reverse(
+                "standingsrequests:remove_corp_standing",
+                args=[corporation_id],
+            )
+        )
+        request.user = self.user
+        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+            response = views.remove_corp_standing(request, corporation_id)
+            success = not mock_message.called
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+        return success
+
+    def test_should_remove_valid_pending_request(self):
+        # given
+        character_1009 = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character_1009, scopes=["publicData"])
+        StandingRequest.objects.get_or_create_2(
+            user=self.user,
+            contact_id=2102,
+            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+        )
+        # when
+        success = self.view_remove_corp_standing(2102)
+        # then
+        self.assertTrue(success)
+        self.assertFalse(StandingRequest.objects.filter(contact_id=2102).exists())
+
+    def test_should_remove_valid_effective_request(self):
+        # given
+        character_1004 = create_entity(EveCharacter, 1004)
+        add_character_to_user(self.user, character_1004, scopes=["publicData"])
+        req = StandingRequest.objects.get_or_create_2(
+            user=self.user,
+            contact_id=2003,
+            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+        )
+        req.mark_actioned(user=None)
+        req.mark_effective()
+        # when
+        success = self.view_remove_corp_standing(2003)
+        # then
+        self.assertTrue(success)
+        self.assertTrue(StandingRequest.objects.filter(contact_id=2003).exists())
+        self.assertTrue(StandingRevocation.objects.filter(contact_id=2003).exists())
+
+    def test_should_return_false_if_standing_requests_from_another_user(self):
+        # given
+        user = AuthUtils.create_member("Peter Parker")
+        character_1009 = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character_1009, scopes=["publicData"])
+        StandingRequest.objects.get_or_create_2(
+            user=user,
+            contact_id=2102,
+            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+        )
+        # when
+        success = self.view_remove_corp_standing(2102)
+        # then
+        self.assertFalse(success)
+
+    def test_should_return_false_if_no_standing_request_exists(self):
+        # given
+        character_1009 = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character_1009, scopes=["publicData"])
+        # when
+        success = self.view_remove_corp_standing(2102)
+        # then
+        self.assertFalse(success)
+
+    def test_should_return_false_if_standing_not_fully_effective(self):
+        # given
+        character = create_entity(EveCharacter, 1008)
+        add_character_to_user(self.user, character, scopes=["publicData"])
+        req = StandingRequest.objects.get_or_create_2(
+            user=self.user,
+            contact_id=2102,
+            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+        )
+        req.mark_actioned(user=None)
+        req.mark_effective()
+        # when
+        success = self.view_remove_corp_standing(2102)
+        # then
+        self.assertFalse(success)

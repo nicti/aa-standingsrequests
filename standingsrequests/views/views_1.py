@@ -317,15 +317,20 @@ def request_corp_standing(request, corporation_id):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def remove_corp_standing(request, corporation_id):
+def remove_corp_standing(request, corporation_id: int):
     """
     Handles both removing corp requests and removing existing standings
     """
-    corporation_id = int(corporation_id)
     logger.debug("remove_corp_standing called by %s", request.user)
-    if not StandingRequest.objects.remove_corporation_request(
-        request.user, corporation_id
-    ):
+    try:
+        req = StandingRequest.objects.filter(user=request.user).get(
+            contact_id=corporation_id
+        )
+    except StandingRequest.DoesNotExist:
+        success = False
+    else:
+        success = req.remove()
+    if not success:
         messages_plus.warning(
             request,
             "An unexpected error occurred when trying to process "

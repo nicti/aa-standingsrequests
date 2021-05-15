@@ -409,6 +409,45 @@ class StandingRequest(AbstractStandingsRequest):
 
     objects = StandingRequestManager()
 
+    def remove(self):
+        """Remove this standing request."""
+        if self.is_corporation:
+            return self._remove_corporation_request()
+        else:
+            raise NotImplementedError()
+
+    def _remove_corporation_request(self) -> bool:
+        """Remove effective corporation standing and pending requests
+        for user if possible.
+        """
+        try:
+            contact_set = ContactSet.objects.latest()
+        except ContactSet.DoesNotExist:
+            logger.warning("Failed to get a contact set")
+            return False
+        if (
+            self.is_pending or self.is_actioned
+        ) and not StandingRevocation.objects.has_pending_request(self.contact_id):
+            logger.debug(
+                "%s: Removing standings requests by user %s",
+                self,
+                self.user,
+            )
+            self.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
+            return True
+        if not contact_set.contact_has_satisfied_standing(self.contact_id):
+            logger.debug("%s: Can not remove standing - no standings exist", self)
+            return False
+        # Manual revocation required
+        logger.debug("%s: Creating standings revocation by user %s", self, self.user)
+        StandingRevocation.objects.add_revocation(
+            contact_id=self.contact_id,
+            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+            user=self.user,
+            reason=StandingRevocation.Reason.OWNER_REQUEST,
+        )
+        return True
+
     def delete(self, using=None, keep_parents=False, reason=None):
         """
         Add a revocation before deleting if the standing has been

@@ -513,58 +513,6 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return True
 
-    def remove_corporation_request(self, user, corporation_id) -> bool:
-        """Remove effective corporation standing and pending requests
-        for user if possible.
-        """
-        from .models import ContactSet, StandingRequest, StandingRevocation
-
-        try:
-            req = StandingRequest.objects.get(contact_id=corporation_id)
-        except StandingRequest.DoesNotExist:
-            return False
-        if req.user != user:
-            logger.warning(
-                "User %s tried to remove standings for corpID %d he does not own",
-                user,
-                corporation_id,
-            )
-            return False
-        try:
-            contact_set = ContactSet.objects.latest()
-        except ContactSet.DoesNotExist:
-            logger.warning("Failed to get a contact set")
-            return False
-        if (
-            req.is_pending or req.is_actioned
-        ) and not StandingRevocation.objects.has_pending_request(corporation_id):
-            logger.debug(
-                "Removing standings requests for corpID %d by user %s",
-                corporation_id,
-                user,
-            )
-            StandingRequest.objects.remove_requests(corporation_id)
-            return True
-        if not contact_set.contact_has_satisfied_standing(corporation_id):
-            logger.debug(
-                "Can not remove standing - no standings exist for corpID %d",
-                corporation_id,
-            )
-            return False
-        # Manual revocation required
-        logger.debug(
-            "Creating standings revocation for corpID %d by user %s",
-            corporation_id,
-            user,
-        )
-        StandingRevocation.objects.add_revocation(
-            contact_id=corporation_id,
-            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
-            user=user,
-            reason=StandingRevocation.Reason.OWNER_REQUEST,
-        )
-        return True
-
     def get_or_create_2(self, user: User, contact_id: int, contact_type: str) -> object:
         """Get or create a new standing request
 
