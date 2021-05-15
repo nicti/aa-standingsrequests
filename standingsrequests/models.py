@@ -445,6 +445,7 @@ class StandingRequest(AbstractStandingsRequest):
                 self.contact_type_id,
             )
 
+        logger.debug("%s: Removing standing request by user %s", self, self.user)
         super().delete(using, keep_parents)
 
     @classmethod

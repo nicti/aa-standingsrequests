@@ -332,18 +332,6 @@ class AbstractStandingsRequestManager(models.Manager):
         """
         return self.pending_requests().filter(contact_id=contact_id).exists()
 
-    def has_actioned_request(self, contact_id: int) -> bool:
-        """Checks if an actioned request is pending API confirmation for
-        the given contact_id
-
-        contact_id: int contact_id to check the pending request for
-
-        returns True if a request is pending API confirmation, False otherwise
-        """
-        return self.filter(
-            contact_id=contact_id, action_date__isnull=False, is_effective=False
-        ).exists()
-
     def pending_requests(self) -> models.QuerySet:
         """returns all pending requests for this class"""
         return self.filter(action_date__isnull=True, is_effective=False)
@@ -476,18 +464,14 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 character_id,
             )
             return False
-        if StandingRequest.objects.has_pending_request(
-            character_id
-        ) or StandingRequest.objects.has_actioned_request(character_id):
-            logger.debug(
-                "Removing standings requests for character ID %d by user %s",
-                character_id,
-                user,
-            )
-            StandingRequest.objects.remove_requests(
-                character_id, reason=StandingRevocation.Reason.OWNER_REQUEST
-            )
-            return True
+        try:
+            req = StandingRequest.objects.get(contact_id=character_id)
+        except StandingRequest.DoesNotExist:
+            pass
+        else:
+            if req.is_pending or req.is_actioned:
+                req.delete(reason=StandingRevocation.Reason.OWNER_REQUEST)
+                return True
         if contact_set.contact_has_satisfied_standing(character_id):
             logger.debug(
                 "Creating standings revocation for character ID %d by user %s",
@@ -536,10 +520,10 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         from .models import ContactSet, StandingRequest, StandingRevocation
 
         try:
-            st_req = StandingRequest.objects.get(contact_id=corporation_id)
+            req = StandingRequest.objects.get(contact_id=corporation_id)
         except StandingRequest.DoesNotExist:
             return False
-        if st_req.user != user:
+        if req.user != user:
             logger.warning(
                 "User %s tried to remove standings for corpID %d he does not own",
                 user,
@@ -552,8 +536,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             logger.warning("Failed to get a contact set")
             return False
         if (
-            StandingRequest.objects.has_pending_request(corporation_id)
-            or StandingRequest.objects.has_actioned_request(corporation_id)
+            req.is_pending or req.is_actioned
         ) and not StandingRevocation.objects.has_pending_request(corporation_id):
             logger.debug(
                 "Removing standings requests for corpID %d by user %s",

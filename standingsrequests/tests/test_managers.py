@@ -285,35 +285,6 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         )
         self.assertFalse(AbstractStandingsRequest.objects.has_pending_request(1002))
 
-    def test_actioned_request(self, mock_notify):
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=False,
-        )
-        self.assertTrue(AbstractStandingsRequest.objects.has_actioned_request(1001))
-
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=True,
-            effective_date=now(),
-        )
-        self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1002))
-
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1003,
-            contact_type_id=CHARACTER_TYPE_ID,
-        )
-        self.assertFalse(AbstractStandingsRequest.objects.has_actioned_request(1003))
-
 
 class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
     def setUp(self):
