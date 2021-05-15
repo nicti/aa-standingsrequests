@@ -21,7 +21,7 @@ class StandingsRequestService(ServicesHook):
 
     def delete_user(self, user, notify_user=False):
         logger.debug("Deleting user %s standings", user)
-        StandingRequest.objects.delete_for_user(user)
+        StandingRequest.objects.filter(user=user).delete()
 
     def validate_user(self, user):
         logger.debug("Validating user %s standings", user)

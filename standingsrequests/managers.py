@@ -338,9 +338,6 @@ class AbstractStandingsRequestManager(models.Manager):
 
 
 class StandingRequestManager(AbstractStandingsRequestManager):
-    def delete_for_user(self, user):
-        self.filter(user=user).delete()
-
     def validate_requests(self) -> int:
         """Validate all StandingsRequests and check
         that the user requesting them has permission and has API keys
@@ -495,8 +492,7 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
             contact_type,
         )
         contact_type_id = self.model.contact_type_2_id(contact_type)
-        pending = self.filter(contact_id=contact_id).filter(is_effective=False)
-        if pending.exists():
+        if self.has_pending_request(contact_id):
             logger.debug(
                 "Cannot add revocation for contact %d %s, pending revocation exists",
                 contact_id,
