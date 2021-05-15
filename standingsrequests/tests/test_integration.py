@@ -789,7 +789,8 @@ class TestMainUseCases(WebTest):
         tasks.validate_requests()
 
         # validate new state
-        self.assertTrue(StandingRequest.objects.has_effective_request(alt_id))
+        req = StandingRequest.objects.get(contact_id=alt_id)
+        self.assertTrue(req.is_effective)
         my_revocation = StandingRevocation.objects.get(contact_id=alt_id)
         self.assertFalse(my_revocation.is_effective)
         self.assertEqual(

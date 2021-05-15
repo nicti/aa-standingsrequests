@@ -50,9 +50,6 @@ class TestContactSet(NoSocketsTestCase):
         cls.character_1001 = create_entity(EveCharacter, 1001)
         load_eve_entities()
 
-    def setUp(self):
-        ContactSet.objects.all().delete()
-
     def test_str(self):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
@@ -122,21 +119,19 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = AuthUtils.create_member(TEST_USER_NAME)
-
-    def setUp(self):
         create_standings_char()
-        self.contacts_set = create_contacts_set()
-        StandingRequest.objects.all().delete()
+        cls.contacts_set = create_contacts_set()
 
-    def test_creates_new_request_for_blue_alt(self):
+    def test_should_create_new_request_for_blue_alt(self):
+        # given
         alt_id = 1010
         alt = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, alt, scopes=["dummy"])
-
+        # when
         self.contacts_set.generate_standing_requests_for_blue_alts()
-
-        self.assertTrue(StandingRequest.objects.has_effective_request(alt_id))
-        request = StandingRequest.objects.first()
+        # then
+        request = StandingRequest.objects.get(contact_id=alt_id)
+        self.assertTrue(request.is_effective)
         self.assertEqual(request.user, self.user)
         self.assertEqual(request.contact_id, 1010)
         self.assertEqual(request.is_effective, True)
@@ -144,37 +139,41 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
         self.assertAlmostEqual((now() - request.action_date).seconds, 0, delta=30)
         self.assertAlmostEqual((now() - request.effective_date).seconds, 0, delta=30)
 
-    def test_does_not_create_requests_for_blue_alt_if_request_already_exists(self):
+    def test_should_not_create_requests_for_blue_alt_if_request_already_exists(self):
+        # given
         alt_id = 1010
         alt = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, alt, scopes=["dummy"])
-        StandingRequest.objects.get_or_create_2(
+        req = StandingRequest.objects.get_or_create_2(
             self.user,
             alt_id,
             StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-
+        # when
         self.contacts_set.generate_standing_requests_for_blue_alts()
+        # then
+        req.refresh_from_db()
+        self.assertFalse(req.is_effective)
 
-        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
-
-    def test_does_not_create_requests_for_non_blue_alts(self):
+    def test_should_not_create_requests_for_non_blue_alts(self):
+        # given
         alt_id = 1009
         alt = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, alt, scopes=["dummy"])
-
+        # when
         self.contacts_set.generate_standing_requests_for_blue_alts()
+        # then
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
 
-        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
-
-    def test_does_not_create_requests_for_alts_in_organization(self):
+    def test_should_not_create_requests_for_alts_in_organization(self):
+        # given
         alt_id = 1002
         main = create_entity(EveCharacter, alt_id)
         add_character_to_user(self.user, main, is_main=True, scopes=["dummy"])
-
+        # when
         self.contacts_set.generate_standing_requests_for_blue_alts()
-
-        self.assertFalse(StandingRequest.objects.has_effective_request(alt_id))
+        # then
+        self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
 
 
 class TestAbstractStandingsRequest(TestCase):

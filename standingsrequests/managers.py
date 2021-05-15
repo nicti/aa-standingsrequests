@@ -100,10 +100,10 @@ class _ContactsWrapper:
             self.id = json["label_id"]
             self.name = json["label_name"]
 
-        def __str__(self):
-            return u"{}".format(self.name)
+        def __str__(self) -> str:
+            return str(self.name)
 
-        def __repr__(self):
+        def __repr__(self) -> str:
             return str(self)
 
     class Contact:
@@ -120,8 +120,8 @@ class _ContactsWrapper:
             # list of labels
             self.labels = [label for label in labels if label.id in self.label_ids]
 
-        def __str__(self):
-            return u"{}".format(self.name)
+        def __str__(self) -> str:
+            return str(self.name)
 
         def __repr__(self):
             return str(self)
@@ -343,12 +343,6 @@ class AbstractStandingsRequestManager(models.Manager):
         return self.filter(
             contact_id=contact_id, action_date__isnull=False, is_effective=False
         ).exists()
-
-    def has_effective_request(self, contact_id: int) -> bool:
-        """return True if an effective request exists for given contact_id,
-        else False
-        """
-        return self.filter(contact_id=contact_id, is_effective=True).exists()
 
     def pending_requests(self) -> models.QuerySet:
         """returns all pending requests for this class"""
