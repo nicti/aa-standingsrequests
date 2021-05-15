@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.8.0] - ALPHA
 
-> **Note**<br>This release is currently in alpha test phase and therefore not yet released for production use.
+> **Note**<br>This release is currently in alpha test phase and therefore not yet recommended for production use.
 
 ### Update Notes
 
