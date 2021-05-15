@@ -22,6 +22,7 @@ from app_utils.testing import (
 
 from .. import views
 from ..core import ContactType
+from ..helpers.evecorporation import EveCorporation
 from ..models import Contact, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
@@ -32,6 +33,7 @@ from .my_test_data import (
     create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
+    get_my_test_data,
     load_eve_entities,
 )
 
@@ -352,149 +354,273 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 200)
 
 
-@patch(VIEWS_PATH + ".messages_plus")
-class TestRequestStanding(TestViewPagesBase):
-    def make_request(self, character_id):
+class TestRequestCharacterStanding(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        create_contacts_set()
+        create_entity(EveCharacter, 1001)
+        cls.user, _ = create_user_from_evecharacter(
+            1001, permissions=["standingsrequests.request_standings"]
+        )
+
+    def view_request_pilot_standing(self, character_id: int) -> bool:
         request = self.factory.get(
             reverse(
                 "standingsrequests:request_pilot_standing",
                 args=[character_id],
             )
         )
-        request.user = self.user_requestor
-        response = views.request_pilot_standing(request, character_id)
+        request.user = self.user
+        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+            response = views.request_pilot_standing(request, character_id)
+            success = not mock_message.called
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
-        return response
+        return success
 
-    def test_when_no_pending_request_or_revocation_for_character_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
+    def test_should_create_new_request(self):
+        # when
+        alt_character = create_entity(EveCharacter, 1008)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertTrue(result)
+        obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
+        self.assertFalse(obj.is_actioned)
+        self.assertFalse(obj.is_effective)
+
+    def test_should_not_create_new_request_if_character_has_pending_request(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        StandingRequest.objects.create(
+            contact_id=alt_character.character_id,
+            contact_type_id=ContactType.character_id,
+            user=self.user,
+        )
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_has_pending_revocation(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        StandingRevocation.objects.create(
+            contact_id=alt_character.character_id,
+            contact_type_id=ContactType.character_id,
+            user=self.user,
+        )
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_missing_scopes(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, alt_character)
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_not_owned_by_anyone(self):
+        # given
+        random_character = create_entity(EveCharacter, 1007)
+        # when
+        result = self.view_request_pilot_standing(random_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_not_create_new_request_if_character_is_owned_by_sombody_else(self):
+        # given
+        user = AuthUtils.create_member("Peter Parker")
+        other_character = create_entity(EveCharacter, 1006)
+        add_character_to_user(user, other_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(other_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_auto_confirm_new_request_if_standing_is_satisfied(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertTrue(result)
+        obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
+        self.assertTrue(obj.is_effective)
+
+
+@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3001])
+@patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
+class TestRemoveCharacterStanding(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        create_contacts_set()
+        create_entity(EveCharacter, 1001)
+        cls.user, _ = create_user_from_evecharacter(
+            1001, permissions=["standingsrequests.request_standings"]
         )
 
-    def test_when_pending_request_for_character_dont_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
+    def view_request_pilot_standing(self, character_id: int) -> bool:
+        request = self.factory.get(
+            reverse("standingsrequests:remove_pilot_standing", args=[character_id])
+        )
+        request.user = self.user
+        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+            response = views.remove_pilot_standing(request, character_id)
+            success = not mock_message.called
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+        return success
 
+    def test_should_remove_valid_request(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
         StandingRequest.objects.get_or_create_2(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            user=self.user,
+            contact_id=alt_character.character_id,
+            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
         )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-
-    def test_when_pending_revocation_for_character_dont_create_new_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        StandingRevocation.objects.add_revocation(
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-            user=self.user_requestor,
-        )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertTrue(result)
+        self.assertFalse(
+            StandingRequest.objects.filter(
+                contact_id=alt_character.character_id
+            ).exists()
         )
 
+    def test_should_not_remove_request_if_character_not_owned_by_anyone(self):
+        # given
+        random_character = create_entity(EveCharacter, 1007)
+        # when
+        result = self.view_request_pilot_standing(random_character.character_id)
+        # then
+        self.assertFalse(result)
 
-@patch(VIEWS_PATH + ".messages_plus")
-class TestRemovePilotStanding(TestViewPagesBase):
-    def make_request(self, character_id):
+    def test_should_not_remove_request_if_character_is_owned_by_sombody_else(self):
+        # given
+        user = AuthUtils.create_member("Peter Parker")
+        other_character = create_entity(EveCharacter, 1006)
+        add_character_to_user(user, other_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(other_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_return_false_if_character_in_organization(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1002)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertFalse(result)
+
+    def test_should_create_revocation_if_character_has_satisfied_standing(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertTrue(result)
+
+    def test_should_return_false_if_character_has_no_standing_request(self):
+        # given
+        alt_character = create_entity(EveCharacter, 1008)
+        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        # when
+        result = self.view_request_pilot_standing(alt_character.character_id)
+        # then
+        self.assertFalse(result)
+
+
+@patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+class TestRequestCorporationStanding(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        create_contacts_set()
+        create_entity(EveCharacter, 1001)
+        cls.user, _ = create_user_from_evecharacter(
+            1001, permissions=["standingsrequests.request_standings"]
+        )
+
+    def view_request_corp_standing(self, corporation_id: int) -> bool:
         request = self.factory.get(
             reverse(
-                "standingsrequests:remove_pilot_standing",
-                args=[character_id],
+                "standingsrequests:request_corp_standing",
+                args=[corporation_id],
             )
         )
-        request.user = self.user_requestor
-        response = views.remove_pilot_standing(request, character_id)
+        request.user = self.user
+        with patch(MODELS_PATH + ".EveCorporation.get_by_id") as mock_get_corp_by_id:
+            mock_get_corp_by_id.return_value = EveCorporation(
+                **get_my_test_data()["EveCorporationInfo"]["2102"]
+            )
+            with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+                response = views.request_corp_standing(request, corporation_id)
+                success = not mock_message.called
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
-        return response
+        return success
 
-    def test_when_effective_standing_request_exists_create_revocation(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-        self._set_standing_for_alt_in_game(self.alt_character_1)
-        sr = StandingRequest.objects.get_or_create_2(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        sr.mark_effective()
+    def test_should_create_new_request_when_valid(self):
+        # given
+        character_1009 = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character_1009, scopes=["publicData"])
+        character_1010 = create_entity(EveCharacter, 1010)
+        add_character_to_user(self.user, character_1010, scopes=["publicData"])
+        # when
+        result = self.view_request_corp_standing(2102)
+        # then
+        self.assertTrue(result)
+        obj = StandingRequest.objects.get(contact_id=2102)
+        self.assertFalse(obj.is_actioned)
+        self.assertFalse(obj.is_effective)
 
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-        self.assertEqual(
-            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
-        )
+    def test_should_return_false_when_not_enough_tokens(self):
+        # given
+        character_1009 = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character_1009, scopes=["publicData"])
+        # when
+        result = self.view_request_corp_standing(2102)
+        # then
+        self.assertFalse(result)
 
-    def test_when_none_effective_standing_request_exists_remove_standing_request(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
+    def test_should_return_false_if_pending_request(self):
+        # given
+        StandingRequest.objects.create(
+            contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
+        )
+        # when
+        result = self.view_request_corp_standing(2102)
+        # then
+        self.assertFalse(result)
 
-        # default standing request
-        StandingRequest.objects.get_or_create_2(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+    def test_should_return_false_if_pending_revocation(self):
+        # given
+        StandingRevocation.objects.create(
+            contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
         )
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
-        )
-        # actioned standing request
-        sr = StandingRequest.objects.get_or_create_2(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 0
-        )
-
-    def test_when_effective_standing_request_exists_and_standing_revocation_exists(
-        self, mock_messages
-    ):
-        character_id = self.alt_character_1.character_id
-
-        sr = StandingRequest.objects.get_or_create_2(
-            self.user_requestor,
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-        )
-        sr.mark_actioned(self.user_manager)
-        sr.mark_effective()
-        StandingRevocation.objects.add_revocation(
-            character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
-            user=self.user_requestor,
-        )
-
-        self.make_request(character_id)
-        self.assertEqual(
-            StandingRequest.objects.filter(contact_id=character_id).count(), 1
-        )
-        self.assertEqual(
-            StandingRevocation.objects.filter(contact_id=character_id).count(), 1
-        )
+        # when
+        result = self.view_request_corp_standing(2102)
+        # then
+        self.assertFalse(result)
 
 
 class TestRemoveCorporationStanding(TestCase):
