@@ -7,7 +7,6 @@ from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
-from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase, add_character_to_user
 
@@ -411,24 +410,6 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         )
         # then
         self.assertEqual(my_request_1, my_request_2)
-
-    def test_should_remove_requests(self):
-        # given
-        StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            is_effective=False,
-        )
-        # when
-        StandingRequest.objects.remove_requests(1001)
-        # then
-        self.assertFalse(
-            StandingRequest.objects.filter(
-                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
-            ).exists()
-        )
-        self.assertFalse(Notification.objects.filter(user=self.user_requestor).exists())
 
 
 class TestStandingsRevocationManager(NoSocketsTestCase):

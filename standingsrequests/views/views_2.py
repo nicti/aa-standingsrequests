@@ -549,27 +549,24 @@ def manage_requests_write(request, contact_id):
             actioned += 1
         if actioned > 0:
             return HttpResponseNoContent()
-        else:
-            return Http404()
+        return Http404()
     elif request.method == "DELETE":
         try:
             standing_request = StandingRequest.objects.get(contact_id=contact_id)
         except StandingRequest.DoesNotExist:
             return Http404()
-        else:
-            StandingRequest.objects.remove_requests(contact_id)
-            if SR_NOTIFICATIONS_ENABLED:
-                entity_name = EveEntity.objects.resolve_name(contact_id)
-                title = _("Standing request for %s rejected" % entity_name)
-                message = _(
-                    "Your standing request for '%s' "
-                    "has been rejected by %s." % (entity_name, request.user)
-                )
-                notify(user=standing_request.user, title=title, message=message)
+        standing_request.delete()
+        if SR_NOTIFICATIONS_ENABLED:
+            entity_name = EveEntity.objects.resolve_name(contact_id)
+            title = _("Standing request for %s rejected" % entity_name)
+            message = _(
+                "Your standing request for '%s' has been rejected by %s."
+                % (entity_name, request.user)
+            )
+            notify(user=standing_request.user, title=title, message=message)
 
-            return HttpResponseNoContent()
-    else:
-        return Http404()
+        return HttpResponseNoContent()
+    return Http404()
 
 
 @login_required

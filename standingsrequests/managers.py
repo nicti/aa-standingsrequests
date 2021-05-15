@@ -475,25 +475,6 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return instance
 
-    def remove_requests(self, contact_id: int, reason=None):
-        """
-        Remove the requests for the given contact_id. If any of these requests
-        have been actioned or are effective
-        a Revocation request will automatically be generated
-
-        Params:
-        - contact_id: contact_id to remove
-        - user_responsible: User responsible for removing.
-        When provided will sent notification to requestor.
-        """
-        standing_requests = self.filter(contact_id=contact_id)
-        if standing_requests:
-            logger.debug(
-                "%s: Removing %d requests", contact_id, standing_requests.count()
-            )
-            for req in standing_requests:
-                req.delete(reason=reason)
-
 
 class StandingRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
