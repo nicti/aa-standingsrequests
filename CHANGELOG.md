@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.8.0] - ALPHA
-
-> **Note**<br>This release is currently in alpha test phase and therefore not yet recommended for production use.
+## [0.8.0b1] - 2020-05-17
 
 ### Update Notes
+
+#### Now required django-eveuniverse
 
 This app now requires django-eveuniverse to be installed. If you have not yet installed eveuniverse on your system please refer to the installation guide in the README for further instructions.
 
 Please update all contacts after completing the installation. You can do that simply by clicking the new "Update Now" button on the admin site under "Contact Sets". Alternatively you can start the update_all celery task.
+
+#### Change to periodic tasks
+
+The periodic task `standings_requests.update_associations_auth` is no longer used. Please remove the corresponding entry in your local settings.
+
+We also changed the timing for `standings_requests_update_associations_api`. Please see the installation guide in the README for details.
 
 ### Added
 
