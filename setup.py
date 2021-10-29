@@ -32,12 +32,14 @@ setup(
         "Environment :: Web Environment",
         "Framework :: Django",
         "Framework :: Django :: 3.1",
+        "Framework :: Django :: 3.2",
         "Intended Audience :: End Users/Desktop",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Internet :: WWW/HTTP",
         "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     ],
@@ -45,7 +47,7 @@ setup(
     install_requires=[
         "allianceauth>=2.8.1",
         "django-esi>=2<3",
-        "allianceauth-app-utils",
+        "allianceauth-app-utils>=1.8.1",
         "django-eveuniverse",
     ],
 )

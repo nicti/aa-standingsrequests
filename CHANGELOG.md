@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [0.8.0b1] - 2020-05-17
+## [0.8.0] - 2020-10-29
 
 ### Update Notes
 
@@ -41,6 +41,7 @@ We also changed the timing for `standings_requests_update_associations_api`. Ple
 - Significant improved performance of pilot standings page and others.
 - Removed esi_fetch
 - Now requires django-esi v2 or higher
+- Added tests for AA 2.9/Django 3.2
 
 ## [0.7.2] - 2021-05-10
 

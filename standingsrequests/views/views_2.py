@@ -12,6 +12,7 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
+from app_utils.views import HttpResponseNoContent
 
 from .. import __title__
 from ..app_settings import SR_NOTIFICATIONS_ENABLED, SR_PAGE_CACHE_SECONDS
@@ -20,7 +21,6 @@ from ..helpers.evecharacter import EveCharacterHelper
 from ..helpers.evecorporation import EveCorporation
 from ..helpers.writers import UnicodeWriter
 from ..models import ContactSet, StandingRequest, StandingRevocation
-from ..utils import HttpResponseNoContent
 from .helpers import DEFAULT_ICON_SIZE, add_common_context
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
