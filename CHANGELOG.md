@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Update Notes
 
-#### Now required django-eveuniverse
+#### Now requires django-eveuniverse
 
 This app now requires django-eveuniverse to be installed. If you have not yet installed eveuniverse on your system please refer to the installation guide in the README for further instructions.
 
