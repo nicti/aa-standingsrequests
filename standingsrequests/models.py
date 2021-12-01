@@ -660,7 +660,9 @@ class CorporationDetails(models.Model):
     )
     ceo = models.ForeignKey(
         EveEntity,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_DEFAULT,
+        null=True,
+        default=None,
         related_name="+",
     )
     faction = models.ForeignKey(

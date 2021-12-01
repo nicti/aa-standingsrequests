@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [0.9.0] - tbd.
+
+## Changed
+
+- Adaptations for AA 2.9 / Django 3.2
+- Added CI tests for AA 2.9 / Django 3.2
+
+## Fixed
+
+- Invalid CEO ID creating havoc for Eve Entity resolution
+
 ## [0.8.0] - 2020-10-29
 
 ### Update Notes

@@ -207,7 +207,8 @@
             "corporation_name": "Wayne Technologies",
             "corporation_ticker": "WYT",
             "member_count": 3,
-            "alliance_id": 3001
+            "alliance_id": 3001,
+            "ceo_id": 2987
         },
         "2002": {
             "corporation_id": 2002,
@@ -243,6 +244,14 @@
             "corporation_ticker": "SH",
             "member_count": 99,
             "alliance_id": null
+        },
+        "2199": {
+            "corporation_id": 2199,
+            "corporation_name": "Invalid",
+            "corporation_ticker": "IV",
+            "member_count": 9,
+            "alliance_id": null,
+            "ceo_id": 1
         }
     },
     "EveCharacter": {

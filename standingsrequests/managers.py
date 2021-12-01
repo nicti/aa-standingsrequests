@@ -659,7 +659,8 @@ class CorporationDetailsManager(models.Manager):
             if data.get("alliance_id")
             else None
         )
-        ceo = EveEntity.objects.get_or_create(id=data["ceo_id"])[0]
+        ceo_id = data["ceo_id"] if data["ceo_id"] > 1 else None
+        ceo = EveEntity.objects.get_or_create(id=ceo_id)[0] if ceo_id else None
         faction = (
             EveEntity.objects.get_or_create(id=data["faction_id"])[0]
             if data.get("faction_id")
@@ -668,7 +669,7 @@ class CorporationDetailsManager(models.Manager):
         EveEntity.objects.bulk_create_esi(
             filter(
                 lambda x: x is not None,
-                [id, data.get("alliance_id"), data["ceo_id"], data.get("faction_id")],
+                [id, data.get("alliance_id"), ceo_id, data.get("faction_id")],
             )
         )
         return self.update_or_create(

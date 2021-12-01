@@ -568,3 +568,16 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertEqual(obj.member_count, 3)
         self.assertEqual(obj.ticker, "WYT")
         self.assertIsNone(obj.faction)
+
+    def test_should_not_update_corporations_with_invalid_ceo(self, mock_esi):
+        # given
+        mock_Corporation = mock_esi.client.Corporation
+        mock_Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        # when
+        obj, created = CorporationDetails.objects.update_or_create_from_esi(2199)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.corporation_id, 2199)
+        self.assertIsNone(obj.ceo_id)

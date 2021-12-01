@@ -138,7 +138,7 @@ def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs) -> obje
         "name": row["corporation_name"],
         "ticker": row["corporation_ticker"],
         "member_count": row["member_count"],
-        "ceo_id": 2987,
+        "ceo_id": row["ceo_id"] if "ceo_id" in row else None,
     }
     if row["alliance_id"]:
         result["alliance_id"] = row["alliance_id"]
