@@ -18,7 +18,7 @@ setup(
     description=(
         "App for managing character standing requests, made for Alliance Auth"
     ),
-    url="https://gitlab.com/ErikKalkoken/standingsrequests",
+    url="https://gitlab.com/ErikKalkoken/aa-standingsrequests",
     author="Erik Kalkoken",
     author_email="kaloken87@gmail.com",
     license="GPL-3.0",
