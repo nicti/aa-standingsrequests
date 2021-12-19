@@ -25,6 +25,7 @@ from .managers import (
     ContactQuerySet,
     ContactSetManager,
     CorporationDetailsManager,
+    RequestLogEntryManager,
     StandingRequestManager,
     StandingRevocationManager,
 )
@@ -680,3 +681,34 @@ class CorporationDetails(models.Model):
 
     def __str__(self) -> str:
         return self.corporation.name
+
+
+class RequestLogEntry(models.Model):
+    class Action(models.TextChoices):
+        CONFIRMED = "CN", _("confirmed")
+        REJECTED = "RJ", _("rejected")
+
+    class RequestType(models.TextChoices):
+        REQUEST = "RQ", _("request")
+        REVOCATION = "RV", _("revocation")
+
+    action = models.CharField(max_length=2, choices=Action.choices)
+    action_by = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now=True)
+    reason = models.CharField(
+        max_length=2,
+        choices=StandingRevocation.Reason.choices,
+        default=StandingRevocation.Reason.NONE,
+    )
+    request_type = models.CharField(max_length=2, choices=RequestType.choices)
+    requested_at = models.DateTimeField()
+    requested_by = models.CharField(max_length=255, default="")
+
+    objects = RequestLogEntryManager()
+
+    class Meta:
+        verbose_name = "request log"
+        verbose_name_plural = "request log"
+
+    def __str__(self) -> str:
+        return f"{self.created_at}-{self.action}"

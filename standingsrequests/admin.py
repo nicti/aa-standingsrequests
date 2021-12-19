@@ -3,7 +3,7 @@ from django.db.models import Count
 from eveuniverse.models import EveEntity
 
 from .core import ContactType
-from .models import ContactSet, StandingRequest, StandingRevocation
+from .models import ContactSet, RequestLogEntry, StandingRequest, StandingRevocation
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
@@ -77,3 +77,33 @@ class ContactSetAdmin(admin.ModelAdmin):
 
     def _contacts_count(self, obj):
         return obj.contacts_count
+
+
+@admin.register(RequestLogEntry)
+class RequestLogEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "request_type",
+        "requested_by",
+        "requested_at",
+        "action",
+        "action_by",
+        "reason",
+    )
+    list_display_links = None
+    list_filter = (
+        "request_type",
+        "action_by",
+        "created_at",
+        "reason",
+    )
+    ordering = ("-created_at",)
+
+    def has_change_permission(self, *args, **kwargs):
+        return False
+
+    def has_add_permission(self, *args, **kwargs):
+        return False
+
+    def has_delete_permission(self, *args, **kwargs) -> bool:
+        return False

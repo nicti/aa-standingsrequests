@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 from bravado.exception import HTTPError
 
@@ -684,3 +684,18 @@ class CorporationDetailsManager(models.Manager):
                 "ticker": data["ticker"],
             },
         )
+
+
+class RequestLogEntryManager(models.Manager):
+    def create_from_standing_request(
+        self, standing_request, action
+    ) -> Optional[models.Model]:
+        if standing_request.is_standing_request:
+            return self.create(
+                action=action,
+                action_by=str(standing_request.action_by),
+                request_type=self.model.RequestType.REQUEST,
+                requested_at=standing_request.request_date,
+                requested_by=str(standing_request.user),
+            )
+        return None

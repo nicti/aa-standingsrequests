@@ -1,8 +1,8 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
-from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import render
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.cache import cache_page
 from eveuniverse.models import EveEntity
@@ -20,7 +20,7 @@ from ..core import BaseConfig, ContactType
 from ..helpers.evecharacter import EveCharacterHelper
 from ..helpers.evecorporation import EveCorporation
 from ..helpers.writers import UnicodeWriter
-from ..models import ContactSet, StandingRequest, StandingRevocation
+from ..models import ContactSet, RequestLogEntry, StandingRequest, StandingRevocation
 from .helpers import DEFAULT_ICON_SIZE, add_common_context
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -546,15 +546,21 @@ def manage_requests_write(request, contact_id):
         actioned = 0
         for r in StandingRequest.objects.filter(contact_id=contact_id):
             r.mark_actioned(request.user)
+            RequestLogEntry.objects.create_from_standing_request(
+                r, RequestLogEntry.Action.CONFIRMED
+            )
             actioned += 1
         if actioned > 0:
             return HttpResponseNoContent()
-        return Http404()
+        return HttpResponseNotFound()
     elif request.method == "DELETE":
         try:
             standing_request = StandingRequest.objects.get(contact_id=contact_id)
         except StandingRequest.DoesNotExist:
-            return Http404()
+            return HttpResponseNotFound()
+        RequestLogEntry.objects.create_from_standing_request(
+            standing_request, RequestLogEntry.Action.REJECTED
+        )
         standing_request.delete()
         if SR_NOTIFICATIONS_ENABLED:
             entity_name = EveEntity.objects.resolve_name(contact_id)
@@ -566,7 +572,7 @@ def manage_requests_write(request, contact_id):
             notify(user=standing_request.user, title=title, message=message)
 
         return HttpResponseNoContent()
-    return Http404()
+    return HttpResponseNotFound()
 
 
 @login_required
@@ -582,31 +588,31 @@ def manage_revocations_write(request, contact_id):
         actioned = 0
         for r in StandingRevocation.objects.filter(contact_id=contact_id):
             r.mark_actioned(request.user)
+            RequestLogEntry.objects.create_from_standing_request(
+                r, RequestLogEntry.Action.CONFIRMED
+            )
             actioned += 1
         if actioned > 0:
             return HttpResponseNoContent()
-        else:
-            return Http404
+        return HttpResponseNotFound
     elif request.method == "DELETE":
-        try:
-            standing_revocation = StandingRevocation.objects.get(contact_id=contact_id)
-        except StandingRevocation.DoesNotExist:
-            return Http404()
-        else:
-            StandingRevocation.objects.filter(contact_id=contact_id).delete()
-            if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
-                entity_name = EveEntity.objects.resolve_name(contact_id)
-                title = _("Standing revocation for %s rejected" % entity_name)
-                message = _(
-                    "Your standing revocation for '%s' "
-                    "has been rejected by %s." % (entity_name, request.user)
-                )
-                notify(user=standing_revocation.user, title=title, message=message)
-
-            return HttpResponseNoContent()
-
-    else:
-        return Http404()
+        standing_revocation = get_object_or_404(
+            StandingRevocation, contact_id=contact_id
+        )
+        RequestLogEntry.objects.create_from_standing_request(
+            standing_revocation, RequestLogEntry.Action.REJECTED
+        )
+        StandingRevocation.objects.filter(contact_id=contact_id).delete()
+        if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
+            entity_name = EveEntity.objects.resolve_name(contact_id)
+            title = _("Standing revocation for %s rejected" % entity_name)
+            message = _(
+                "Your standing revocation for '%s' "
+                "has been rejected by %s." % (entity_name, request.user)
+            )
+            notify(user=standing_revocation.user, title=title, message=message)
+        return HttpResponseNoContent()
+    return HttpResponseNotFound()
 
 
 ###################
