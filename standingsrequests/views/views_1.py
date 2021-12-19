@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import redirect, render
@@ -9,7 +10,6 @@ from eveuniverse.models import EveEntity
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
-from app_utils.messages import messages_plus
 
 from .. import __title__
 from ..app_settings import SR_CORPORATIONS_ENABLED
@@ -250,19 +250,19 @@ def request_character_standing(request, character_id: int):
         )
     if error is not CreateCharacterRequestError.NO_ERROR:
         if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
-            messages_plus.error(
+            messages.error(
                 request,
                 "You character %s is missing scopes."
                 % EveEntity.objects.resolve_name(character_id),
             )
         elif error is CreateCharacterRequestError.USER_IS_NOT_OWNER:
-            messages_plus.error(
+            messages.error(
                 request,
                 "You are not the owner of character %s."
                 % EveEntity.objects.resolve_name(character_id),
             )
         else:
-            messages_plus.error(
+            messages.error(
                 request,
                 "An unexpected error occurred when trying to process "
                 "your standing request for %s. Please try again."
@@ -292,7 +292,7 @@ def remove_character_standing(request, character_id: int):
     else:
         success = req.remove()
     if not success:
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
@@ -315,7 +315,7 @@ def request_corp_standing(request, corporation_id):
     if not StandingRequest.objects.create_corporation_request(
         request.user, corporation_id
     ):
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your standing request for %s. Please try again."
@@ -341,7 +341,7 @@ def remove_corp_standing(request, corporation_id: int):
     else:
         success = req.remove()
     if not success:
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
@@ -358,7 +358,7 @@ def view_auth_page(request, token):
     source_entity = BaseConfig.standings_source_entity()
     char_name = EveEntity.objects.resolve_name(BaseConfig.owner_character_id)
     if not source_entity:
-        messages_plus.error(
+        messages.error(
             request,
             format_html(
                 _(
@@ -372,7 +372,7 @@ def view_auth_page(request, token):
         )
     elif token.character_id == BaseConfig.owner_character_id:
         update_all.delay(user_pk=request.user.pk)
-        messages_plus.success(
+        messages.success(
             request,
             format_html(
                 _(
@@ -384,7 +384,7 @@ def view_auth_page(request, token):
             ),
         )
     else:
-        messages_plus.error(
+        messages.error(
             request,
             _(
                 "Failed to setup token for configured character "
@@ -406,7 +406,7 @@ def view_auth_page(request, token):
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
-    messages_plus.success(
+    messages.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
         % {"char_name": EveEntity.objects.resolve_name(token.character_id)},
@@ -418,7 +418,7 @@ def view_requester_add_scopes(request, token):
 @staff_member_required
 def admin_changeset_update_now(request):
     update_all.delay(user_pk=request.user.pk)
-    messages_plus.info(
+    messages.info(
         request,
         _(
             "Started updating contacts and affiliations. "

@@ -47,7 +47,7 @@ TEST_SCOPE = "publicData"
 
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(VIEWS_PATH + ".update_all")
-@patch(VIEWS_PATH + ".messages_plus")
+@patch(VIEWS_PATH + ".messages")
 class TestViewAuthPage(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -374,7 +374,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.error") as mock_message:
+        with patch(VIEWS_PATH + ".messages.error") as mock_message:
             response = views.request_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -477,7 +477,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
             reverse("standingsrequests:remove_character_standing", args=[character_id])
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages.warning") as mock_message:
             response = views.remove_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -574,7 +574,7 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
             mock_get_corp_by_id.return_value = EveCorporation(
                 **get_my_test_data()["EveCorporationInfo"]["2102"]
             )
-            with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+            with patch(VIEWS_PATH + ".messages.warning") as mock_message:
                 response = views.request_corp_standing(request, corporation_id)
                 success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -644,7 +644,7 @@ class TestRemoveCorporationStanding(TestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages.warning") as mock_message:
             response = views.remove_corp_standing(request, corporation_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
