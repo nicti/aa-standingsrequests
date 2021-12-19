@@ -62,7 +62,6 @@ def view_pilots_standings_json(request):
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contacts = ContactSet()
-
     character_contacts_qs = (
         contacts.contacts.filter_characters()
         .select_related(
@@ -147,7 +146,6 @@ def download_pilot_standings(request):
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contacts = ContactSet()
-
     writer.writerow(
         [
             "character_id",
@@ -179,16 +177,16 @@ def download_pilot_standings(request):
         state = ""
         try:
             ownership = CharacterOwnership.objects.get(character=char)
+        except CharacterOwnership.DoesNotExist:
+            main_character_name = ""
+            main = None
+        else:
             state = ownership.user.profile.state.name
             main = ownership.user.profile.main_character
             if main is None:
                 main_character_name = ""
             else:
                 main_character_name = main.character_name
-        except CharacterOwnership.DoesNotExist:
-            main_character_name = ""
-            main = None
-
         pilot = [
             pilot_standing.eve_entity_id,
             pilot_standing.eve_entity.name,
@@ -204,7 +202,6 @@ def download_pilot_standings(request):
             pilot_standing.standing,
             ", ".join([label.name for label in pilot_standing.labels.all()]),
         ]
-
         writer.writerow([str(v) if v is not None else "" for v in pilot])
     return response
 
@@ -229,7 +226,6 @@ def view_groups_standings(request):
 
     else:
         groups_count = None
-
     context = {
         "lastUpdate": last_update,
         "organization": organization,
@@ -250,7 +246,6 @@ def view_groups_standings_json(request):
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contacts = ContactSet()
-
     corporations_qs = (
         contacts.contacts.filter_corporations()
         .select_related(
@@ -333,7 +328,6 @@ def view_groups_standings_json(request):
                 "main_character_icon_url": main_character_icon_url,
             }
         )
-
     alliances_data = list()
     for contact in (
         contacts.contacts.filter_alliances()
@@ -350,7 +344,6 @@ def view_groups_standings_json(request):
                 "labels": [label.name for label in contact.labels.all()],
             }
         )
-
     my_groups_data = {"corps": corporations_data, "alliances": alliances_data}
     return JsonResponse(my_groups_data, safe=False)
 
@@ -485,7 +478,6 @@ def _compose_standing_requests_data(
                     user=req.user, quick_check=quick_check
                 )
             )
-
         else:
             contact_name = ""
             contact_icon_url = ""
@@ -506,7 +498,6 @@ def _compose_standing_requests_data(
             labels = []
         else:
             labels = [obj.name for obj in my_contact.labels.all()]
-
         requests_data.append(
             {
                 "contact_id": req.contact_id,
@@ -533,7 +524,6 @@ def _compose_standing_requests_data(
                 "action_by": req.action_by.username if req.action_by else "(System)",
             }
         )
-
     return requests_data
 
 
@@ -554,10 +544,7 @@ def manage_requests_write(request, contact_id):
             return HttpResponseNoContent()
         return HttpResponseNotFound()
     elif request.method == "DELETE":
-        try:
-            standing_request = StandingRequest.objects.get(contact_id=contact_id)
-        except StandingRequest.DoesNotExist:
-            return HttpResponseNotFound()
+        standing_request = get_object_or_404(StandingRequest, contact_id=contact_id)
         RequestLogEntry.objects.create_from_standing_request(
             standing_request, RequestLogEntry.Action.REJECTED
         )

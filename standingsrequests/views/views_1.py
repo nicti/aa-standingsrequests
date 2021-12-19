@@ -268,7 +268,6 @@ def request_character_standing(request, character_id: int):
                 "your standing request for %s. Please try again."
                 % EveEntity.objects.resolve_name(character_id),
             )
-
     return redirect("standingsrequests:create_requests")
 
 
@@ -298,7 +297,6 @@ def remove_character_standing(request, character_id: int):
             "your request to revoke standing for %s. Please try again."
             % EveEntity.objects.resolve_name(character_id),
         )
-
     return redirect("standingsrequests:create_requests")
 
 
@@ -321,7 +319,6 @@ def request_corp_standing(request, corporation_id):
             "your standing request for %s. Please try again."
             % EveEntity.objects.resolve_name(corporation_id),
         )
-
     return redirect("standingsrequests:create_requests")
 
 
@@ -347,7 +344,6 @@ def remove_corp_standing(request, corporation_id: int):
             "your request to revoke standing for %s. Please try again."
             % EveEntity.objects.resolve_name(corporation_id),
         )
-
     return redirect("standingsrequests:create_requests")
 
 
