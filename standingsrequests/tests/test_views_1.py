@@ -374,7 +374,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages_plus.error") as mock_message:
             response = views.request_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)

@@ -13,6 +13,7 @@ from app_utils.messages import messages_plus
 
 from .. import __title__
 from ..app_settings import SR_CORPORATIONS_ENABLED
+from ..constants import CreateCharacterRequestError
 from ..core import BaseConfig, MainOrganizations
 from ..decorators import token_required_by_state
 from ..helpers.evecorporation import EveCorporation
@@ -242,18 +243,31 @@ def request_character_standing(request, character_id: int):
             .get(character_id=character_id)
         )
     except EveCharacter.DoesNotExist:
-        success = False
+        error = CreateCharacterRequestError.UNKNOWN_ERROR
     else:
-        success = StandingRequest.objects.create_character_request(
+        error = StandingRequest.objects.create_character_request(
             request.user, character
         )
-    if not success:
-        messages_plus.warning(
-            request,
-            "An unexpected error occurred when trying to process "
-            "your standing request for %s. Please try again."
-            % EveEntity.objects.resolve_name(character_id),
-        )
+    if error is not CreateCharacterRequestError.NO_ERROR:
+        if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
+            messages_plus.error(
+                request,
+                "You character %s is missing scopes."
+                % EveEntity.objects.resolve_name(character_id),
+            )
+        elif error is CreateCharacterRequestError.USER_IS_NOT_OWNER:
+            messages_plus.error(
+                request,
+                "You are not the owner of character %s."
+                % EveEntity.objects.resolve_name(character_id),
+            )
+        else:
+            messages_plus.error(
+                request,
+                "An unexpected error occurred when trying to process "
+                "your standing request for %s. Please try again."
+                % EveEntity.objects.resolve_name(character_id),
+            )
 
     return redirect("standingsrequests:create_requests")
 

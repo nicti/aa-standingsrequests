@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.core import exceptions
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -302,7 +302,7 @@ class AbstractStandingsRequest(models.Model):
                     self.mark_effective()
                 return True
 
-        except exceptions.ObjectDoesNotExist:
+        except ObjectDoesNotExist:
             logger.debug(
                 "No standing set for %d, checking if neutral is OK", self.contact_id
             )
@@ -551,15 +551,16 @@ class StandingRequest(AbstractStandingsRequest):
                 return False
             else:
                 user = ownership.user
-
-        state_name = user.profile.state.name
+        try:
+            state_name = user.profile.state.name
+        except ObjectDoesNotExist:
+            return False
         scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
         token_qs = Token.objects.filter(
             character_id=character.character_id
         ).require_scopes(scopes_string)
         if not quick_check:
             token_qs = token_qs.require_valid()
-
         return token_qs.exists()
 
     @staticmethod

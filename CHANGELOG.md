@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## Changed
+
+- Better user error messages when creating a new request
+
 ## [1.0.0] - 2021-12-02
 
 This version is now further developed as fork of: https://gitlab.com/basraah/standingsrequests
