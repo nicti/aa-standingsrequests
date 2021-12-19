@@ -537,7 +537,7 @@ def manage_requests_write(request, contact_id):
         for r in StandingRequest.objects.filter(contact_id=contact_id):
             r.mark_actioned(request.user)
             RequestLogEntry.objects.create_from_standing_request(
-                r, RequestLogEntry.Action.CONFIRMED
+                r, RequestLogEntry.Action.CONFIRMED, request.user
             )
             actioned += 1
         if actioned > 0:
@@ -546,7 +546,7 @@ def manage_requests_write(request, contact_id):
     elif request.method == "DELETE":
         standing_request = get_object_or_404(StandingRequest, contact_id=contact_id)
         RequestLogEntry.objects.create_from_standing_request(
-            standing_request, RequestLogEntry.Action.REJECTED
+            standing_request, RequestLogEntry.Action.REJECTED, request.user
         )
         standing_request.delete()
         if SR_NOTIFICATIONS_ENABLED:
@@ -573,10 +573,12 @@ def manage_revocations_write(request, contact_id):
     )
     if request.method == "PUT":
         actioned = 0
-        for r in StandingRevocation.objects.filter(contact_id=contact_id):
+        for r in StandingRevocation.objects.filter(
+            contact_id=contact_id, action_date__isnull=True
+        ):
             r.mark_actioned(request.user)
             RequestLogEntry.objects.create_from_standing_request(
-                r, RequestLogEntry.Action.CONFIRMED
+                r, RequestLogEntry.Action.CONFIRMED, request.user
             )
             actioned += 1
         if actioned > 0:
@@ -587,7 +589,7 @@ def manage_revocations_write(request, contact_id):
             StandingRevocation, contact_id=contact_id
         )
         RequestLogEntry.objects.create_from_standing_request(
-            standing_revocation, RequestLogEntry.Action.REJECTED
+            standing_revocation, RequestLogEntry.Action.REJECTED, request.user
         )
         StandingRevocation.objects.filter(contact_id=contact_id).delete()
         if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:

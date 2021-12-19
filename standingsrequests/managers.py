@@ -688,14 +688,20 @@ class CorporationDetailsManager(models.Manager):
 
 class RequestLogEntryManager(models.Manager):
     def create_from_standing_request(
-        self, standing_request, action
+        self, standing_request, action, action_by: User = None
     ) -> Optional[models.Model]:
+        action_by_str = str(action_by) if action_by else "SYSTEM"
         if standing_request.is_standing_request:
-            return self.create(
-                action=action,
-                action_by=str(standing_request.action_by),
-                request_type=self.model.RequestType.REQUEST,
-                requested_at=standing_request.request_date,
-                requested_by=str(standing_request.user),
-            )
-        return None
+            request_type = self.model.RequestType.REQUEST
+            reason = None
+        else:
+            request_type = self.model.RequestType.REVOCATION
+            reason = standing_request.reason
+        return self.create(
+            action=action,
+            action_by=action_by_str,
+            request_type=request_type,
+            requested_at=standing_request.request_date,
+            requested_by=str(standing_request.user),
+            reason=reason,
+        )

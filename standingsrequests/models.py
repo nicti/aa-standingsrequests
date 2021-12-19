@@ -696,9 +696,7 @@ class RequestLogEntry(models.Model):
     action_by = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
-        max_length=2,
-        choices=StandingRevocation.Reason.choices,
-        default=StandingRevocation.Reason.NONE,
+        max_length=2, choices=StandingRevocation.Reason.choices, null=True, default=None
     )
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()

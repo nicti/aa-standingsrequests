@@ -86,9 +86,9 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
         "request_type",
         "requested_by",
         "requested_at",
+        "reason",
         "action",
         "action_by",
-        "reason",
     )
     list_display_links = None
     list_filter = (
@@ -105,5 +105,6 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     def has_add_permission(self, *args, **kwargs):
         return False
 
-    def has_delete_permission(self, *args, **kwargs) -> bool:
-        return False
+    # TOD: enabel for production
+    # def has_delete_permission(self, *args, **kwargs) -> bool:
+    #     return False
