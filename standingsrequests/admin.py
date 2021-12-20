@@ -84,7 +84,8 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
         "request_type",
-        "requested_by",
+        "contact",
+        "request_by",
         "requested_at",
         "reason",
         "action",
@@ -93,11 +94,16 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     list_display_links = None
     list_filter = (
         "request_type",
-        "action_by",
+        ("action_by", admin.RelatedOnlyFieldListFilter),
         "created_at",
         "reason",
     )
     ordering = ("-created_at",)
+
+    def _action_by(self, obj) -> str:
+        return "SYSTEM" if obj.action_by is None else obj.action_by
+
+    _action_by.admin_sort_field = "action_by"
 
     def has_change_permission(self, *args, **kwargs):
         return False

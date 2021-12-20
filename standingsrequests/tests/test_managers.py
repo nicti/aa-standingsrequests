@@ -17,6 +17,7 @@ from ..models import (
     Contact,
     ContactSet,
     CorporationDetails,
+    RequestLogEntry,
     StandingRequest,
     StandingRevocation,
 )
@@ -581,3 +582,83 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.corporation_id, 2199)
         self.assertIsNone(obj.ceo_id)
+
+
+class TestRequestLogEntryManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eve_entities()
+        my_set = ContactSet.objects.create(name="Dummy Set")
+        Contact.objects.create(contact_set=my_set, eve_entity_id=1002, standing=5)
+        cls.user_manager = AuthUtils.create_user("Mike Manager")
+        cls.user_requestor = AuthUtils.create_user("Roger Requestor")
+
+    def test_should_create_entry_for_confirmed_request(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+        )
+        # when
+        obj = RequestLogEntry.objects.create_from_standing_request(
+            my_request, RequestLogEntry.Action.CONFIRMED, self.user_manager
+        )
+        # then
+        self.assertIsInstance(obj, RequestLogEntry)
+
+    def test_should_create_entry_for_confirmed_revocation(self):
+        # given
+        my_revocation = StandingRevocation.objects.add_revocation(
+            1002,
+            StandingRevocation.ContactType.CHARACTER,
+            user=self.user_requestor,
+            reason=StandingRevocation.Reason.OWNER_REQUEST,
+        )
+        # when
+        obj = RequestLogEntry.objects.create_from_standing_request(
+            my_revocation, RequestLogEntry.Action.CONFIRMED, self.user_manager
+        )
+        # then
+        self.assertIsInstance(obj, RequestLogEntry)
+
+    def test_should_reset_to_sentinel_user_when_approver_deleted(self):
+        # given
+        user = AuthUtils.create_user("Temp User")
+        my_request = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=user,
+            action_date=now(),
+        )
+        obj = RequestLogEntry.objects.create_from_standing_request(
+            my_request, RequestLogEntry.Action.CONFIRMED, user
+        )
+        # when
+        user.delete()
+        # then
+        obj.refresh_from_db()
+        self.assertEqual(obj.action_by.username, "deleted")
+
+    def test_should_reset_to_sentinel_user_when_requestor_deleted(self):
+        # given
+        user = AuthUtils.create_user("Temp User")
+        my_request = StandingRequest.objects.create(
+            user=user,
+            contact_id=1002,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+        )
+        obj = RequestLogEntry.objects.create_from_standing_request(
+            my_request, RequestLogEntry.Action.CONFIRMED, self.user_manager
+        )
+        # when
+        user.delete()
+        # then
+        obj.refresh_from_db()
+        self.assertEqual(obj.request_by.username, "deleted")

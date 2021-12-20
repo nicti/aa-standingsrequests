@@ -395,7 +395,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         self, user: User, character: EveCharacter
     ) -> CreateCharacterRequestError:
         """Create new character standings request for user if possible."""
-        from .models import ContactSet, StandingRequest, StandingRevocation
+        from .models import ContactSet, RequestLogEntry, StandingRevocation
 
         try:
             if character.character_ownership.user != user:
@@ -411,24 +411,27 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             logger.warning("Failed to get a contact set")
             return CreateCharacterRequestError.UNKNOWN_ERROR
         character_id = character.character_id
-        if StandingRequest.objects.has_pending_request(
+        if self.has_pending_request(
             character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
             return CreateCharacterRequestError.CHARACTER_HAS_REQUEST
-        elif not StandingRequest.has_required_scopes_for_request(
+        elif not self.model.has_required_scopes_for_request(
             character=character, user=user
         ):
             logger.warning("%s: Character does not have the required scopes", character)
             return CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES
-        sr = StandingRequest.objects.get_or_create_2(
+        sr = self.get_or_create_2(
             user=user,
             contact_id=character_id,
-            contact_type=StandingRequest.ContactType.CHARACTER,
+            contact_type=self.model.ContactType.CHARACTER,
         )
         if contact_set.contact_has_satisfied_standing(character_id):
             sr.mark_actioned(user=None)
             sr.mark_effective()
+            RequestLogEntry.objects.create_from_standing_request(
+                sr, RequestLogEntry.Action.CONFIRMED, None
+            )
         return CreateCharacterRequestError.NO_ERROR
 
     def create_corporation_request(self, user, corporation_id) -> bool:
@@ -688,20 +691,21 @@ class CorporationDetailsManager(models.Manager):
 
 class RequestLogEntryManager(models.Manager):
     def create_from_standing_request(
-        self, standing_request, action, action_by: User = None
+        self, standing_request, action, action_by
     ) -> Optional[models.Model]:
-        action_by_str = str(action_by) if action_by else "SYSTEM"
         if standing_request.is_standing_request:
             request_type = self.model.RequestType.REQUEST
             reason = None
         else:
             request_type = self.model.RequestType.REVOCATION
             reason = standing_request.reason
+        contact, _ = EveEntity.objects.get_or_create_esi(id=standing_request.contact_id)
         return self.create(
             action=action,
-            action_by=action_by_str,
+            action_by=action_by,
+            contact=contact,
             request_type=request_type,
             requested_at=standing_request.request_date,
-            requested_by=str(standing_request.user),
+            request_by=standing_request.user,
             reason=reason,
         )

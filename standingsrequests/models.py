@@ -33,6 +33,11 @@ from .managers import (
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
+def get_or_create_sentinel_user() -> User:
+    """Get or create the sentinel user."""
+    return User.objects.get_or_create(username="deleted")[0]
+
+
 class ContactSet(models.Model):
     """Set of contacts from configured alliance or corporation
     which defines its current standings
@@ -94,6 +99,9 @@ class ContactSet(models.Model):
                 )
                 sr.mark_actioned(None)
                 sr.mark_effective()
+                RequestLogEntry.objects.create_from_standing_request(
+                    sr, RequestLogEntry.Action.CONFIRMED, None
+                )
                 logger.info(
                     "Generated standings request for blue alt %s "
                     "belonging to user %s.",
@@ -178,8 +186,8 @@ class AbstractStandingsRequest(models.Model):
     class ContactType(models.TextChoices):
         """Possible contact types to make a request for."""
 
-        CHARACTER = "character"
-        CORPORATION = "corporation"
+        CHARACTER = "character", _("character")
+        CORPORATION = "corporation", _("corporation")
 
     # Standing less than or equal
     EXPECT_STANDING_LTEQ = 10.0
@@ -694,14 +702,29 @@ class RequestLogEntry(models.Model):
         REVOCATION = "RV", _("revocation")
 
     action = models.CharField(max_length=2, choices=Action.choices)
-    action_by = models.CharField(max_length=255)
+    action_by = models.ForeignKey(
+        User,
+        on_delete=models.SET(get_or_create_sentinel_user),
+        null=True,
+        related_name="+",
+        help_text=(
+            "User who performed the action. "
+            "None means the action was performed automatically by the app."
+        ),
+    )
+    is_action_automatic = models.BooleanField(default=False)
+    contact = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
         max_length=2, choices=StandingRevocation.Reason.choices, null=True, default=None
     )
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()
-    requested_by = models.CharField(max_length=255, default="")
+    request_by = models.ForeignKey(
+        User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
+    )
 
     objects = RequestLogEntryManager()
 

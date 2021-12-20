@@ -14,7 +14,13 @@ from app_utils.testing import add_character_to_user
 
 from .. import tasks
 from ..core import ContactType
-from ..models import Contact, ContactSet, StandingRequest, StandingRevocation
+from ..models import (
+    Contact,
+    ContactSet,
+    RequestLogEntry,
+    StandingRequest,
+    StandingRevocation,
+)
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,
@@ -47,16 +53,13 @@ class TestMainUseCases(WebTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-
         create_standings_char()
         create_eve_objects()
         load_eve_entities()
-
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
         perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
         cls.member_state.permissions.add(perm)
-
         # Requesting user
         cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
         cls.user_requestor = AuthUtils.create_user(cls.main_character_1.character_name)
@@ -88,7 +91,6 @@ class TestMainUseCases(WebTest):
                 TEST_REQUIRED_SCOPE,
             ],
         )
-
         # Standing manager
         cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
         cls.user_manager = AuthUtils.create_user(cls.main_character_2.character_name)
@@ -248,6 +250,16 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
         self.assertFalse(my_request.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.CONFIRMED,
+            ).count(),
+            1,
+        )
 
         # run process standing results task
         self._process_standing_requests()
@@ -321,6 +333,16 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_revocation.action_by, self.user_manager)
         self.assertIsNotNone(my_revocation.action_date)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REVOCATION,
+                action=RequestLogEntry.Action.CONFIRMED,
+            ).count(),
+            1,
+        )
 
         # run process standing results task
         self._process_standing_requests()
@@ -392,6 +414,16 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsNotNone(my_request.action_date)
         self.assertFalse(my_request.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.CONFIRMED,
+            ).count(),
+            1,
+        )
 
         # run process standing results task
         self._process_standing_requests()
@@ -465,6 +497,16 @@ class TestMainUseCases(WebTest):
         self.assertEqual(my_revocation.action_by, self.user_manager)
         self.assertIsNotNone(my_revocation.action_date)
         self.assertFalse(my_revocation.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REVOCATION,
+                action=RequestLogEntry.Action.CONFIRMED,
+            ).count(),
+            1,
+        )
 
         # run process standing results task
         self._process_standing_requests()
@@ -532,6 +574,16 @@ class TestMainUseCases(WebTest):
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.REJECTED,
+            ).count(),
+            1,
+        )
 
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
     def test_user_requests_standing_for_his_alt_corporation_but_refused(self, mock_esi):
@@ -589,6 +641,16 @@ class TestMainUseCases(WebTest):
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.REJECTED,
+            ).count(),
+            1,
+        )
 
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
     def test_user_requests_revocation_for_his_alt_character_but_refused(self, mock_esi):
@@ -647,6 +709,16 @@ class TestMainUseCases(WebTest):
         # validate final state
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by=self.user_manager,
+                contact_id=alt_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REVOCATION,
+                action=RequestLogEntry.Action.REJECTED,
+            ).count(),
+            1,
+        )
 
     def test_automatic_standing_revocation_when_standing_is_reset_in_game(self):
         """
@@ -759,6 +831,16 @@ class TestMainUseCases(WebTest):
         )
         self.assertTrue(my_request.is_effective)
         self.assertIsNotNone(my_request.effective_date)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by__isnull=True,
+                contact_id=self.alt_character_1.character_id,
+                request_by=self.user_requestor,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.CONFIRMED,
+            ).count(),
+            1,
+        )
 
     @patch(TASKS_PATH + ".SR_SYNC_BLUE_ALTS_ENABLED", True)
     def test_automatically_create_standing_revocation_for_invalid_alts_2(self):
