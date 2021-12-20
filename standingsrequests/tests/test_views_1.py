@@ -461,7 +461,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
                 contact_id=alt_character.character_id,
-                request_by=self.user,
+                requested_by=self.user,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
                 reason=StandingRequest.Reason.STANDING_IN_GAME,

@@ -661,4 +661,4 @@ class TestRequestLogEntryManager(NoSocketsTestCase):
         user.delete()
         # then
         obj.refresh_from_db()
-        self.assertEqual(obj.request_by.username, "deleted")
+        self.assertEqual(obj.requested_by.username, "deleted")

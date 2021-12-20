@@ -1,3 +1,5 @@
+from typing import Optional
+
 from django.contrib import admin
 from django.db.models import Count
 from eveuniverse.models import EveEntity
@@ -85,9 +87,9 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
         "created_at",
         "request_type",
         "contact",
-        "request_by",
+        "requested_by",
         "requested_at",
-        "reason",
+        "_reason",
         "action",
         "_action_by",
     )
@@ -104,6 +106,16 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
         return "SYSTEM" if obj.action_by is None else obj.action_by
 
     _action_by.admin_sort_field = "action_by"
+
+    def _reason(self, obj) -> Optional[str]:
+        reason_obj = StandingRequest.Reason(obj.reason)
+        return None if reason_obj is StandingRequest.Reason.NONE else reason_obj.label
+
+    _reason.admin_sort_field = "reason"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related("action_by", "requested_by", "contact")
 
     def has_change_permission(self, *args, **kwargs):
         return False

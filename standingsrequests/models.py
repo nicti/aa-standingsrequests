@@ -729,14 +729,11 @@ class RequestLogEntry(models.Model):
     )
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
-        max_length=2,
-        choices=AbstractStandingsRequest.Reason.choices,
-        null=True,
-        default=None,
+        max_length=2, choices=AbstractStandingsRequest.Reason.choices
     )
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()
-    request_by = models.ForeignKey(
+    requested_by = models.ForeignKey(
         User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
     )
 

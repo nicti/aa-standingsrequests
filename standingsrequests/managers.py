@@ -704,6 +704,6 @@ class RequestLogEntryManager(models.Manager):
             contact=contact,
             request_type=request_type,
             requested_at=standing_request.request_date,
-            request_by=standing_request.user,
+            requested_by=standing_request.user,
             reason=standing_request.reason,
         )

@@ -254,7 +254,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -337,7 +337,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -418,7 +418,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -501,7 +501,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -578,7 +578,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
             ).count(),
@@ -645,7 +645,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
             ).count(),
@@ -713,7 +713,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by=self.user_manager,
                 contact_id=alt_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.REJECTED,
             ).count(),
@@ -835,7 +835,7 @@ class TestMainUseCases(WebTest):
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
                 contact_id=self.alt_character_1.character_id,
-                request_by=self.user_requestor,
+                requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
