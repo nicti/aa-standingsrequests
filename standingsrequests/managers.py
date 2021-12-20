@@ -424,7 +424,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         sr = StandingRequest.objects.get_or_create_2(
             user=user,
             contact_id=character_id,
-            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CHARACTER,
         )
         if contact_set.contact_has_satisfied_standing(character_id):
             sr.mark_actioned(user=None)
@@ -452,7 +452,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         StandingRequest.objects.get_or_create_2(
             user=user,
             contact_id=corporation_id,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         return True
 

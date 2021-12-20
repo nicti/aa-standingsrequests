@@ -333,7 +333,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
         request = StandingRequest.objects.get_or_create_2(
-            self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
+            self.user, 1002, StandingRequest.ContactType.CHARACTER
         )
 
         StandingRequest.objects.validate_requests()
@@ -343,7 +343,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self, mock_can_request_corporation_standing
     ):
         StandingRequest.objects.get_or_create_2(
-            self.user, 1002, StandingRequest.CHARACTER_CONTACT_TYPE
+            self.user, 1002, StandingRequest.ContactType.CHARACTER
         )
         StandingRequest.objects.validate_requests()
         my_revocation = StandingRevocation.objects.get(contact_id=1002)
@@ -359,7 +359,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
         StandingRequest.objects.get_or_create_2(
-            self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
+            self.user, 2001, StandingRequest.ContactType.CORPORATION
         )
 
         StandingRequest.objects.validate_requests()
@@ -376,7 +376,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user
         )
         request = StandingRequest.objects.get_or_create_2(
-            self.user, 2001, StandingRequest.CORPORATION_CONTACT_TYPE
+            self.user, 2001, StandingRequest.ContactType.CORPORATION
         )
 
         StandingRequest.objects.validate_requests()
@@ -394,7 +394,7 @@ class TestStandingsRequestManager(NoSocketsTestCase):
     def test_should_add_new_request(self):
         # when
         my_request = StandingRequest.objects.get_or_create_2(
-            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
+            self.user_requestor, 1001, StandingRequest.ContactType.CHARACTER
         )
         # then
         self.assertIsInstance(my_request, StandingRequest)
@@ -402,11 +402,11 @@ class TestStandingsRequestManager(NoSocketsTestCase):
     def test_should_not_create_new_request_that_already_exists(self):
         # given
         my_request_1 = StandingRequest.objects.get_or_create_2(
-            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
+            self.user_requestor, 1001, StandingRequest.ContactType.CHARACTER
         )
         # when
         my_request_2 = StandingRequest.objects.get_or_create_2(
-            self.user_requestor, 1001, StandingRequest.CHARACTER_CONTACT_TYPE
+            self.user_requestor, 1001, StandingRequest.ContactType.CHARACTER
         )
         # then
         self.assertEqual(my_request_1, my_request_2)
@@ -429,7 +429,7 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
     def test_add_revocation_new(self):
         my_revocation = StandingRevocation.objects.add_revocation(
             1001,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
             reason=StandingRevocation.Reason.OWNER_REQUEST,
         )
@@ -437,22 +437,22 @@ class TestStandingsRevocationManager(NoSocketsTestCase):
 
     def test_add_request_already_exists(self):
         StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
+            1001, StandingRevocation.ContactType.CHARACTER
         )
         my_revocation_2 = StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
+            1001, StandingRevocation.ContactType.CHARACTER
         )
         self.assertIsNone(my_revocation_2)
 
     def test_check_standing_satisfied_but_deleted_for_neutral_check_only(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1999, StandingRevocation.CHARACTER_CONTACT_TYPE
+            1999, StandingRevocation.ContactType.CHARACTER
         )
         self.assertTrue(my_revocation.evaluate_effective_standing(check_only=True))
 
     def test_check_standing_satisfied_but_deleted_for_neutral(self):
         my_revocation = StandingRevocation.objects.add_revocation(
-            1999, StandingRevocation.CHARACTER_CONTACT_TYPE
+            1999, StandingRevocation.ContactType.CHARACTER
         )
         self.assertTrue(my_revocation.evaluate_effective_standing())
         self.assertTrue(my_revocation.is_effective)

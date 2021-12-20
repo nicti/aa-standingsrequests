@@ -147,7 +147,7 @@ class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
         req = StandingRequest.objects.get_or_create_2(
             self.user,
             alt_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         self.contacts_set.generate_standing_requests_for_blue_alts()
@@ -456,7 +456,7 @@ class TestStandingsRequest(TestCase):
             effective_date=now(),
         )
         StandingRevocation.objects.add_revocation(
-            1001, StandingRevocation.CHARACTER_CONTACT_TYPE
+            1001, StandingRevocation.ContactType.CHARACTER
         )
         my_request_effective.delete()
         self.assertFalse(

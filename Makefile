@@ -30,7 +30,7 @@ compilemessages:
 	django-admin compilemessages -l zh_Hans
 
 coverage:
-	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast --debug-mode && coverage html && coverage report
+	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast && coverage html && coverage report
 
 test:
 	# runs a full test incl. re-creating of the test DB

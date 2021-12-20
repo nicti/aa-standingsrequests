@@ -274,7 +274,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -299,7 +299,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -314,7 +314,7 @@ class TestViewsBasics(TestViewPagesBase):
         self._create_standing_for_alt(self.alt_character_1)
         StandingRevocation.objects.add_revocation(
             self.alt_character_1.character_id,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
         )
         # when
@@ -491,7 +491,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=alt_character.character_id,
-            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CHARACTER,
         )
         # when
         result = self.view_request_pilot_standing(alt_character.character_id)
@@ -658,7 +658,7 @@ class TestRemoveCorporationStanding(TestCase):
         StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         # when
         success = self.view_remove_corp_standing(2102)
@@ -673,7 +673,7 @@ class TestRemoveCorporationStanding(TestCase):
         req = StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2003,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         req.mark_actioned(user=None)
         req.mark_effective()
@@ -692,7 +692,7 @@ class TestRemoveCorporationStanding(TestCase):
         StandingRequest.objects.get_or_create_2(
             user=user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         # when
         success = self.view_remove_corp_standing(2102)
@@ -715,7 +715,7 @@ class TestRemoveCorporationStanding(TestCase):
         req = StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         req.mark_actioned(user=None)
         req.mark_effective()

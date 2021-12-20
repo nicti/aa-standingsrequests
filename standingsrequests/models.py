@@ -90,7 +90,7 @@ class ContactSet(models.Model):
                 sr = StandingRequest.objects.get_or_create_2(
                     user=user,
                     contact_id=alt.character_id,
-                    contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+                    contact_type=StandingRequest.ContactType.CHARACTER,
                 )
                 sr.mark_actioned(None)
                 sr.mark_effective()
@@ -175,9 +175,11 @@ class Contact(models.Model):
 class AbstractStandingsRequest(models.Model):
     """Base class for a standing request"""
 
-    # possible contact types to make a request for
-    CHARACTER_CONTACT_TYPE = "character"
-    CORPORATION_CONTACT_TYPE = "corporation"
+    class ContactType(models.TextChoices):
+        """Possible contact types to make a request for."""
+
+        CHARACTER = "character"
+        CORPORATION = "corporation"
 
     # Standing less than or equal
     EXPECT_STANDING_LTEQ = 10.0
@@ -271,9 +273,9 @@ class AbstractStandingsRequest(models.Model):
 
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
-        if contact_type == cls.CHARACTER_CONTACT_TYPE:
+        if contact_type == cls.ContactType.CHARACTER:
             return ContactType.character_id
-        elif contact_type == cls.CORPORATION_CONTACT_TYPE:
+        elif contact_type == cls.ContactType.CORPORATION:
             return ContactType.corporation_id
         else:
             raise ValueError("Invalid contact type")
@@ -281,11 +283,10 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
         if contact_type_id in ContactType.character_ids:
-            return cls.CHARACTER_CONTACT_TYPE
+            return cls.ContactType.CHARACTER.value
         elif contact_type_id in ContactType.corporation_ids:
-            return cls.CORPORATION_CONTACT_TYPE
-        else:
-            raise ValueError("Invalid contact type")
+            return cls.ContactType.CORPORATION.value
+        raise ValueError("Invalid contact type")
 
     def evaluate_effective_standing(self, check_only: bool = False) -> bool:
         """
@@ -469,7 +470,7 @@ class StandingRequest(AbstractStandingsRequest):
         logger.debug("%s: Creating standings revocation by user %s", self, self.user)
         StandingRevocation.objects.add_revocation(
             contact_id=self.contact_id,
-            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRevocation.ContactType.CORPORATION,
             user=self.user,
             reason=StandingRevocation.Reason.OWNER_REQUEST,
         )
