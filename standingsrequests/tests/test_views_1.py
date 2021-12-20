@@ -23,7 +23,7 @@ from app_utils.testing import (
 from .. import views
 from ..core import ContactType
 from ..helpers.evecorporation import EveCorporation
-from ..models import Contact, StandingRequest, StandingRevocation
+from ..models import Contact, RequestLogEntry, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
@@ -457,6 +457,17 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         self.assertTrue(result)
         obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
         self.assertTrue(obj.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by__isnull=True,
+                contact_id=alt_character.character_id,
+                request_by=self.user,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.CONFIRMED,
+                reason=StandingRequest.Reason.STANDING_IN_GAME,
+            ).count(),
+            1,
+        )
 
 
 @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3001])

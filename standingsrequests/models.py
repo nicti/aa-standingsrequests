@@ -97,7 +97,7 @@ class ContactSet(models.Model):
                     contact_id=alt.character_id,
                     contact_type=StandingRequest.ContactType.CHARACTER,
                 )
-                sr.mark_actioned(None)
+                sr.mark_actioned(user=None, reason=sr.Reason.STANDING_IN_GAME)
                 sr.mark_effective()
                 RequestLogEntry.objects.create_from_standing_request(
                     sr, RequestLogEntry.Action.CONFIRMED, None
@@ -188,6 +188,16 @@ class AbstractStandingsRequest(models.Model):
 
         CHARACTER = "character", _("character")
         CORPORATION = "corporation", _("corporation")
+
+    class Reason(models.TextChoices):
+        """Reason for requesting or revoking a standing."""
+
+        NONE = "NO", _("None recorded")
+        OWNER_REQUEST = "OR", _("Requested by character owner")
+        LOST_PERMISSION = "LP", _("Character owner has lost permission")
+        MISSING_CORP_TOKEN = "CT", _("Not all corp tokens are recorded in Auth.")
+        REVOKED_IN_GAME = "RG", _("Standing has been revoked in game")
+        STANDING_IN_GAME = "SG", _("Already has standing in game")
 
     # Standing less than or equal
     EXPECT_STANDING_LTEQ = 10.0
@@ -341,7 +351,7 @@ class AbstractStandingsRequest(models.Model):
         self.effective_date = date if date else now()
         self.save()
 
-    def mark_actioned(self, user, date=None):
+    def mark_actioned(self, user, date=None, reason=None):
         """
         Marks a standing as actioned (user has made the change in game)
         with the current or supplied TZ aware datetime
@@ -352,6 +362,7 @@ class AbstractStandingsRequest(models.Model):
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
         self.action_date = date if date else now()
+        self.reason = reason if reason else self.Reason.NONE
         self.save()
 
     def check_actioned_timeout(self):
@@ -415,6 +426,11 @@ class StandingRequest(AbstractStandingsRequest):
 
     EXPECT_STANDING_GTEQ = 0.01
 
+    reason = models.CharField(
+        max_length=2,
+        choices=AbstractStandingsRequest.Reason.choices,
+        default=AbstractStandingsRequest.Reason.NONE,
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     objects = StandingRequestManager()
@@ -588,19 +604,14 @@ class StandingRevocation(AbstractStandingsRequest):
 
     EXPECT_STANDING_LTEQ = 0.0
 
-    class Reason(models.TextChoices):
-        """Reason for revoking a standing."""
-
-        NONE = "NO", _("None recorded")
-        OWNER_REQUEST = "OR", _("Requested by character owner")
-        LOST_PERMISSION = "LP", _("Character owner has lost permission")
-        MISSING_CORP_TOKEN = "CT", _("Not all corp tokens are recorded in Auth.")
-        REVOKED_IN_GAME = "RG", _("Standing has been revoked in game")
-
+    reason = models.CharField(
+        max_length=2,
+        choices=AbstractStandingsRequest.Reason.choices,
+        default=AbstractStandingsRequest.Reason.NONE,
+    )
     user = models.ForeignKey(
         User, on_delete=models.SET_DEFAULT, default=None, null=True
     )
-    reason = models.CharField(max_length=2, choices=Reason.choices, default=Reason.NONE)
 
     objects = StandingRevocationManager()
 
@@ -718,7 +729,10 @@ class RequestLogEntry(models.Model):
     )
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
-        max_length=2, choices=StandingRevocation.Reason.choices, null=True, default=None
+        max_length=2,
+        choices=AbstractStandingsRequest.Reason.choices,
+        null=True,
+        default=None,
     )
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()

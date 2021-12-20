@@ -89,7 +89,7 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
         "requested_at",
         "reason",
         "action",
-        "action_by",
+        "_action_by",
     )
     list_display_links = None
     list_filter = (

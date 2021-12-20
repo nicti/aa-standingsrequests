@@ -427,7 +427,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             contact_type=self.model.ContactType.CHARACTER,
         )
         if contact_set.contact_has_satisfied_standing(character_id):
-            sr.mark_actioned(user=None)
+            sr.mark_actioned(user=None, reason=sr.Reason.STANDING_IN_GAME)
             sr.mark_effective()
             RequestLogEntry.objects.create_from_standing_request(
                 sr, RequestLogEntry.Action.CONFIRMED, None
@@ -436,26 +436,26 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
     def create_corporation_request(self, user, corporation_id) -> bool:
         """Create new corporation standings request for user if possible."""
-        from .models import StandingRequest, StandingRevocation
+        from .models import StandingRevocation
 
-        if StandingRequest.objects.has_pending_request(
+        if self.has_pending_request(
             corporation_id
         ) or StandingRevocation.objects.has_pending_request(corporation_id):
             logger.warning(
                 "Contact ID %d already has a pending request", corporation_id
             )
             return False
-        if not StandingRequest.can_request_corporation_standing(corporation_id, user):
+        if not self.model.can_request_corporation_standing(corporation_id, user):
             logger.warning(
                 "User %s does not have enough keys for corpID %d, forbidden",
                 user,
                 corporation_id,
             )
             return False
-        StandingRequest.objects.get_or_create_2(
+        self.get_or_create_2(
             user=user,
             contact_id=corporation_id,
-            contact_type=StandingRequest.ContactType.CORPORATION,
+            contact_type=self.model.ContactType.CORPORATION,
         )
         return True
 
@@ -695,10 +695,8 @@ class RequestLogEntryManager(models.Manager):
     ) -> Optional[models.Model]:
         if standing_request.is_standing_request:
             request_type = self.model.RequestType.REQUEST
-            reason = None
         else:
             request_type = self.model.RequestType.REVOCATION
-            reason = standing_request.reason
         contact, _ = EveEntity.objects.get_or_create_esi(id=standing_request.contact_id)
         return self.create(
             action=action,
@@ -707,5 +705,5 @@ class RequestLogEntryManager(models.Manager):
             request_type=request_type,
             requested_at=standing_request.request_date,
             request_by=standing_request.user,
-            reason=reason,
+            reason=standing_request.reason,
         )

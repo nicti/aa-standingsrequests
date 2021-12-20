@@ -209,7 +209,7 @@ class TestAbstractStandingsRequest(TestCase):
         self.assertTrue(my_request.is_standing_revocation)
 
 
-class TestStandingsRequest(TestCase):
+class TestStandingRequest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -273,18 +273,27 @@ class TestStandingsRequest(TestCase):
         )
         self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 
-    def test_mark_standing_effective(self):
+    def test_mark_standing_effective_1(self):
+        # given
         my_request = StandingRequest.objects.create(
             user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
         )
-
+        # when
         my_request.mark_effective()
+        # then
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertIsInstance(my_request.effective_date, datetime)
 
+    def test_mark_standing_effective_2(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user_requestor, contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
+        )
         my_date = now() - timedelta(days=5, hours=4)
+        # when
         my_request.mark_effective(date=my_date)
+        # then
         my_request.refresh_from_db()
         self.assertTrue(my_request.is_effective)
         self.assertEqual(my_request.effective_date, my_date)
@@ -299,15 +308,36 @@ class TestStandingsRequest(TestCase):
         self.assertIsInstance(my_request.effective_date, datetime)
 
     def test_mark_standing_actioned(self):
+        # given
         my_request = StandingRequest.objects.create(
             user=self.user_requestor,
             contact_id=1001,
             contact_type_id=CHARACTER_TYPE_ID,
         )
+        # when
         my_request.mark_actioned(self.user_manager)
+        # then
         my_request.refresh_from_db()
         self.assertEqual(my_request.action_by, self.user_manager)
         self.assertIsInstance(my_request.action_date, datetime)
+        self.assertEqual(my_request.reason, StandingRequest.Reason.NONE)
+
+    def test_mark_standing_actioned_with_reason(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+        )
+        # when
+        my_request.mark_actioned(
+            user=self.user_manager, reason=StandingRequest.Reason.STANDING_IN_GAME
+        )
+        # then
+        my_request.refresh_from_db()
+        self.assertEqual(my_request.action_by, self.user_manager)
+        self.assertIsInstance(my_request.action_date, datetime)
+        self.assertEqual(my_request.reason, StandingRequest.Reason.STANDING_IN_GAME)
 
     def test_check_standing_actioned_timeout_already_effective(self):
         my_request = StandingRequest(
@@ -472,7 +502,7 @@ class TestStandingsRequest(TestCase):
         )
 
 
-class TestStandingsRequestClassMethods(NoSocketsTestCase):
+class TestStandingRequestClassMethods(NoSocketsTestCase):
     @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
     @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good(self, mock_get_corp_by_id):
@@ -569,7 +599,7 @@ class TestStandingsRequestClassMethods(NoSocketsTestCase):
         self.assertFalse(StandingRequest.can_request_corporation_standing(2001, user_2))
 
 
-class TestStandingsRequestGetRequiredScopesForState(NoSocketsTestCase):
+class TestStandingRequestGetRequiredScopesForState(NoSocketsTestCase):
     @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_scopes_if_defined_for_state(self):
         expected = ["abc"]
