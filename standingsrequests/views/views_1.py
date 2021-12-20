@@ -1,7 +1,6 @@
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
-from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
@@ -45,7 +44,7 @@ def create_requests(request):
     organization = BaseConfig.standings_source_entity()
     try:
         main_char_id = request.user.profile.main_character.character_id
-    except ObjectDoesNotExist:
+    except AttributeError:
         main_char_id = None
     context = {
         "corporations_enabled": SR_CORPORATIONS_ENABLED,

@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## Changed
+## [1.1.0] - tbd
 
-- Better user error messages when creating a new request
+## Added
+
+- Request Log: Requests & Revocation related actions by managers and the system are now automatically logged and visible on the admin site
+
+## Fixed
+
+- Disabled apply button for create requests can no longer be clicked
 
 ## [1.0.0] - 2021-12-02
 

@@ -24,6 +24,7 @@ App for managing character standing requests, made for [Alliance Auth](https://g
 - When user leaves the corporation or alliance, the app will automatically suggest to revoke the standing in-game
 - Either an alliance or a corporation can be defined as master for in-game standings
 - Review current standings of your alliance or corporation and see which auth user requested it (if any)
+- Approvals/revocations are automatically logged for later review
 
 ## Screenshots
 
