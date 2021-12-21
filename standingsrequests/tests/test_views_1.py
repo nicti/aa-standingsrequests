@@ -461,7 +461,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
-                requested_for__id=alt_character.character_id,
+                requested_for__character_id=alt_character.character_id,
                 requested_by__user=self.user,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,

@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils.functional import cached_property
+from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
@@ -25,6 +26,7 @@ from .managers import (
     ContactQuerySet,
     ContactSetManager,
     CorporationDetailsManager,
+    FrozenAltManager,
     FrozenMainManager,
     RequestLogEntryManager,
     StandingRequestManager,
@@ -705,7 +707,17 @@ class CorporationDetails(models.Model):
         return self.corporation.name
 
 
-class RequestLogEntry(models.Model):
+class FrozenModelMixin:
+    """Objects of this model type can only be created, but not updated."""
+
+    def save(self, *args, **kwargs) -> None:
+        if self.pk is None:
+            super().save(*args, **kwargs)
+        else:
+            raise RuntimeError("No updates allowed for this object.")
+
+
+class RequestLogEntry(FrozenModelMixin, models.Model):
     class Action(models.TextChoices):
         CONFIRMED = "CN", _("confirmed")
         REJECTED = "RJ", _("rejected")
@@ -735,10 +747,8 @@ class RequestLogEntry(models.Model):
         "FrozenMain", on_delete=models.CASCADE, related_name="+"
     )
     requested_for = models.ForeignKey(
-        EveEntity,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name="+",
+        "FrozenAlt",
+        on_delete=models.CASCADE,
         help_text="Alt character or corporation to change standing for",
     )
 
@@ -752,11 +762,9 @@ class RequestLogEntry(models.Model):
         return f"{self.created_at}-{self.action}"
 
 
-class FrozenMain(models.Model):
-    """Main with user, character, corporation and alliance.
-    Alignments are frozen at creation and never changed.
-
-    Note that objects can not be updated, after the have been created.
+class FrozenMain(FrozenModelMixin, models.Model):
+    """Main with user, character and affiliations.
+    Objects are frozen at creation and can not be changed.
     """
 
     alliance = models.ForeignKey(
@@ -777,8 +785,46 @@ class FrozenMain(models.Model):
     def __str__(self) -> str:
         return self.character.name if self.character else self.user.username
 
-    def save(self, *args, **kwargs) -> None:
-        if self.pk is None:
-            super().save(*args, **kwargs)
-        else:
-            raise RuntimeError("Not allowed to update this object.")
+    def html(self) -> str:
+        """Output as html."""
+        if self.character:
+            return format_html("{}<br>{}", self.character, self.corporation)
+        return str(self.user)
+
+
+class FrozenAlt(FrozenModelMixin, models.Model):
+    """Alt with alignmants. Objects are frozen at creation and can not be changed."""
+
+    class Category(models.TextChoices):
+        CHARACTER = "CH", "character"
+        CORPORATION = "CP", "corporation"
+
+    alliance = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    character = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    category = models.CharField(max_length=2, choices=Category.choices)
+
+    objects = FrozenAltManager()
+
+    def __str__(self) -> str:
+        return str(self.character) if self.character else (self.corporation)
+
+    @property
+    def is_character(self) -> bool:
+        return self.category == self.Category.CHARACTER
+
+    @property
+    def is_corporation(self) -> bool:
+        return self.category == self.Category.CORPORATION
+
+    def html(self) -> str:
+        """Output as html."""
+        if self.is_character:
+            return format_html("{}<br>{}", self.character, self.corporation)
+        return str(self.corporation)

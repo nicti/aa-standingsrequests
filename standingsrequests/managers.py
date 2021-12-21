@@ -690,18 +690,29 @@ class CorporationDetailsManager(models.Manager):
         )
 
 
-class RequestLogEntryManager(models.Manager):
+class FrozenQuerySetMixin:
+    """Ensures the update method can not be used."""
+
+    def update(self, **kwargs) -> int:
+        raise RuntimeError("Update not allowed for this model.")
+
+
+class RequestLogEntryQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
+
+
+class RequestLogEntryManagerBase(models.Manager):
     def create_from_standing_request(
         self, standing_request, action, action_by
     ) -> Optional[models.Model]:
-        from .models import FrozenMain
+        from .models import FrozenAlt, FrozenMain
 
         if standing_request.is_standing_request:
             request_type = self.model.RequestType.REQUEST
         else:
             request_type = self.model.RequestType.REVOCATION
-        requested_for, _ = EveEntity.objects.get_or_create(
-            id=standing_request.contact_id
+        requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
+            standing_request
         )
         if action_by:
             action_by_obj, _ = FrozenMain.objects.get_or_create_from_user(action_by)
@@ -723,9 +734,13 @@ class RequestLogEntryManager(models.Manager):
         return new_obj
 
 
-class FrozenMainQuerySet(models.QuerySet):
-    def update(self, **kwargs) -> int:
-        raise RuntimeError("Update not allowed for this model.")
+RequestLogEntryManager = RequestLogEntryManagerBase.from_queryset(
+    RequestLogEntryQuerySet
+)
+
+
+class FrozenMainQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
 
 
 class FrozenMainManagerBase(models.Manager):
@@ -770,3 +785,42 @@ class FrozenMainManagerBase(models.Manager):
 
 
 FrozenMainManager = FrozenMainManagerBase.from_queryset(FrozenMainQuerySet)
+
+
+class FrozenAltQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
+
+
+class FrozenAltManagerBase(models.Manager):
+    def get_or_create_from_standing_request(
+        self, standing_request: object
+    ) -> Tuple[models.Model, bool]:
+        eve_entity, _ = EveEntity.objects.get_or_create(id=standing_request.contact_id)
+        if standing_request.is_character:
+            category = self.model.Category.CHARACTER
+            character = eve_entity
+            try:
+                corporation = character.character_affiliation.corporation
+                alliance = character.character_affiliation.alliance
+            except ObjectDoesNotExist:
+                corporation = None
+                alliance = None
+        elif standing_request.is_corporation:
+            category = self.model.Category.CORPORATION
+            character = None
+            corporation = eve_entity
+            try:
+                alliance = corporation.corporation_details.alliance
+            except ObjectDoesNotExist:
+                alliance = None
+        else:
+            raise NotImplementedError()
+        return self.get_or_create(
+            character=character,
+            corporation=corporation,
+            alliance=alliance,
+            category=category,
+        )
+
+
+FrozenAltManager = FrozenAltManagerBase.from_queryset(FrozenAltQuerySet)

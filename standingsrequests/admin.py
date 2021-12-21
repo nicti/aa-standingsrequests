@@ -86,12 +86,12 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
         "request_type",
-        "requested_for",
-        "requested_by",
+        "_requested_for",
+        "_requested_by",
         "requested_at",
         "_reason",
         "action",
-        "action_by",
+        "_action_by",
     )
     list_display_links = None
     list_filter = (
@@ -103,9 +103,19 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
     def _action_by(self, obj) -> str:
-        return "SYSTEM" if obj.action_by is None else obj.action_by
+        return "SYSTEM" if obj.action_by is None else obj.action_by.html()
 
     _action_by.admin_sort_field = "action_by"
+
+    def _requested_by(self, obj) -> str:
+        return obj.requested_by.html()
+
+    _requested_by.admin_sort_field = "requested_by"
+
+    def _requested_for(self, obj) -> str:
+        return obj.requested_for.html()
+
+    _requested_for.admin_sort_field = "requested_for"
 
     def _reason(self, obj) -> Optional[str]:
         reason_obj = StandingRequest.Reason(obj.reason)

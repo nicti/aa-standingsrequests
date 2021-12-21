@@ -255,7 +255,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__character_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
@@ -338,7 +338,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__character_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
@@ -420,7 +420,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__corporation_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
@@ -503,7 +503,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__corporation_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
@@ -580,7 +580,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__character_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
@@ -647,7 +647,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__corporation_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
@@ -715,7 +715,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__user=self.user_manager,
-                requested_for_id=alt_id,
+                requested_for__character_id=alt_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.REJECTED,
@@ -838,7 +838,7 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
-                requested_for_id=self.alt_character_1.character_id,
+                requested_for__character_id=self.alt_character_1.character_id,
                 requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,

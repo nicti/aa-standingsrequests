@@ -18,6 +18,7 @@ from ..models import (
     Contact,
     ContactSet,
     CorporationDetails,
+    FrozenAlt,
     FrozenMain,
     RequestLogEntry,
     StandingRequest,
@@ -592,16 +593,30 @@ class TestRequestLogEntryManager(NoSocketsTestCase):
     def setUpClass(cls):
         super().setUpClass()
         load_eve_entities()
-        my_set = ContactSet.objects.create(name="Dummy Set")
-        Contact.objects.create(contact_set=my_set, eve_entity_id=1002, standing=5)
-        cls.user_manager = AuthUtils.create_user("Mike Manager")
-        cls.user_requestor = AuthUtils.create_user("Roger Requestor")
+        cls.user_manager = create_fake_user(
+            character_id=1001,
+            character_name="Bruce Wayne",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
+            alliance_id=3001,
+            alliance_name="Wayne Enterprices",
+        )
+        cls.user_requestor = create_fake_user(
+            character_id=1002,
+            character_name="Peter Parker",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
+            alliance_id=3001,
+            alliance_name="Wayne Enterprices",
+        )
 
     def test_should_create_entry_for_confirmed_request(self):
         # given
         my_request = StandingRequest.objects.create(
             user=self.user_requestor,
-            contact_id=1002,
+            contact_id=1007,
             contact_type_id=CHARACTER_TYPE_ID,
             action_by=self.user_manager,
             action_date=now(),
@@ -616,7 +631,7 @@ class TestRequestLogEntryManager(NoSocketsTestCase):
     def test_should_create_entry_for_confirmed_revocation(self):
         # given
         my_revocation = StandingRevocation.objects.add_revocation(
-            1002,
+            1007,
             StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
             reason=StandingRevocation.Reason.OWNER_REQUEST,
@@ -750,3 +765,114 @@ class TestFrozenMainManager(NoSocketsTestCase):
         # then
         obj.refresh_from_db()
         self.assertEqual(obj.user.username, "deleted")
+
+
+class TestFrozenAltManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eve_entities()
+        cls.user = create_fake_user(1001, "Bruce Wayne")
+
+    def test_should_create_new_character_without_affiliations(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=1002, contact_type_id=CHARACTER_TYPE_ID
+        )
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.character_id, 1002)
+        self.assertIsNone(obj.corporation)
+        self.assertIsNone(obj.alliance)
+        self.assertEqual(obj.category, FrozenAlt.Category.CHARACTER)
+
+    def test_should_create_new_character_with_affiliations(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=1099, contact_type_id=CHARACTER_TYPE_ID
+        )
+        character = EveEntity.objects.create(
+            id=1099, category=EveEntity.CATEGORY_CHARACTER, name="dummy"
+        )
+        CharacterAffiliation.objects.create(
+            character=character, corporation_id=2001, alliance_id=3001
+        )
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.character_id, 1099)
+        self.assertEqual(obj.corporation_id, 2001)
+        self.assertEqual(obj.alliance_id, 3001)
+        self.assertEqual(obj.category, FrozenAlt.Category.CHARACTER)
+
+    def test_should_create_new_corporation_without_affiliations(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=2099, contact_type_id=CORPORATION_TYPE_ID
+        )
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertTrue(created)
+        self.assertIsNone(obj.character)
+        self.assertEqual(obj.corporation_id, 2099)
+        self.assertIsNone(obj.alliance)
+        self.assertEqual(obj.category, FrozenAlt.Category.CORPORATION)
+
+    def test_should_create_new_corporation_with_affiliations(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=2099, contact_type_id=CORPORATION_TYPE_ID
+        )
+        corporation = EveEntity.objects.create(
+            id=2099, category=EveEntity.CATEGORY_CORPORATION, name="dummy"
+        )
+        CorporationDetails.objects.create(
+            corporation=corporation,
+            alliance_id=3001,
+            member_count=99,
+            ticker="xyz",
+        )
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertTrue(created)
+        self.assertIsNone(obj.character)
+        self.assertEqual(obj.corporation_id, 2099)
+        self.assertEqual(obj.alliance_id, 3001)
+        self.assertEqual(obj.category, FrozenAlt.Category.CORPORATION)
+
+    def test_should_get_existing_minimal_obj(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=1003, contact_type_id=CHARACTER_TYPE_ID
+        )
+        existing_obj = FrozenAlt.objects.create(character_id=1003, category="CH")
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertFalse(created)
+        self.assertEqual(existing_obj, obj)
+
+    def test_should_get_existing_full_obj(self):
+        # given
+        my_request = StandingRequest.objects.create(
+            user=self.user, contact_id=1099, contact_type_id=CHARACTER_TYPE_ID
+        )
+        character = EveEntity.objects.create(
+            id=1099, category=EveEntity.CATEGORY_CHARACTER, name="dummy"
+        )
+        CharacterAffiliation.objects.create(
+            character=character, corporation_id=2001, alliance_id=3001
+        )
+        existing_obj = FrozenAlt.objects.create(
+            character_id=1099, corporation_id=2001, alliance_id=3001, category="CH"
+        )
+        # when
+        obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
+        # then
+        self.assertFalse(created)
+        self.assertEqual(existing_obj, obj)
