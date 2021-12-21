@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from esi.decorators import token_required
@@ -240,18 +240,11 @@ def request_character_standing(request, character_id: int):
     logger.debug(
         "Standings request from user %s for characterID %d", request.user, character_id
     )
-    try:
-        character = (
-            EveCharacter.objects.select_related("character_ownership__user")
-            .filter(character_ownership__user=request.user)
-            .get(character_id=character_id)
-        )
-    except EveCharacter.DoesNotExist:
-        error = CreateCharacterRequestError.UNKNOWN_ERROR
-    else:
-        error = StandingRequest.objects.create_character_request(
-            request.user, character
-        )
+    character = get_object_or_404(
+        EveCharacter.objects.select_related("character_ownership__user"),
+        character_id=character_id,
+    )
+    error = StandingRequest.objects.create_character_request(request.user, character)
     if error is not CreateCharacterRequestError.NO_ERROR:
         if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
             messages.error(
@@ -286,14 +279,8 @@ def remove_character_standing(request, character_id: int):
         request.user,
         character_id,
     )
-    try:
-        req = StandingRequest.objects.filter(user=request.user).get(
-            contact_id=character_id
-        )
-    except StandingRequest.DoesNotExist:
-        success = False
-    else:
-        success = req.remove()
+    req = get_object_or_404(StandingRequest, user=request.user, contact_id=character_id)
+    success = req.remove()
     if not success:
         messages.warning(
             request,

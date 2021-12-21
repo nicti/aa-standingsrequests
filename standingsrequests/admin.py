@@ -97,6 +97,7 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     list_filter = (
         "request_type",
         ("action_by", admin.RelatedOnlyFieldListFilter),
+        ("requested_by", admin.RelatedOnlyFieldListFilter),
         "created_at",
         "reason",
     )
@@ -125,7 +126,14 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("action_by", "requested_by", "requested_for")
+        return qs.select_related(
+            "action_by__character",
+            "action_by__corporation",
+            "requested_by__character",
+            "requested_by__corporation",
+            "requested_for__character",
+            "requested_for__corporation",
+        )
 
     def has_change_permission(self, *args, **kwargs):
         return False
@@ -133,6 +141,6 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     def has_add_permission(self, *args, **kwargs):
         return False
 
-    # TOD: enabel for production
+    # TODO: enable for production
     # def has_delete_permission(self, *args, **kwargs) -> bool:
     #     return False

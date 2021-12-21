@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
+from django.http import Http404
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
@@ -519,9 +520,8 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         # given
         random_character = create_entity(EveCharacter, 1007)
         # when
-        result = self.view_request_pilot_standing(random_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(random_character.character_id)
 
     def test_should_not_remove_request_if_character_is_owned_by_sombody_else(self):
         # given
@@ -529,18 +529,16 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         other_character = create_entity(EveCharacter, 1006)
         add_character_to_user(user, other_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(other_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(other_character.character_id)
 
     def test_should_return_false_if_character_in_organization(self):
         # given
         alt_character = create_entity(EveCharacter, 1002)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(alt_character.character_id)
 
     # I believe we do not need this requirement
     # def test_should_create_revocation_if_character_has_satisfied_standing(self):
@@ -557,9 +555,8 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         alt_character = create_entity(EveCharacter, 1008)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(alt_character.character_id)
 
 
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
