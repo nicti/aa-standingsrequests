@@ -362,7 +362,8 @@ class AbstractStandingsRequest(models.Model):
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
         self.action_date = date if date else now()
-        self.reason = reason if reason else self.Reason.NONE
+        if reason:
+            self.reason = reason
         self.save()
 
     def check_actioned_timeout(self):

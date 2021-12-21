@@ -340,6 +340,7 @@ class TestMainUseCases(WebTest):
                 requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
+                reason=StandingRevocation.Reason.OWNER_REQUEST,
             ).count(),
             1,
         )
@@ -716,6 +717,7 @@ class TestMainUseCases(WebTest):
                 requested_by=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.REJECTED,
+                reason=StandingRevocation.Reason.OWNER_REQUEST,
             ).count(),
             1,
         )
