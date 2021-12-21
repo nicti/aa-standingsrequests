@@ -3,12 +3,13 @@ from unittest.mock import Mock, patch
 
 from bravado.exception import HTTPError
 
+from django.test import override_settings
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
+from app_utils.testing import NoSocketsTestCase, add_character_to_user, create_fake_user
 
 from ..core import BaseConfig
 from ..models import (
@@ -17,6 +18,7 @@ from ..models import (
     Contact,
     ContactSet,
     CorporationDetails,
+    FrozenMain,
     RequestLogEntry,
     StandingRequest,
     StandingRevocation,
@@ -584,6 +586,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertIsNone(obj.ceo_id)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 class TestRequestLogEntryManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -625,40 +628,125 @@ class TestRequestLogEntryManager(NoSocketsTestCase):
         # then
         self.assertIsInstance(obj, RequestLogEntry)
 
-    def test_should_reset_to_sentinel_user_when_approver_deleted(self):
-        # given
-        user = AuthUtils.create_user("Temp User")
-        my_request = StandingRequest.objects.create(
-            user=self.user_requestor,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=user,
-            action_date=now(),
-        )
-        obj = RequestLogEntry.objects.create_from_standing_request(
-            my_request, RequestLogEntry.Action.CONFIRMED, user
-        )
-        # when
-        user.delete()
-        # then
-        obj.refresh_from_db()
-        self.assertEqual(obj.action_by.username, "deleted")
 
-    def test_should_reset_to_sentinel_user_when_requestor_deleted(self):
+class TestFrozenMainManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        load_eve_entities()
+
+    def test_should_create_full_obj(self):
         # given
-        user = AuthUtils.create_user("Temp User")
-        my_request = StandingRequest.objects.create(
-            user=user,
-            contact_id=1002,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
+        user = create_fake_user(
+            character_id=1001,
+            character_name="Bruce Wayne",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
+            alliance_id=3001,
+            alliance_name="Wayne Enterprices",
         )
-        obj = RequestLogEntry.objects.create_from_standing_request(
-            my_request, RequestLogEntry.Action.CONFIRMED, self.user_manager
+        # when
+        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.user, user)
+        self.assertEqual(obj.character, EveEntity.objects.get(id=1001))
+        self.assertEqual(obj.corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(obj.alliance, EveEntity.objects.get(id=3001))
+
+    def test_should_create_obj_without_alliance(self):
+        # given
+        user = create_fake_user(
+            character_id=1001,
+            character_name="Bruce Wayne",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
         )
+        user.profile.main_character.alliance_id = None
+        user.profile.main_character.alliance_name = ""
+        user.profile.main_character.save()
+        # when
+        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.user, user)
+        self.assertEqual(obj.character, EveEntity.objects.get(id=1001))
+        self.assertEqual(obj.corporation, EveEntity.objects.get(id=2001))
+        self.assertIsNone(obj.alliance)
+
+    def test_should_create_from_user_without_main(self):
+        # given
+        user = AuthUtils.create_user("Bruce Wayne")
+        # when
+        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        # then
+        self.assertTrue(created)
+        self.assertEqual(obj.user, user)
+        self.assertIsNone(obj.character)
+        self.assertIsNone(obj.corporation)
+        self.assertIsNone(obj.alliance)
+
+    def test_should_not_save_updated_obj(self):
+        # given
+        user = create_fake_user(character_id=1001, character_name="Bruce Wayne")
+        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        # when
+        obj.character_id = 1002
+        with self.assertRaises(RuntimeError):
+            obj.save()
+
+    def test_should_not_update_obj(self):
+        # given
+        user = create_fake_user(character_id=1001, character_name="Bruce Wayne")
+        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        # when
+        with self.assertRaises(RuntimeError):
+            FrozenMain.objects.filter(pk=obj.pk).update(character_id=1002)
+
+    def test_should_get_existing_full_obj(self):
+        # given
+        user = create_fake_user(
+            character_id=1001,
+            character_name="Bruce Wayne",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
+            alliance_id=3001,
+            alliance_name="Wayne Enterprices",
+        )
+        existing_obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        # when
+        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        # then
+        self.assertFalse(created)
+        self.assertEqual(existing_obj, obj)
+
+    def test_should_get_existing_minimal_obj(self):
+        # given
+        user = AuthUtils.create_user("Bruce Wayne")
+        existing_obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        # when
+        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        # then
+        self.assertFalse(created)
+        self.assertEqual(existing_obj, obj)
+
+    def test_should_reset_to_sentinel_when_user_is_deleted(self):
+        # given
+        user = create_fake_user(
+            character_id=1001,
+            character_name="Bruce Wayne",
+            corporation_id=2001,
+            corporation_name="Wayne Technologies",
+            corporation_ticker="WYT",
+            alliance_id=3001,
+            alliance_name="Wayne Enterprices",
+        )
+        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
         # when
         user.delete()
         # then
         obj.refresh_from_db()
-        self.assertEqual(obj.requested_by.username, "deleted")
+        self.assertEqual(obj.user.username, "deleted")

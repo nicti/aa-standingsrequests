@@ -25,6 +25,7 @@ from .managers import (
     ContactQuerySet,
     ContactSetManager,
     CorporationDetailsManager,
+    FrozenMainManager,
     RequestLogEntryManager,
     StandingRequestManager,
     StandingRevocationManager,
@@ -715,19 +716,15 @@ class RequestLogEntry(models.Model):
 
     action = models.CharField(max_length=2, choices=Action.choices)
     action_by = models.ForeignKey(
-        User,
-        on_delete=models.SET(get_or_create_sentinel_user),
+        "FrozenMain",
+        on_delete=models.CASCADE,
         null=True,
-        related_name="+",
         help_text=(
-            "User who performed the action. "
+            "Main who performed the action. "
             "None means the action was performed automatically by the app."
         ),
     )
     is_action_automatic = models.BooleanField(default=False)
-    contact = models.ForeignKey(
-        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
-    )
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
         max_length=2, choices=AbstractStandingsRequest.Reason.choices
@@ -735,7 +732,14 @@ class RequestLogEntry(models.Model):
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()
     requested_by = models.ForeignKey(
-        User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
+        "FrozenMain", on_delete=models.CASCADE, related_name="+"
+    )
+    requested_for = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        help_text="Alt character or corporation to change standing for",
     )
 
     objects = RequestLogEntryManager()
@@ -746,3 +750,35 @@ class RequestLogEntry(models.Model):
 
     def __str__(self) -> str:
         return f"{self.created_at}-{self.action}"
+
+
+class FrozenMain(models.Model):
+    """Main with user, character, corporation and alliance.
+    Alignments are frozen at creation and never changed.
+
+    Note that objects can not be updated, after the have been created.
+    """
+
+    alliance = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    character = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
+    )
+
+    objects = FrozenMainManager()
+
+    def __str__(self) -> str:
+        return self.character.name if self.character else self.user.username
+
+    def save(self, *args, **kwargs) -> None:
+        if self.pk is None:
+            super().save(*args, **kwargs)
+        else:
+            raise RuntimeError("Not allowed to update this object.")

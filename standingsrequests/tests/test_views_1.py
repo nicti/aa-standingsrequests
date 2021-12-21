@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from esi.models import Token
@@ -447,6 +447,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         # then
         self.assertFalse(result)
 
+    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_should_auto_confirm_new_request_if_standing_is_satisfied(self):
         # given
         alt_character = create_entity(EveCharacter, 1110)
@@ -460,8 +461,8 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
-                contact_id=alt_character.character_id,
-                requested_by=self.user,
+                requested_for__id=alt_character.character_id,
+                requested_by__user=self.user,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
                 reason=StandingRequest.Reason.STANDING_IN_GAME,

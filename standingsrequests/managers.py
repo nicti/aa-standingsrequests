@@ -9,6 +9,7 @@ from django.db.models import Case, Q, Value, When
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
+from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
@@ -693,17 +694,79 @@ class RequestLogEntryManager(models.Manager):
     def create_from_standing_request(
         self, standing_request, action, action_by
     ) -> Optional[models.Model]:
+        from .models import FrozenMain
+
         if standing_request.is_standing_request:
             request_type = self.model.RequestType.REQUEST
         else:
             request_type = self.model.RequestType.REVOCATION
-        contact, _ = EveEntity.objects.get_or_create_esi(id=standing_request.contact_id)
-        return self.create(
+        requested_for, _ = EveEntity.objects.get_or_create(
+            id=standing_request.contact_id
+        )
+        if action_by:
+            action_by_obj, _ = FrozenMain.objects.get_or_create_from_user(action_by)
+        else:
+            action_by_obj = None
+        requested_by_obj, _ = FrozenMain.objects.get_or_create_from_user(
+            standing_request.user
+        )
+        new_obj = self.create(
             action=action,
-            action_by=action_by,
-            contact=contact,
+            action_by=action_by_obj,
             request_type=request_type,
             requested_at=standing_request.request_date,
-            requested_by=standing_request.user,
+            requested_by=requested_by_obj,
+            requested_for=requested_for,
             reason=standing_request.reason,
         )
+        update_unresolved_eve_entities.delay()
+        return new_obj
+
+
+class FrozenMainQuerySet(models.QuerySet):
+    def update(self, **kwargs) -> int:
+        raise RuntimeError("Update not allowed for this model.")
+
+
+class FrozenMainManagerBase(models.Manager):
+    def get_or_create_from_user(self, user) -> Tuple[models.Model, bool]:
+        main_character = user.profile.main_character
+        if main_character:
+            character_id = main_character.character_id
+            corporation_id = main_character.corporation_id
+            alliance_id = main_character.alliance_id
+        else:
+            character_id = corporation_id = alliance_id = None
+        try:
+            obj = self.get(
+                user_id=user.id,
+                character_id=character_id,
+                corporation_id=corporation_id,
+                alliance_id=alliance_id,
+            )
+            return obj, False
+        except self.model.DoesNotExist:
+            character = (
+                EveEntity.objects.get_or_create(id=character_id)[0]
+                if character_id
+                else None
+            )
+            corporation = (
+                EveEntity.objects.get_or_create(id=corporation_id)[0]
+                if corporation_id
+                else None
+            )
+            alliance = (
+                EveEntity.objects.get_or_create(id=alliance_id)[0]
+                if alliance_id
+                else None
+            )
+            return self.get_or_create(
+                user=user,
+                character=character,
+                corporation=corporation,
+                alliance=alliance,
+            )
+
+
+FrozenMainManager = FrozenMainManagerBase.from_queryset(FrozenMainQuerySet)

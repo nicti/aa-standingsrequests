@@ -86,12 +86,12 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
         "request_type",
-        "contact",
+        "requested_for",
         "requested_by",
         "requested_at",
         "_reason",
         "action",
-        "_action_by",
+        "action_by",
     )
     list_display_links = None
     list_filter = (
@@ -115,7 +115,7 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.select_related("action_by", "requested_by", "contact")
+        return qs.select_related("action_by", "requested_by", "requested_for")
 
     def has_change_permission(self, *args, **kwargs):
         return False

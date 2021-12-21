@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.test import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from django_webtest import WebTest
@@ -39,6 +40,7 @@ TEST_REQUIRED_SCOPE = "publicData"
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
@@ -252,9 +254,9 @@ class TestMainUseCases(WebTest):
         self.assertFalse(my_request.is_effective)
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -335,9 +337,9 @@ class TestMainUseCases(WebTest):
         self.assertFalse(my_revocation.is_effective)
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
                 reason=StandingRevocation.Reason.OWNER_REQUEST,
@@ -417,9 +419,9 @@ class TestMainUseCases(WebTest):
         self.assertFalse(my_request.is_effective)
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -500,9 +502,9 @@ class TestMainUseCases(WebTest):
         self.assertFalse(my_revocation.is_effective)
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
@@ -577,9 +579,9 @@ class TestMainUseCases(WebTest):
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
             ).count(),
@@ -644,9 +646,9 @@ class TestMainUseCases(WebTest):
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.REJECTED,
             ).count(),
@@ -712,9 +714,9 @@ class TestMainUseCases(WebTest):
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
         self.assertEqual(
             RequestLogEntry.objects.filter(
-                action_by=self.user_manager,
-                contact_id=alt_id,
-                requested_by=self.user_requestor,
+                action_by__user=self.user_manager,
+                requested_for_id=alt_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REVOCATION,
                 action=RequestLogEntry.Action.REJECTED,
                 reason=StandingRevocation.Reason.OWNER_REQUEST,
@@ -836,8 +838,8 @@ class TestMainUseCases(WebTest):
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
-                contact_id=self.alt_character_1.character_id,
-                requested_by=self.user_requestor,
+                requested_for_id=self.alt_character_1.character_id,
+                requested_by__user=self.user_requestor,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
             ).count(),
