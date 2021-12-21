@@ -736,7 +736,6 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
             "None means the action was performed automatically by the app."
         ),
     )
-    is_action_automatic = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now=True)
     reason = models.CharField(
         max_length=2, choices=AbstractStandingsRequest.Reason.choices
