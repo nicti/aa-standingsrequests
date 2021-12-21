@@ -355,6 +355,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 200)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCharacterStanding(NoSocketsTestCase):
     @classmethod
@@ -448,7 +449,6 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         # then
         self.assertFalse(result)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_should_auto_confirm_new_request_if_standing_is_satisfied(self):
         # given
         alt_character = create_entity(EveCharacter, 1110)
@@ -559,6 +559,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
             self.view_request_pilot_standing(alt_character.character_id)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCorporationStanding(NoSocketsTestCase):
     @classmethod

@@ -18,7 +18,7 @@ from ..core import BaseConfig, MainOrganizations
 from ..decorators import token_required_by_state
 from ..helpers.evecorporation import EveCorporation
 from ..models import ContactSet, StandingRequest, StandingRevocation
-from ..tasks import update_all
+from ..tasks import update_all, update_associations_api
 from .helpers import DEFAULT_ICON_SIZE, add_common_context
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -265,6 +265,8 @@ def request_character_standing(request, character_id: int):
                 "your standing request for %s. Please try again."
                 % EveEntity.objects.resolve_name(character_id),
             )
+    else:
+        update_associations_api.delay()
     return redirect("standingsrequests:create_requests")
 
 
@@ -310,6 +312,8 @@ def request_corp_standing(request, corporation_id):
             "your standing request for %s. Please try again."
             % EveEntity.objects.resolve_name(corporation_id),
         )
+    else:
+        update_associations_api.delay()
     return redirect("standingsrequests:create_requests")
 
 
