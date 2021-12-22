@@ -38,11 +38,6 @@ pre-commit-check:
   stage: test
   image: python:3.9-buster
 
-test-36-django31:
-  extends: .test-py36
-  script:
-  - tox -e py36-django31
-
 test-37-django32:
   extends: .test-py37
   script:
