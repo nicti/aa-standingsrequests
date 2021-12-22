@@ -661,6 +661,9 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprices",
         )
+        user.profile.main_character.faction_id = 500001
+        user.profile.main_character.faction_name = "Caldari State"
+        user.profile.main_character.save()
         # when
         obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
@@ -669,6 +672,7 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
         self.assertEqual(obj.character, EveEntity.objects.get(id=1001))
         self.assertEqual(obj.corporation, EveEntity.objects.get(id=2001))
         self.assertEqual(obj.alliance, EveEntity.objects.get(id=3001))
+        self.assertEqual(obj.faction, EveEntity.objects.get(id=500001))
 
     def test_should_create_obj_without_alliance(self):
         # given
@@ -731,6 +735,9 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprices",
         )
+        user.profile.main_character.faction_id = 500001
+        user.profile.main_character.faction_name = "Caldari State"
+        user.profile.main_character.save()
         existing_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
         obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)

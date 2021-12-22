@@ -750,17 +750,24 @@ class FrozenAuthUserManagerBase(models.Manager):
             character_id = main_character.character_id
             corporation_id = main_character.corporation_id
             alliance_id = main_character.alliance_id
+            faction_id = main_character.faction_id
         else:
-            character_id = corporation_id = alliance_id = None
+            character_id = corporation_id = alliance_id = faction_id = None
         try:
             obj = self.get(
                 user_id=user.id,
                 character_id=character_id,
                 corporation_id=corporation_id,
                 alliance_id=alliance_id,
+                faction_id=faction_id,
             )
             return obj, False
         except self.model.DoesNotExist:
+            alliance = (
+                EveEntity.objects.get_or_create(id=alliance_id)[0]
+                if alliance_id
+                else None
+            )
             character = (
                 EveEntity.objects.get_or_create(id=character_id)[0]
                 if character_id
@@ -771,9 +778,9 @@ class FrozenAuthUserManagerBase(models.Manager):
                 if corporation_id
                 else None
             )
-            alliance = (
-                EveEntity.objects.get_or_create(id=alliance_id)[0]
-                if alliance_id
+            faction = (
+                EveEntity.objects.get_or_create(id=faction_id)[0]
+                if faction_id
                 else None
             )
             return self.get_or_create(
@@ -781,6 +788,7 @@ class FrozenAuthUserManagerBase(models.Manager):
                 character=character,
                 corporation=corporation,
                 alliance=alliance,
+                faction=faction,
             )
 
 
