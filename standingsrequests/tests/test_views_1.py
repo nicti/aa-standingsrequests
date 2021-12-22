@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import Http404
-from django.test import RequestFactory, TestCase, override_settings
+from django.test import RequestFactory, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from esi.models import Token
@@ -125,7 +125,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_update_all.delay.called)
 
 
-class TestViewPagesBase(TestCase):
+class TestViewPagesBase(NoSocketsTestCase):
     """Base TestClass for all tests that deal with standing requests
 
     Defines common test data
@@ -245,6 +245,10 @@ class TestViewPagesBase(TestCase):
         self.contact_set.refresh_from_db()
 
 
+@patch(
+    "allianceauth.notifications.templatetags.auth_notifications.Notification.objects.user_unread_count",
+    lambda *args, **kwargs: 1,
+)
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
@@ -635,7 +639,7 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         self.assertFalse(result)
 
 
-class TestRemoveCorporationStanding(TestCase):
+class TestRemoveCorporationStanding(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

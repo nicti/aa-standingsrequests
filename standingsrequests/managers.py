@@ -619,10 +619,9 @@ class CharacterAffiliationManager(models.Manager):
         with transaction.atomic():
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
-
-        new_ids = {}
-        for affiliation in affiliations:
-            new_ids.add(affiliation.entity_ids())
+        new_ids = set()
+        for obj in affiliation_objects:
+            new_ids |= obj.entity_ids()
         EveEntity.objects.bulk_create_esi(new_ids)
 
 
