@@ -13,6 +13,7 @@ from eveuniverse.models import EveEntity
 from allianceauth.authentication.models import CharacterOwnership, State
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.helpers import default_if_none
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
@@ -793,7 +794,11 @@ class FrozenAuthUser(FrozenModelMixin, models.Model):
     def html(self) -> str:
         """Output as html."""
         if self.character:
-            return format_html("{}<br>{}", self.character, self.corporation)
+            return format_html(
+                "{}<br>{}",
+                default_if_none(self.character, "-"),
+                default_if_none(self.corporation, "-"),
+            )
         return str(self.user)
 
 
@@ -834,5 +839,9 @@ class FrozenAlt(FrozenModelMixin, models.Model):
     def html(self) -> str:
         """Output as html."""
         if self.is_character:
-            return format_html("{}<br>{}", self.character, self.corporation)
+            return format_html(
+                "{}<br>{}",
+                default_if_none(self.character, "-"),
+                default_if_none(self.corporation, "-"),
+            )
         return str(self.corporation)

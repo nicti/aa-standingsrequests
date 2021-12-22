@@ -47,7 +47,7 @@ setup(
     install_requires=[
         "allianceauth>=2.8.1",
         "django-esi>=2<3",
-        "allianceauth-app-utils>=1.8.1",
+        "allianceauth-app-utils>=1.9.0",
         "django-eveuniverse",
     ],
 )
