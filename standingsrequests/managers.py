@@ -789,6 +789,7 @@ class FrozenAuthUserManagerBase(models.Manager):
                 corporation=corporation,
                 alliance=alliance,
                 faction=faction,
+                state=user.profile.state,
             )
 
 

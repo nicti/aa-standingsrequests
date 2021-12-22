@@ -649,6 +649,17 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
     def setUpClass(cls):
         super().setUpClass()
         load_eve_entities()
+        # corporation, _ = EveCorporationInfo.objects.get_or_create(
+        #     corporation_id=2001,
+        #     defaults={
+        #         "corporation_name": "Wayne Technologies",
+        #         "corporation_ticker": "WYT",
+        #         "member_count": 3,
+        #         "ceo_id": 2987,
+        #     },
+        # )
+        cls.member_state = AuthUtils.get_member_state()
+        # cls.member_state.member_corporations.add(corporation)
 
     def test_should_create_full_obj(self):
         # given
@@ -663,7 +674,10 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
         )
         user.profile.main_character.faction_id = 500001
         user.profile.main_character.faction_name = "Caldari State"
+        user.profile.state = self.member_state
+        AuthUtils.disconnect_signals()
         user.profile.main_character.save()
+        AuthUtils.connect_signals()
         # when
         obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
@@ -673,6 +687,7 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
         self.assertEqual(obj.corporation, EveEntity.objects.get(id=2001))
         self.assertEqual(obj.alliance, EveEntity.objects.get(id=3001))
         self.assertEqual(obj.faction, EveEntity.objects.get(id=500001))
+        self.assertEqual(obj.state, self.member_state)
 
     def test_should_create_obj_without_alliance(self):
         # given
@@ -737,7 +752,10 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
         )
         user.profile.main_character.faction_id = 500001
         user.profile.main_character.faction_name = "Caldari State"
+        user.profile.state = self.member_state
+        AuthUtils.disconnect_signals()
         user.profile.main_character.save()
+        AuthUtils.connect_signals()
         existing_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
         obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
