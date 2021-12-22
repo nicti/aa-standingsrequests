@@ -667,6 +667,20 @@ class CharacterAffiliation(models.Model):
         """Return character name for main."""
         return self.character.name if self.character.name else None
 
+    def entity_ids(self) -> set:
+        """Ids of all entities."""
+        return set(
+            filter(
+                lambda x: x is not None,
+                [
+                    self.character_id,
+                    self.corporation_id,
+                    self.alliance_id,
+                    self.faction_id,
+                ],
+            )
+        )
+
 
 class CorporationDetails(models.Model):
     """A corporation affiliation."""

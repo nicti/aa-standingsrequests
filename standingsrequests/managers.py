@@ -620,16 +620,10 @@ class CharacterAffiliationManager(models.Manager):
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
 
-        EveEntity.objects.bulk_create_esi(
-            filter(
-                lambda x: x is not None,
-                [
-                    affiliation["character_id"],
-                    affiliation["corporation_id"],
-                    affiliation["alliance_id"],
-                ],
-            )
-        )
+        new_ids = {}
+        for affiliation in affiliations:
+            new_ids.add(affiliation.entity_ids())
+        EveEntity.objects.bulk_create_esi(new_ids)
 
 
 class CorporationDetailsManager(models.Manager):

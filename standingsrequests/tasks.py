@@ -5,6 +5,7 @@ from celery import chain, shared_task
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
+from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
@@ -97,6 +98,7 @@ def update_associations_api():
             _update_character_affiliations_from_esi.si(),
             _update_character_affiliations_to_auth.si(),
             update_all_corporation_details.si(),
+            update_unresolved_eve_entities.si(),
         ]
     ).delay()
 
