@@ -19,7 +19,7 @@ from ..models import (
     ContactSet,
     CorporationDetails,
     FrozenAlt,
-    FrozenMain,
+    FrozenAuthUser,
     RequestLogEntry,
     StandingRequest,
     StandingRevocation,
@@ -644,7 +644,7 @@ class TestRequestLogEntryManager(NoSocketsTestCase):
         self.assertIsInstance(obj, RequestLogEntry)
 
 
-class TestFrozenMainManager(NoSocketsTestCase):
+class TestFrozenAuthUserManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -662,7 +662,7 @@ class TestFrozenMainManager(NoSocketsTestCase):
             alliance_name="Wayne Enterprices",
         )
         # when
-        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
         self.assertTrue(created)
         self.assertEqual(obj.user, user)
@@ -683,7 +683,7 @@ class TestFrozenMainManager(NoSocketsTestCase):
         user.profile.main_character.alliance_name = ""
         user.profile.main_character.save()
         # when
-        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
         self.assertTrue(created)
         self.assertEqual(obj.user, user)
@@ -695,7 +695,7 @@ class TestFrozenMainManager(NoSocketsTestCase):
         # given
         user = AuthUtils.create_user("Bruce Wayne")
         # when
-        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
         self.assertTrue(created)
         self.assertEqual(obj.user, user)
@@ -706,7 +706,7 @@ class TestFrozenMainManager(NoSocketsTestCase):
     def test_should_not_save_updated_obj(self):
         # given
         user = create_fake_user(character_id=1001, character_name="Bruce Wayne")
-        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
         obj.character_id = 1002
         with self.assertRaises(RuntimeError):
@@ -715,10 +715,10 @@ class TestFrozenMainManager(NoSocketsTestCase):
     def test_should_not_update_obj(self):
         # given
         user = create_fake_user(character_id=1001, character_name="Bruce Wayne")
-        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
         with self.assertRaises(RuntimeError):
-            FrozenMain.objects.filter(pk=obj.pk).update(character_id=1002)
+            FrozenAuthUser.objects.filter(pk=obj.pk).update(character_id=1002)
 
     def test_should_get_existing_full_obj(self):
         # given
@@ -731,9 +731,9 @@ class TestFrozenMainManager(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprices",
         )
-        existing_obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        existing_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
-        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
         self.assertFalse(created)
         self.assertEqual(existing_obj, obj)
@@ -741,9 +741,9 @@ class TestFrozenMainManager(NoSocketsTestCase):
     def test_should_get_existing_minimal_obj(self):
         # given
         user = AuthUtils.create_user("Bruce Wayne")
-        existing_obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        existing_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
-        obj, created = FrozenMain.objects.get_or_create_from_user(user)
+        obj, created = FrozenAuthUser.objects.get_or_create_from_user(user)
         # then
         self.assertFalse(created)
         self.assertEqual(existing_obj, obj)
@@ -759,7 +759,7 @@ class TestFrozenMainManager(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprices",
         )
-        obj, _ = FrozenMain.objects.get_or_create_from_user(user)
+        obj, _ = FrozenAuthUser.objects.get_or_create_from_user(user)
         # when
         user.delete()
         # then
@@ -797,7 +797,10 @@ class TestFrozenAltManager(NoSocketsTestCase):
             id=1099, category=EveEntity.CATEGORY_CHARACTER, name="dummy"
         )
         CharacterAffiliation.objects.create(
-            character=character, corporation_id=2001, alliance_id=3001
+            character=character,
+            corporation_id=2001,
+            alliance_id=3001,
+            faction_id=500001,
         )
         # when
         obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
@@ -806,6 +809,7 @@ class TestFrozenAltManager(NoSocketsTestCase):
         self.assertEqual(obj.character_id, 1099)
         self.assertEqual(obj.corporation_id, 2001)
         self.assertEqual(obj.alliance_id, 3001)
+        self.assertEqual(obj.faction_id, 500001)
         self.assertEqual(obj.category, FrozenAlt.Category.CHARACTER)
 
     def test_should_create_new_corporation_without_affiliations(self):
@@ -835,6 +839,7 @@ class TestFrozenAltManager(NoSocketsTestCase):
             alliance_id=3001,
             member_count=99,
             ticker="xyz",
+            faction_id=500001,
         )
         # when
         obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)
@@ -843,6 +848,7 @@ class TestFrozenAltManager(NoSocketsTestCase):
         self.assertIsNone(obj.character)
         self.assertEqual(obj.corporation_id, 2099)
         self.assertEqual(obj.alliance_id, 3001)
+        self.assertEqual(obj.faction_id, 500001)
         self.assertEqual(obj.category, FrozenAlt.Category.CORPORATION)
 
     def test_should_get_existing_minimal_obj(self):
@@ -866,10 +872,17 @@ class TestFrozenAltManager(NoSocketsTestCase):
             id=1099, category=EveEntity.CATEGORY_CHARACTER, name="dummy"
         )
         CharacterAffiliation.objects.create(
-            character=character, corporation_id=2001, alliance_id=3001
+            character=character,
+            corporation_id=2001,
+            alliance_id=3001,
+            faction_id=500001,
         )
         existing_obj = FrozenAlt.objects.create(
-            character_id=1099, corporation_id=2001, alliance_id=3001, category="CH"
+            character_id=1099,
+            corporation_id=2001,
+            alliance_id=3001,
+            category="CH",
+            faction_id=500001,
         )
         # when
         obj, created = FrozenAlt.objects.get_or_create_from_standing_request(my_request)

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Added
 
-- Request Log: Requests & Revocation related actions by managers and the system are now automatically logged and visible on the admin site
+- Request Log: Requests & Revocation related actions by managers and the system are now automatically logged and visible on the admin site. Data about users and alts (e.g. corporation memberships) are frozen when log entrys are created.
 
 ## Fixed
 

@@ -10,7 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
 
-from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.authentication.models import CharacterOwnership, State
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
@@ -27,7 +27,7 @@ from .managers import (
     ContactSetManager,
     CorporationDetailsManager,
     FrozenAltManager,
-    FrozenMainManager,
+    FrozenAuthUserManager,
     RequestLogEntryManager,
     StandingRequestManager,
     StandingRevocationManager,
@@ -728,7 +728,7 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
 
     action = models.CharField(max_length=2, choices=Action.choices)
     action_by = models.ForeignKey(
-        "FrozenMain",
+        "FrozenAuthUser",
         on_delete=models.CASCADE,
         null=True,
         help_text=(
@@ -743,7 +743,7 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
     request_type = models.CharField(max_length=2, choices=RequestType.choices)
     requested_at = models.DateTimeField()
     requested_by = models.ForeignKey(
-        "FrozenMain", on_delete=models.CASCADE, related_name="+"
+        "FrozenAuthUser", on_delete=models.CASCADE, related_name="+"
     )
     requested_for = models.ForeignKey(
         "FrozenAlt",
@@ -761,7 +761,7 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
         return f"{self.created_at}-{self.action}"
 
 
-class FrozenMain(FrozenModelMixin, models.Model):
+class FrozenAuthUser(FrozenModelMixin, models.Model):
     """Main with user, character and affiliations.
     Objects are frozen at creation and can not be changed.
     """
@@ -775,11 +775,17 @@ class FrozenMain(FrozenModelMixin, models.Model):
     corporation = models.ForeignKey(
         EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
     )
+    faction = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    state = models.ForeignKey(
+        State, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
     user = models.ForeignKey(
         User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
     )
 
-    objects = FrozenMainManager()
+    objects = FrozenAuthUserManager()
 
     def __str__(self) -> str:
         return self.character.name if self.character else self.user.username
@@ -808,6 +814,9 @@ class FrozenAlt(FrozenModelMixin, models.Model):
         EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
     )
     category = models.CharField(max_length=2, choices=Category.choices)
+    faction = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
 
     objects = FrozenAltManager()
 

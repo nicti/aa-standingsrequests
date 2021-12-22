@@ -705,7 +705,7 @@ class RequestLogEntryManagerBase(models.Manager):
     def create_from_standing_request(
         self, standing_request, action, action_by
     ) -> Optional[models.Model]:
-        from .models import FrozenAlt, FrozenMain
+        from .models import FrozenAlt, FrozenAuthUser
 
         if standing_request.is_standing_request:
             request_type = self.model.RequestType.REQUEST
@@ -715,10 +715,10 @@ class RequestLogEntryManagerBase(models.Manager):
             standing_request
         )
         if action_by:
-            action_by_obj, _ = FrozenMain.objects.get_or_create_from_user(action_by)
+            action_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(action_by)
         else:
             action_by_obj = None
-        requested_by_obj, _ = FrozenMain.objects.get_or_create_from_user(
+        requested_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(
             standing_request.user
         )
         new_obj = self.create(
@@ -739,11 +739,11 @@ RequestLogEntryManager = RequestLogEntryManagerBase.from_queryset(
 )
 
 
-class FrozenMainQuerySet(FrozenQuerySetMixin, models.QuerySet):
+class FrozenAuthUserQuerySet(FrozenQuerySetMixin, models.QuerySet):
     pass
 
 
-class FrozenMainManagerBase(models.Manager):
+class FrozenAuthUserManagerBase(models.Manager):
     def get_or_create_from_user(self, user) -> Tuple[models.Model, bool]:
         main_character = user.profile.main_character
         if main_character:
@@ -784,7 +784,7 @@ class FrozenMainManagerBase(models.Manager):
             )
 
 
-FrozenMainManager = FrozenMainManagerBase.from_queryset(FrozenMainQuerySet)
+FrozenAuthUserManager = FrozenAuthUserManagerBase.from_queryset(FrozenAuthUserQuerySet)
 
 
 class FrozenAltQuerySet(FrozenQuerySetMixin, models.QuerySet):
@@ -800,19 +800,23 @@ class FrozenAltManagerBase(models.Manager):
             category = self.model.Category.CHARACTER
             character = eve_entity
             try:
-                corporation = character.character_affiliation.corporation
                 alliance = character.character_affiliation.alliance
+                corporation = character.character_affiliation.corporation
+                faction = character.character_affiliation.faction
             except ObjectDoesNotExist:
-                corporation = None
                 alliance = None
+                corporation = None
+                faction = None
         elif standing_request.is_corporation:
             category = self.model.Category.CORPORATION
             character = None
             corporation = eve_entity
             try:
                 alliance = corporation.corporation_details.alliance
+                faction = corporation.corporation_details.faction
             except ObjectDoesNotExist:
                 alliance = None
+                faction = None
         else:
             raise NotImplementedError()
         return self.get_or_create(
@@ -820,6 +824,7 @@ class FrozenAltManagerBase(models.Manager):
             corporation=corporation,
             alliance=alliance,
             category=category,
+            faction=faction,
         )
 
 
