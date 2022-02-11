@@ -3,9 +3,9 @@ import logging
 from django.utils.translation import gettext_lazy as _
 
 from allianceauth import hooks
-from allianceauth.services.hooks import MenuItemHook, ServicesHook
+from allianceauth.services.hooks import MenuItemHook, ServicesHook, UrlHook
 
-from . import __title__
+from . import __title__, urls
 from .models import StandingRequest, StandingRevocation
 from .urls import urlpatterns
 
@@ -61,3 +61,8 @@ class StandingsRequestMenuItem(MenuItemHook):
 @hooks.register("menu_item_hook")
 def register_menu():
     return StandingsRequestMenuItem()
+
+
+@hooks.register("url_hook")
+def register_urls():
+    return UrlHook(urls, "standingsrequests", r"^standingsrequests/")
