@@ -567,8 +567,8 @@ def manage_requests_write(request, contact_id):
 def manage_revocations_write(request, contact_id):
     contact_id = int(contact_id)
     logger.debug(
-        "manage_revocations_write called by %s for contact_id %d",
-        request.user,
+        "manage_revocations_write called by %s for contact_id %s",
+        str(request.user),
         contact_id,
     )
     if request.method == "PUT":
@@ -585,13 +585,14 @@ def manage_revocations_write(request, contact_id):
             return HttpResponseNoContent()
         return HttpResponseNotFound
     elif request.method == "DELETE":
-        standing_revocation = get_object_or_404(
-            StandingRevocation, contact_id=contact_id
+        standing_revocations_qs = StandingRevocation.objects.filter(
+            contact_id=contact_id
         )
+        standing_revocation = standing_revocations_qs.first()
         RequestLogEntry.objects.create_from_standing_request(
             standing_revocation, RequestLogEntry.Action.REJECTED, request.user
         )
-        StandingRevocation.objects.filter(contact_id=contact_id).delete()
+        standing_revocations_qs.delete()
         if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
             entity_name = EveEntity.objects.resolve_name(contact_id)
             title = _("Standing revocation for %s rejected" % entity_name)

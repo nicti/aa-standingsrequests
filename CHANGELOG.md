@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Changed
 
 - Drops support for AA below 2.9
+- Drops support for Python 3.6
 
 ## Fixed
 
@@ -23,13 +24,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.0.0] - 2021-12-02
 
-This version is now further developed as fork of: https://gitlab.com/basraah/standingsrequests
+This version is now further developed as fork of: <https://gitlab.com/basraah/standingsrequests>
 
 ## Changed
 
 - Adaptations for AA 2.9 / Django 3.2
 - Added CI tests for AA 2.9 / Django 3.2
-- The main repo for this app is now: https://gitlab.com/ErikKalkoken/aa-standingsrequests
+- The main repo for this app is now: <https://gitlab.com/ErikKalkoken/aa-standingsrequests>
 
 ## Fixed
 

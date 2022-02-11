@@ -238,7 +238,9 @@ def request_corporations(request):
 def request_character_standing(request, character_id: int):
     """For a user to request standings for their own characters"""
     logger.debug(
-        "Standings request from user %s for characterID %d", request.user, character_id
+        "Standings request from user %s for characterID %s",
+        str(request.user),
+        character_id,
     )
     character = get_object_or_404(
         EveCharacter.objects.select_related("character_ownership__user"),
@@ -277,8 +279,8 @@ def remove_character_standing(request, character_id: int):
     Handles both removing requests and removing existing standings
     """
     logger.debug(
-        "remove_character_standing called by %s for character %d",
-        request.user,
+        "remove_character_standing called by %s for character %s",
+        str(request.user),
         character_id,
     )
     req = get_object_or_404(StandingRequest, user=request.user, contact_id=character_id)
