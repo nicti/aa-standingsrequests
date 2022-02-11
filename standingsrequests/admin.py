@@ -27,15 +27,13 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     def _contact_name(self, obj):
         return EveEntity.objects.resolve_name(obj.contact_id)
 
+    @admin.display(description="contact type")
     def _contact_type_str(self, obj):
         if obj.contact_type_id in ContactType.character_ids:
             return "Character"
         elif obj.contact_type_id in ContactType.corporation_ids:
             return "Corporation"
-        else:
-            return "(undefined)"
-
-    _contact_type_str.short_description = "contact type"
+        return "(undefined)"
 
     def _user(self, obj):
         try:
@@ -103,26 +101,22 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     )
     ordering = ("-created_at",)
 
+    @admin.display(ordering="action_by")
     def _action_by(self, obj) -> str:
         return "SYSTEM" if obj.action_by is None else obj.action_by.html()
 
-    _action_by.admin_sort_field = "action_by"
-
+    @admin.display(ordering="requested_by")
     def _requested_by(self, obj) -> str:
         return obj.requested_by.html()
 
-    _requested_by.admin_sort_field = "requested_by"
-
+    @admin.display(ordering="requested_for")
     def _requested_for(self, obj) -> str:
         return obj.requested_for.html()
 
-    _requested_for.admin_sort_field = "requested_for"
-
+    @admin.display(ordering="reason")
     def _reason(self, obj) -> Optional[str]:
         reason_obj = StandingRequest.Reason(obj.reason)
         return None if reason_obj is StandingRequest.Reason.NONE else reason_obj.label
-
-    _reason.admin_sort_field = "reason"
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
