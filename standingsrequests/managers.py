@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 from bravado.exception import HTTPError
 
@@ -9,6 +9,7 @@ from django.db.models import Case, Q, Value, When
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
+from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
@@ -18,7 +19,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
-from .constants import OperationMode
+from .constants import CreateCharacterRequestError, OperationMode
 from .core import BaseConfig, ContactType
 from .providers import esi
 
@@ -391,66 +392,71 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         return invalid_count
 
-    def create_character_request(self, user: User, character: EveCharacter) -> bool:
+    def create_character_request(
+        self, user: User, character: EveCharacter
+    ) -> CreateCharacterRequestError:
         """Create new character standings request for user if possible."""
-        from .models import ContactSet, StandingRequest, StandingRevocation
+        from .models import ContactSet, RequestLogEntry, StandingRevocation
 
         try:
             if character.character_ownership.user != user:
                 logger.warning(
                     "%s: User %s does not own character, forbidden", character, user
                 )
-                return False
+                return CreateCharacterRequestError.USER_IS_NOT_OWNER
         except ObjectDoesNotExist:
-            return False
+            return CreateCharacterRequestError.USER_IS_NOT_OWNER
         try:
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Failed to get a contact set")
-            return False
+            return CreateCharacterRequestError.UNKNOWN_ERROR
         character_id = character.character_id
-        if StandingRequest.objects.has_pending_request(
+        if self.has_pending_request(
             character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
-            return False
-        elif not StandingRequest.has_required_scopes_for_request(
+            return CreateCharacterRequestError.CHARACTER_HAS_REQUEST
+        elif not self.model.has_required_scopes_for_request(
             character=character, user=user
         ):
             logger.warning("%s: Character does not have the required scopes", character)
-            return False
-        sr = StandingRequest.objects.get_or_create_2(
+            return CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES
+        sr = self.get_or_create_2(
             user=user,
             contact_id=character_id,
-            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+            contact_type=self.model.ContactType.CHARACTER,
         )
         if contact_set.contact_has_satisfied_standing(character_id):
-            sr.mark_actioned(user=None)
+            sr.mark_actioned(user=None, reason=sr.Reason.STANDING_IN_GAME)
             sr.mark_effective()
-        return True
+            RequestLogEntry.objects.create_from_standing_request(
+                sr, RequestLogEntry.Action.CONFIRMED, None
+            )
+        return CreateCharacterRequestError.NO_ERROR
 
     def create_corporation_request(self, user, corporation_id) -> bool:
         """Create new corporation standings request for user if possible."""
-        from .models import StandingRequest, StandingRevocation
+        from .models import StandingRevocation
 
-        if StandingRequest.objects.has_pending_request(
+        if self.has_pending_request(
             corporation_id
         ) or StandingRevocation.objects.has_pending_request(corporation_id):
             logger.warning(
                 "Contact ID %d already has a pending request", corporation_id
             )
             return False
-        if not StandingRequest.can_request_corporation_standing(corporation_id, user):
+        if not self.model.can_request_corporation_standing(corporation_id, user):
             logger.warning(
                 "User %s does not have enough keys for corpID %d, forbidden",
                 user,
                 corporation_id,
             )
             return False
-        StandingRequest.objects.get_or_create_2(
+        self.get_or_create_2(
             user=user,
             contact_id=corporation_id,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=self.model.ContactType.CORPORATION,
         )
         return True
 
@@ -613,17 +619,10 @@ class CharacterAffiliationManager(models.Manager):
         with transaction.atomic():
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
-
-        EveEntity.objects.bulk_create_esi(
-            filter(
-                lambda x: x is not None,
-                [
-                    affiliation["character_id"],
-                    affiliation["corporation_id"],
-                    affiliation["alliance_id"],
-                ],
-            )
-        )
+        new_ids = set()
+        for obj in affiliation_objects:
+            new_ids |= obj.entity_ids()
+        EveEntity.objects.bulk_create_esi(new_ids)
 
 
 class CorporationDetailsManager(models.Manager):
@@ -682,3 +681,153 @@ class CorporationDetailsManager(models.Manager):
                 "ticker": data["ticker"],
             },
         )
+
+
+class FrozenQuerySetMixin:
+    """Ensures the update method can not be used."""
+
+    def update(self, **kwargs) -> int:
+        raise RuntimeError("Update not allowed for this model.")
+
+
+class RequestLogEntryQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
+
+
+class RequestLogEntryManagerBase(models.Manager):
+    def create_from_standing_request(
+        self, standing_request, action, action_by
+    ) -> Optional[models.Model]:
+        from .models import FrozenAlt, FrozenAuthUser
+
+        if standing_request.is_standing_request:
+            request_type = self.model.RequestType.REQUEST
+        else:
+            request_type = self.model.RequestType.REVOCATION
+        requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
+            standing_request
+        )
+        if action_by:
+            action_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(action_by)
+        else:
+            action_by_obj = None
+        requested_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(
+            standing_request.user
+        )
+        new_obj = self.create(
+            action=action,
+            action_by=action_by_obj,
+            request_type=request_type,
+            requested_at=standing_request.request_date,
+            requested_by=requested_by_obj,
+            requested_for=requested_for,
+            reason=standing_request.reason,
+        )
+        update_unresolved_eve_entities.delay()
+        return new_obj
+
+
+RequestLogEntryManager = RequestLogEntryManagerBase.from_queryset(
+    RequestLogEntryQuerySet
+)
+
+
+class FrozenAuthUserQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
+
+
+class FrozenAuthUserManagerBase(models.Manager):
+    def get_or_create_from_user(self, user) -> Tuple[models.Model, bool]:
+        main_character = user.profile.main_character
+        if main_character:
+            character_id = main_character.character_id
+            corporation_id = main_character.corporation_id
+            alliance_id = main_character.alliance_id
+            faction_id = main_character.faction_id
+        else:
+            character_id = corporation_id = alliance_id = faction_id = None
+        try:
+            obj = self.get(
+                user_id=user.id,
+                character_id=character_id,
+                corporation_id=corporation_id,
+                alliance_id=alliance_id,
+                faction_id=faction_id,
+            )
+            return obj, False
+        except self.model.DoesNotExist:
+            alliance = (
+                EveEntity.objects.get_or_create(id=alliance_id)[0]
+                if alliance_id
+                else None
+            )
+            character = (
+                EveEntity.objects.get_or_create(id=character_id)[0]
+                if character_id
+                else None
+            )
+            corporation = (
+                EveEntity.objects.get_or_create(id=corporation_id)[0]
+                if corporation_id
+                else None
+            )
+            faction = (
+                EveEntity.objects.get_or_create(id=faction_id)[0]
+                if faction_id
+                else None
+            )
+            return self.get_or_create(
+                user=user,
+                character=character,
+                corporation=corporation,
+                alliance=alliance,
+                faction=faction,
+                state=user.profile.state,
+            )
+
+
+FrozenAuthUserManager = FrozenAuthUserManagerBase.from_queryset(FrozenAuthUserQuerySet)
+
+
+class FrozenAltQuerySet(FrozenQuerySetMixin, models.QuerySet):
+    pass
+
+
+class FrozenAltManagerBase(models.Manager):
+    def get_or_create_from_standing_request(
+        self, standing_request: object
+    ) -> Tuple[models.Model, bool]:
+        eve_entity, _ = EveEntity.objects.get_or_create(id=standing_request.contact_id)
+        if standing_request.is_character:
+            category = self.model.Category.CHARACTER
+            character = eve_entity
+            try:
+                alliance = character.character_affiliation.alliance
+                corporation = character.character_affiliation.corporation
+                faction = character.character_affiliation.faction
+            except ObjectDoesNotExist:
+                alliance = None
+                corporation = None
+                faction = None
+        elif standing_request.is_corporation:
+            category = self.model.Category.CORPORATION
+            character = None
+            corporation = eve_entity
+            try:
+                alliance = corporation.corporation_details.alliance
+                faction = corporation.corporation_details.faction
+            except ObjectDoesNotExist:
+                alliance = None
+                faction = None
+        else:
+            raise NotImplementedError()
+        return self.get_or_create(
+            character=character,
+            corporation=corporation,
+            alliance=alliance,
+            category=category,
+            faction=faction,
+        )
+
+
+FrozenAltManager = FrozenAltManagerBase.from_queryset(FrozenAltQuerySet)

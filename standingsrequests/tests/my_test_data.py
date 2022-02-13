@@ -419,6 +419,17 @@ def load_eve_entities():
             },
         )
 
+    for id, name in [
+        (500001, "Caldari State"),
+        (500002, "Minmatar Republic"),
+        (500003, "Amarr Empire"),
+        (500004, "Gallente Federation"),
+    ]:
+        EveEntity.objects.get_or_create(
+            id=id,
+            defaults={"name": name, "category": EveEntity.CATEGORY_FACTION},
+        )
+
 
 def load_corporation_details():
     for record in _my_test_data["EveCorporationInfo"].values():

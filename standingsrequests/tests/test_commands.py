@@ -2,6 +2,7 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.test import override_settings
 from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveCharacter
@@ -14,6 +15,7 @@ from .my_test_data import (
     create_contacts_set,
     create_entity,
     create_standings_char,
+    load_eve_entities,
 )
 
 PACKAGE_PATH = "standingsrequests.management.commands"
@@ -21,6 +23,7 @@ TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(
     "standingsrequests.core.STR_ALLIANCE_IDS",
     [str(TEST_STANDINGS_ALLIANCE_ID)],
@@ -38,6 +41,7 @@ class TestSyncRequests(NoSocketsTestCase):
         AuthUtils.add_permission_to_user_by_name(
             StandingRequest.REQUEST_PERMISSION_NAME, cls.user
         )
+        load_eve_entities()
 
     def setUp(self):
         create_standings_char()

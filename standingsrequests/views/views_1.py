@@ -1,6 +1,7 @@
+from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from esi.decorators import token_required
@@ -9,15 +10,15 @@ from eveuniverse.models import EveEntity
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
-from app_utils.messages import messages_plus
 
 from .. import __title__
 from ..app_settings import SR_CORPORATIONS_ENABLED
+from ..constants import CreateCharacterRequestError
 from ..core import BaseConfig, MainOrganizations
 from ..decorators import token_required_by_state
 from ..helpers.evecorporation import EveCorporation
 from ..models import ContactSet, StandingRequest, StandingRevocation
-from ..tasks import update_all
+from ..tasks import update_all, update_associations_api
 from .helpers import DEFAULT_ICON_SIZE, add_common_context
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -41,11 +42,15 @@ def index_view(request):
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def create_requests(request):
     organization = BaseConfig.standings_source_entity()
+    try:
+        main_char_id = request.user.profile.main_character.character_id
+    except AttributeError:
+        main_char_id = None
     context = {
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
         "organization_image_url": organization.icon_url(size=DEFAULT_ICON_SIZE),
-        "authinfo": {"main_char_id": request.user.profile.main_character.character_id},
+        "authinfo": {"main_char_id": main_char_id},
     }
     return render(
         request,
@@ -233,28 +238,37 @@ def request_corporations(request):
 def request_character_standing(request, character_id: int):
     """For a user to request standings for their own characters"""
     logger.debug(
-        "Standings request from user %s for characterID %d", request.user, character_id
+        "Standings request from user %s for characterID %s",
+        str(request.user),
+        character_id,
     )
-    try:
-        character = (
-            EveCharacter.objects.select_related("character_ownership__user")
-            .filter(character_ownership__user=request.user)
-            .get(character_id=character_id)
-        )
-    except EveCharacter.DoesNotExist:
-        success = False
+    character = get_object_or_404(
+        EveCharacter.objects.select_related("character_ownership__user"),
+        character_id=character_id,
+    )
+    error = StandingRequest.objects.create_character_request(request.user, character)
+    if error is not CreateCharacterRequestError.NO_ERROR:
+        if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
+            messages.error(
+                request,
+                "You character %s is missing scopes."
+                % EveEntity.objects.resolve_name(character_id),
+            )
+        elif error is CreateCharacterRequestError.USER_IS_NOT_OWNER:
+            messages.error(
+                request,
+                "You are not the owner of character %s."
+                % EveEntity.objects.resolve_name(character_id),
+            )
+        else:
+            messages.error(
+                request,
+                "An unexpected error occurred when trying to process "
+                "your standing request for %s. Please try again."
+                % EveEntity.objects.resolve_name(character_id),
+            )
     else:
-        success = StandingRequest.objects.create_character_request(
-            request.user, character
-        )
-    if not success:
-        messages_plus.warning(
-            request,
-            "An unexpected error occurred when trying to process "
-            "your standing request for %s. Please try again."
-            % EveEntity.objects.resolve_name(character_id),
-        )
-
+        update_associations_api.delay()
     return redirect("standingsrequests:create_requests")
 
 
@@ -265,26 +279,19 @@ def remove_character_standing(request, character_id: int):
     Handles both removing requests and removing existing standings
     """
     logger.debug(
-        "remove_character_standing called by %s for character %d",
-        request.user,
+        "remove_character_standing called by %s for character %s",
+        str(request.user),
         character_id,
     )
-    try:
-        req = StandingRequest.objects.filter(user=request.user).get(
-            contact_id=character_id
-        )
-    except StandingRequest.DoesNotExist:
-        success = False
-    else:
-        success = req.remove()
+    req = get_object_or_404(StandingRequest, user=request.user, contact_id=character_id)
+    success = req.remove()
     if not success:
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
             % EveEntity.objects.resolve_name(character_id),
         )
-
     return redirect("standingsrequests:create_requests")
 
 
@@ -301,13 +308,14 @@ def request_corp_standing(request, corporation_id):
     if not StandingRequest.objects.create_corporation_request(
         request.user, corporation_id
     ):
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your standing request for %s. Please try again."
             % EveEntity.objects.resolve_name(corporation_id),
         )
-
+    else:
+        update_associations_api.delay()
     return redirect("standingsrequests:create_requests")
 
 
@@ -327,13 +335,12 @@ def remove_corp_standing(request, corporation_id: int):
     else:
         success = req.remove()
     if not success:
-        messages_plus.warning(
+        messages.warning(
             request,
             "An unexpected error occurred when trying to process "
             "your request to revoke standing for %s. Please try again."
             % EveEntity.objects.resolve_name(corporation_id),
         )
-
     return redirect("standingsrequests:create_requests")
 
 
@@ -344,7 +351,7 @@ def view_auth_page(request, token):
     source_entity = BaseConfig.standings_source_entity()
     char_name = EveEntity.objects.resolve_name(BaseConfig.owner_character_id)
     if not source_entity:
-        messages_plus.error(
+        messages.error(
             request,
             format_html(
                 _(
@@ -358,7 +365,7 @@ def view_auth_page(request, token):
         )
     elif token.character_id == BaseConfig.owner_character_id:
         update_all.delay(user_pk=request.user.pk)
-        messages_plus.success(
+        messages.success(
             request,
             format_html(
                 _(
@@ -370,7 +377,7 @@ def view_auth_page(request, token):
             ),
         )
     else:
-        messages_plus.error(
+        messages.error(
             request,
             _(
                 "Failed to setup token for configured character "
@@ -392,7 +399,7 @@ def view_auth_page(request, token):
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 @token_required_by_state(new=False)
 def view_requester_add_scopes(request, token):
-    messages_plus.success(
+    messages.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
         % {"char_name": EveEntity.objects.resolve_name(token.character_id)},
@@ -404,7 +411,7 @@ def view_requester_add_scopes(request, token):
 @staff_member_required
 def admin_changeset_update_now(request):
     update_all.delay(user_pk=request.user.pk)
-    messages_plus.info(
+    messages.info(
         request,
         _(
             "Started updating contacts and affiliations. "

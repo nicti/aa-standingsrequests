@@ -3,7 +3,8 @@ from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory, TestCase
+from django.http import Http404
+from django.test import RequestFactory, override_settings
 from django.urls import reverse
 from django.utils.timezone import now
 from esi.models import Token
@@ -23,7 +24,7 @@ from app_utils.testing import (
 from .. import views
 from ..core import ContactType
 from ..helpers.evecorporation import EveCorporation
-from ..models import Contact, StandingRequest, StandingRevocation
+from ..models import Contact, RequestLogEntry, StandingRequest, StandingRevocation
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
@@ -47,7 +48,7 @@ TEST_SCOPE = "publicData"
 
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(VIEWS_PATH + ".update_all")
-@patch(VIEWS_PATH + ".messages_plus")
+@patch(VIEWS_PATH + ".messages")
 class TestViewAuthPage(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -124,7 +125,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_update_all.delay.called)
 
 
-class TestViewPagesBase(TestCase):
+class TestViewPagesBase(NoSocketsTestCase):
     """Base TestClass for all tests that deal with standing requests
 
     Defines common test data
@@ -244,6 +245,10 @@ class TestViewPagesBase(TestCase):
         self.contact_set.refresh_from_db()
 
 
+@patch(
+    "allianceauth.notifications.templatetags.auth_notifications.Notification.objects.user_unread_count",
+    lambda *args, **kwargs: 1,
+)
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
@@ -274,7 +279,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -299,7 +304,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -314,7 +319,7 @@ class TestViewsBasics(TestViewPagesBase):
         self._create_standing_for_alt(self.alt_character_1)
         StandingRevocation.objects.add_revocation(
             self.alt_character_1.character_id,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
         )
         # when
@@ -354,6 +359,7 @@ class TestViewsBasics(TestViewPagesBase):
         self.assertEqual(response.status_code, 200)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCharacterStanding(NoSocketsTestCase):
     @classmethod
@@ -374,7 +380,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages.error") as mock_message:
             response = views.request_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -457,6 +463,17 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         self.assertTrue(result)
         obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
         self.assertTrue(obj.is_effective)
+        self.assertEqual(
+            RequestLogEntry.objects.filter(
+                action_by__isnull=True,
+                requested_for__character_id=alt_character.character_id,
+                requested_by__user=self.user,
+                request_type=RequestLogEntry.RequestType.REQUEST,
+                action=RequestLogEntry.Action.CONFIRMED,
+                reason=StandingRequest.Reason.STANDING_IN_GAME,
+            ).count(),
+            1,
+        )
 
 
 @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3001])
@@ -477,7 +494,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
             reverse("standingsrequests:remove_character_standing", args=[character_id])
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages.warning") as mock_message:
             response = views.remove_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -491,7 +508,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=alt_character.character_id,
-            contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CHARACTER,
         )
         # when
         result = self.view_request_pilot_standing(alt_character.character_id)
@@ -507,9 +524,8 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         # given
         random_character = create_entity(EveCharacter, 1007)
         # when
-        result = self.view_request_pilot_standing(random_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(random_character.character_id)
 
     def test_should_not_remove_request_if_character_is_owned_by_sombody_else(self):
         # given
@@ -517,18 +533,16 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         other_character = create_entity(EveCharacter, 1006)
         add_character_to_user(user, other_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(other_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(other_character.character_id)
 
     def test_should_return_false_if_character_in_organization(self):
         # given
         alt_character = create_entity(EveCharacter, 1002)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(alt_character.character_id)
 
     # I believe we do not need this requirement
     # def test_should_create_revocation_if_character_has_satisfied_standing(self):
@@ -545,11 +559,11 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         alt_character = create_entity(EveCharacter, 1008)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertFalse(result)
+        with self.assertRaises(Http404):
+            self.view_request_pilot_standing(alt_character.character_id)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCorporationStanding(NoSocketsTestCase):
     @classmethod
@@ -574,7 +588,7 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
             mock_get_corp_by_id.return_value = EveCorporation(
                 **get_my_test_data()["EveCorporationInfo"]["2102"]
             )
-            with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+            with patch(VIEWS_PATH + ".messages.warning") as mock_message:
                 response = views.request_corp_standing(request, corporation_id)
                 success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -625,7 +639,7 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         self.assertFalse(result)
 
 
-class TestRemoveCorporationStanding(TestCase):
+class TestRemoveCorporationStanding(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -644,7 +658,7 @@ class TestRemoveCorporationStanding(TestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages_plus.warning") as mock_message:
+        with patch(VIEWS_PATH + ".messages.warning") as mock_message:
             response = views.remove_corp_standing(request, corporation_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -658,7 +672,7 @@ class TestRemoveCorporationStanding(TestCase):
         StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         # when
         success = self.view_remove_corp_standing(2102)
@@ -673,7 +687,7 @@ class TestRemoveCorporationStanding(TestCase):
         req = StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2003,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         req.mark_actioned(user=None)
         req.mark_effective()
@@ -692,7 +706,7 @@ class TestRemoveCorporationStanding(TestCase):
         StandingRequest.objects.get_or_create_2(
             user=user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         # when
         success = self.view_remove_corp_standing(2102)
@@ -715,7 +729,7 @@ class TestRemoveCorporationStanding(TestCase):
         req = StandingRequest.objects.get_or_create_2(
             user=self.user,
             contact_id=2102,
-            contact_type=StandingRequest.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRequest.ContactType.CORPORATION,
         )
         req.mark_actioned(user=None)
         req.mark_effective()

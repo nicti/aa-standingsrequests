@@ -1,17 +1,19 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.core import exceptions
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils.functional import cached_property
+from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
 
-from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.authentication.models import CharacterOwnership, State
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.helpers import default_if_none
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
@@ -25,11 +27,19 @@ from .managers import (
     ContactQuerySet,
     ContactSetManager,
     CorporationDetailsManager,
+    FrozenAltManager,
+    FrozenAuthUserManager,
+    RequestLogEntryManager,
     StandingRequestManager,
     StandingRevocationManager,
 )
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+def get_or_create_sentinel_user() -> User:
+    """Get or create the sentinel user."""
+    return User.objects.get_or_create(username="deleted")[0]
 
 
 class ContactSet(models.Model):
@@ -89,10 +99,13 @@ class ContactSet(models.Model):
                 sr = StandingRequest.objects.get_or_create_2(
                     user=user,
                     contact_id=alt.character_id,
-                    contact_type=StandingRequest.CHARACTER_CONTACT_TYPE,
+                    contact_type=StandingRequest.ContactType.CHARACTER,
                 )
-                sr.mark_actioned(None)
+                sr.mark_actioned(user=None, reason=sr.Reason.STANDING_IN_GAME)
                 sr.mark_effective()
+                RequestLogEntry.objects.create_from_standing_request(
+                    sr, RequestLogEntry.Action.CONFIRMED, None
+                )
                 logger.info(
                     "Generated standings request for blue alt %s "
                     "belonging to user %s.",
@@ -174,9 +187,21 @@ class Contact(models.Model):
 class AbstractStandingsRequest(models.Model):
     """Base class for a standing request"""
 
-    # possible contact types to make a request for
-    CHARACTER_CONTACT_TYPE = "character"
-    CORPORATION_CONTACT_TYPE = "corporation"
+    class ContactType(models.TextChoices):
+        """Possible contact types to make a request for."""
+
+        CHARACTER = "character", _("character")
+        CORPORATION = "corporation", _("corporation")
+
+    class Reason(models.TextChoices):
+        """Reason for requesting or revoking a standing."""
+
+        NONE = "NO", _("None recorded")
+        OWNER_REQUEST = "OR", _("Requested by character owner")
+        LOST_PERMISSION = "LP", _("Character owner has lost permission")
+        MISSING_CORP_TOKEN = "CT", _("Not all corp tokens are recorded in Auth.")
+        REVOKED_IN_GAME = "RG", _("Standing has been revoked in game")
+        STANDING_IN_GAME = "SG", _("Already has standing in game")
 
     # Standing less than or equal
     EXPECT_STANDING_LTEQ = 10.0
@@ -270,9 +295,9 @@ class AbstractStandingsRequest(models.Model):
 
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
-        if contact_type == cls.CHARACTER_CONTACT_TYPE:
+        if contact_type == cls.ContactType.CHARACTER:
             return ContactType.character_id
-        elif contact_type == cls.CORPORATION_CONTACT_TYPE:
+        elif contact_type == cls.ContactType.CORPORATION:
             return ContactType.corporation_id
         else:
             raise ValueError("Invalid contact type")
@@ -280,11 +305,10 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
         if contact_type_id in ContactType.character_ids:
-            return cls.CHARACTER_CONTACT_TYPE
+            return cls.ContactType.CHARACTER.value
         elif contact_type_id in ContactType.corporation_ids:
-            return cls.CORPORATION_CONTACT_TYPE
-        else:
-            raise ValueError("Invalid contact type")
+            return cls.ContactType.CORPORATION.value
+        raise ValueError("Invalid contact type")
 
     def evaluate_effective_standing(self, check_only: bool = False) -> bool:
         """
@@ -302,7 +326,7 @@ class AbstractStandingsRequest(models.Model):
                     self.mark_effective()
                 return True
 
-        except exceptions.ObjectDoesNotExist:
+        except ObjectDoesNotExist:
             logger.debug(
                 "No standing set for %d, checking if neutral is OK", self.contact_id
             )
@@ -331,7 +355,7 @@ class AbstractStandingsRequest(models.Model):
         self.effective_date = date if date else now()
         self.save()
 
-    def mark_actioned(self, user, date=None):
+    def mark_actioned(self, user, date=None, reason=None):
         """
         Marks a standing as actioned (user has made the change in game)
         with the current or supplied TZ aware datetime
@@ -342,6 +366,8 @@ class AbstractStandingsRequest(models.Model):
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
         self.action_date = date if date else now()
+        if reason:
+            self.reason = reason
         self.save()
 
     def check_actioned_timeout(self):
@@ -405,6 +431,11 @@ class StandingRequest(AbstractStandingsRequest):
 
     EXPECT_STANDING_GTEQ = 0.01
 
+    reason = models.CharField(
+        max_length=2,
+        choices=AbstractStandingsRequest.Reason.choices,
+        default=AbstractStandingsRequest.Reason.NONE,
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     objects = StandingRequestManager()
@@ -468,7 +499,7 @@ class StandingRequest(AbstractStandingsRequest):
         logger.debug("%s: Creating standings revocation by user %s", self, self.user)
         StandingRevocation.objects.add_revocation(
             contact_id=self.contact_id,
-            contact_type=StandingRevocation.CORPORATION_CONTACT_TYPE,
+            contact_type=StandingRevocation.ContactType.CORPORATION,
             user=self.user,
             reason=StandingRevocation.Reason.OWNER_REQUEST,
         )
@@ -551,15 +582,16 @@ class StandingRequest(AbstractStandingsRequest):
                 return False
             else:
                 user = ownership.user
-
-        state_name = user.profile.state.name
+        try:
+            state_name = user.profile.state.name
+        except ObjectDoesNotExist:
+            return False
         scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
         token_qs = Token.objects.filter(
             character_id=character.character_id
         ).require_scopes(scopes_string)
         if not quick_check:
             token_qs = token_qs.require_valid()
-
         return token_qs.exists()
 
     @staticmethod
@@ -577,19 +609,14 @@ class StandingRevocation(AbstractStandingsRequest):
 
     EXPECT_STANDING_LTEQ = 0.0
 
-    class Reason(models.TextChoices):
-        """Reason for revoking a standing."""
-
-        NONE = "NO", _("None recorded")
-        OWNER_REQUEST = "OR", _("Requested by character owner")
-        LOST_PERMISSION = "LP", _("Character owner has lost permission")
-        MISSING_CORP_TOKEN = "CT", _("Not all corp tokens are recorded in Auth.")
-        REVOKED_IN_GAME = "RG", _("Standing has been revoked in game")
-
+    reason = models.CharField(
+        max_length=2,
+        choices=AbstractStandingsRequest.Reason.choices,
+        default=AbstractStandingsRequest.Reason.NONE,
+    )
     user = models.ForeignKey(
         User, on_delete=models.SET_DEFAULT, default=None, null=True
     )
-    reason = models.CharField(max_length=2, choices=Reason.choices, default=Reason.NONE)
 
     objects = StandingRevocationManager()
 
@@ -640,6 +667,20 @@ class CharacterAffiliation(models.Model):
         """Return character name for main."""
         return self.character.name if self.character.name else None
 
+    def entity_ids(self) -> set:
+        """Ids of all entities."""
+        return set(
+            filter(
+                lambda x: x is not None,
+                [
+                    self.character_id,
+                    self.corporation_id,
+                    self.alliance_id,
+                    self.faction_id,
+                ],
+            )
+        )
+
 
 class CorporationDetails(models.Model):
     """A corporation affiliation."""
@@ -679,3 +720,142 @@ class CorporationDetails(models.Model):
 
     def __str__(self) -> str:
         return self.corporation.name
+
+
+class FrozenModelMixin:
+    """Objects of this model type can only be created, but not updated."""
+
+    def save(self, *args, **kwargs) -> None:
+        if self.pk is None:
+            super().save(*args, **kwargs)
+        else:
+            raise RuntimeError("No updates allowed for this object.")
+
+
+class RequestLogEntry(FrozenModelMixin, models.Model):
+    class Action(models.TextChoices):
+        CONFIRMED = "CN", _("confirmed")
+        REJECTED = "RJ", _("rejected")
+
+    class RequestType(models.TextChoices):
+        REQUEST = "RQ", _("request")
+        REVOCATION = "RV", _("revocation")
+
+    action = models.CharField(max_length=2, choices=Action.choices)
+    action_by = models.ForeignKey(
+        "FrozenAuthUser",
+        on_delete=models.CASCADE,
+        null=True,
+        help_text=(
+            "Main who performed the action. "
+            "None means the action was performed automatically by the app."
+        ),
+    )
+    created_at = models.DateTimeField(auto_now=True)
+    reason = models.CharField(
+        max_length=2, choices=AbstractStandingsRequest.Reason.choices
+    )
+    request_type = models.CharField(max_length=2, choices=RequestType.choices)
+    requested_at = models.DateTimeField()
+    requested_by = models.ForeignKey(
+        "FrozenAuthUser", on_delete=models.CASCADE, related_name="+"
+    )
+    requested_for = models.ForeignKey(
+        "FrozenAlt",
+        on_delete=models.CASCADE,
+        help_text="Alt character or corporation to change standing for",
+    )
+
+    objects = RequestLogEntryManager()
+
+    class Meta:
+        verbose_name = "request log"
+        verbose_name_plural = "request log"
+
+    def __str__(self) -> str:
+        return f"{self.created_at}-{self.action}"
+
+
+class FrozenAuthUser(FrozenModelMixin, models.Model):
+    """Main with user, character and affiliations.
+    Objects are frozen at creation and can not be changed.
+    """
+
+    alliance = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    character = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    faction = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    state = models.ForeignKey(
+        State, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    user = models.ForeignKey(
+        User, on_delete=models.SET(get_or_create_sentinel_user), related_name="+"
+    )
+
+    objects = FrozenAuthUserManager()
+
+    def __str__(self) -> str:
+        return self.character.name if self.character else self.user.username
+
+    def html(self) -> str:
+        """Output as html."""
+        if self.character:
+            return format_html(
+                "{}<br>{}",
+                default_if_none(self.character, "-"),
+                default_if_none(self.corporation, "-"),
+            )
+        return str(self.user)
+
+
+class FrozenAlt(FrozenModelMixin, models.Model):
+    """Alt with alignmants. Objects are frozen at creation and can not be changed."""
+
+    class Category(models.TextChoices):
+        CHARACTER = "CH", "character"
+        CORPORATION = "CP", "corporation"
+
+    alliance = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    character = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+    category = models.CharField(max_length=2, choices=Category.choices)
+    faction = models.ForeignKey(
+        EveEntity, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
+
+    objects = FrozenAltManager()
+
+    def __str__(self) -> str:
+        return str(self.character) if self.character else (self.corporation)
+
+    @property
+    def is_character(self) -> bool:
+        return self.category == self.Category.CHARACTER
+
+    @property
+    def is_corporation(self) -> bool:
+        return self.category == self.Category.CORPORATION
+
+    def html(self) -> str:
+        """Output as html."""
+        if self.is_character:
+            return format_html(
+                "{}<br>{}",
+                default_if_none(self.character, "-"),
+                default_if_none(self.corporation, "-"),
+            )
+        return str(self.corporation)

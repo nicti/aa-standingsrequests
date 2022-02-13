@@ -372,7 +372,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -397,7 +397,7 @@ class TestViewsBasics(TestViewPagesBase):
         StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             self.alt_character_1.character_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
         # when
         response = views.index_view(request)
@@ -412,7 +412,7 @@ class TestViewsBasics(TestViewPagesBase):
         self._create_standing_for_alt(self.alt_character_1)
         StandingRevocation.objects.add_revocation(
             self.alt_character_1.character_id,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
         )
         # when
@@ -470,7 +470,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
-            StandingRequest.CHARACTER_CONTACT_TYPE,
+            StandingRequest.ContactType.CHARACTER,
         )
 
         # make request
@@ -528,7 +528,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         standing_request = StandingRequest.objects.get_or_create_2(
             self.user_requestor,
             alt_id,
-            StandingRequest.CORPORATION_CONTACT_TYPE,
+            StandingRequest.ContactType.CORPORATION,
         )
 
         # make request
@@ -582,7 +582,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self._create_standing_for_alt(alt_character)
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_requestor,
             reason=StandingRevocation.Reason.LOST_PERMISSION,
         )
@@ -641,7 +641,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self._create_standing_for_alt(self.alt_corporation)
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id,
-            StandingRevocation.CORPORATION_CONTACT_TYPE,
+            StandingRevocation.ContactType.CORPORATION,
             user=self.user_requestor,
         )
 
@@ -691,7 +691,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self._create_standing_for_alt(self.alt_character_3)
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id,
-            StandingRevocation.CHARACTER_CONTACT_TYPE,
+            StandingRevocation.ContactType.CHARACTER,
             user=self.user_former_member,
         )
 
@@ -742,7 +742,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         my_alt = EveCharacter.objects.get(character_id=alt_id)
         self._create_standing_for_alt(my_alt)
         standing_request = StandingRevocation.objects.add_revocation(
-            alt_id, StandingRevocation.CHARACTER_CONTACT_TYPE
+            alt_id, StandingRevocation.ContactType.CHARACTER
         )
 
         # make request
