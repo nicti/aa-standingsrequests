@@ -7,16 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.1.0] - tbd
+## [1.1.0] - 2022-02-13
 
 ## Added
 
-- Request Log: Requests & Revocation related actions by managers and the system are now automatically logged and visible on the admin site. Data about users and alts (e.g. corporation memberships) are frozen when log entrys are created.
+- Request Log: Requests & Revocation related actions by managers and the system are now automatically logged and visible on the admin site for auditing purposes.
 
 ## Changed
 
 - Drops support for AA below 2.9
 - Drops support for Python 3.6
+- Drops support for Django 3.1
 
 ## Fixed
 
