@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.1.1] - 2022-03-02
+
+## Changed
+
+- Updated depenencies for compatibility with AA3
+
 ## [1.1.0] - 2022-02-13
 
 ## Added
