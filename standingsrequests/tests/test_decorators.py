@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
@@ -38,7 +38,7 @@ class TestTokenRequiredByState(TestCase):
     def generate_get_request(self):
         request = self.factory.get("https://www.example.com/my_view/")
         request.user = self.user
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(Mock())
         middleware.process_request(request)
         request.session.save()
         return request
@@ -46,7 +46,7 @@ class TestTokenRequiredByState(TestCase):
     def generate_post_request(self, data=dict(), user=None):
         request = self.factory.post("https://www.example.com/my_view/", data)
         request.user = self.user if not user else user
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(Mock())
         middleware.process_request(request)
         request.session.save()
         return request

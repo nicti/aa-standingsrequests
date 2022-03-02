@@ -63,7 +63,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         request = self.factory.get(reverse("standingsrequests:view_auth_page"))
         request.user = user
         request.token = token
-        middleware = SessionMiddleware()
+        middleware = SessionMiddleware(Mock())
         middleware.process_request(request)
         orig_view = views.view_auth_page.__wrapped__.__wrapped__.__wrapped__
         return orig_view(request, token)
