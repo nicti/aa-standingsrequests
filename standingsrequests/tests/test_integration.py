@@ -169,8 +169,8 @@ class TestMainUseCases(WebTest):
 
         self.contact_set.refresh_from_db()
 
-    def _parse_json_response(self, response):
-        return {row["contact_id"]: row for row in response.json}
+    def _parse_contacts_data(self, response, key: str):
+        return {row["contact_id"]: row for row in response.context.dicts[3][key]}
 
     def _setup_mocks(self, mock_esi):
         mock_Corporation = mock_esi.client.Corporation
@@ -228,24 +228,19 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_request.refresh_from_db()
@@ -312,23 +307,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -376,8 +368,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing",
-            args=[alt_id],
+            "standingsrequests:request_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -393,24 +384,19 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_request.refresh_from_db()
@@ -459,8 +445,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_corp_standing",
-            args=[alt_id],
+            "standingsrequests:remove_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -477,23 +462,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -539,8 +521,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_character_standing",
-            args=[alt_id],
+            "standingsrequests:request_character_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -556,23 +537,18 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -609,8 +585,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing",
-            args=[alt_id],
+            "standingsrequests:request_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -626,20 +601,18 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
             reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -695,19 +668,19 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
             reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
@@ -783,23 +756,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -888,23 +858,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, key="revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()

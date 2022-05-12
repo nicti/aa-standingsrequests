@@ -454,9 +454,9 @@ class TestViewsBasics(TestViewPagesBase):
 
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-class TestViewManageRequestsJson(TestViewPagesBase):
+class TestViewManageRequests(TestViewPagesBase):
     def test_request_character(self, mock_esi, mock_cache):
-        # setup
+        # given
         mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
@@ -472,17 +472,14 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             alt_id,
             StandingRequest.ContactType.CHARACTER,
         )
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:manage_requests_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -498,7 +495,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "Member",
             "main_character_name": "Peter Parker",
@@ -515,7 +512,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
     def test_request_corporation(self, mock_esi, mock_cache):
-        # setup
+        # given
         mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
@@ -530,17 +527,14 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             alt_id,
             StandingRequest.ContactType.CORPORATION,
         )
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_requests_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:manage_requests_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -555,7 +549,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "Member",
             "main_character_name": "Peter Parker",
@@ -574,7 +568,7 @@ class TestViewManageRequestsJson(TestViewPagesBase):
 
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-class TestViewManageRevocationsJson(TestViewPagesBase):
+class TestViewManageRevocations(TestViewPagesBase):
     def test_should_show_character_revocation(self, mock_esi, mock_cache):
         # given
         alt_character = EveCharacter.objects.get(character_id=1110)
@@ -586,15 +580,16 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             user=self.user_requestor,
             reason=StandingRevocation.Reason.LOST_PERMISSION,
         )
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_revocations_json")
-        )
-        request.user = self.user_manager
+        self.client.force_login(self.user_manager)
+
         # when
-        response = views.manage_get_revocations_json(request)
+        response = self.client.get(reverse("standingsrequests:manage_revocations_list"))
+
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {
+            obj["contact_id"]: obj for obj in response.context.dicts[3]["revocations"]
+        }
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -610,7 +605,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": False,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "Member",
             "main_character_name": "Peter Parker",
@@ -627,7 +622,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
     def test_revoke_corporation(self, mock_esi, mock_cache):
-        # setup
+        # given
         mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
@@ -636,7 +631,6 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             esi_post_universe_names
         )
         mock_cache.get.return_value = None
-
         alt_id = self.alt_corporation.corporation_id
         self._create_standing_for_alt(self.alt_corporation)
         standing_request = StandingRevocation.objects.add_revocation(
@@ -644,17 +638,16 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             StandingRevocation.ContactType.CORPORATION,
             user=self.user_requestor,
         )
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_revocations_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:manage_revocations_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {
+            obj["contact_id"]: obj for obj in response.context.dicts[3]["revocations"]
+        }
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -669,7 +662,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "Member",
             "main_character_name": "Peter Parker",
@@ -686,7 +679,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         self.assertDictEqual(data[alt_id], expected_alt_1)
 
     def test_can_show_user_without_main(self, mock_esi, mock_cache):
-        # setup
+        # given
         alt_id = self.alt_character_3.character_id
         self._create_standing_for_alt(self.alt_character_3)
         standing_request = StandingRevocation.objects.add_revocation(
@@ -694,17 +687,16 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             StandingRevocation.ContactType.CHARACTER,
             user=self.user_former_member,
         )
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_revocations_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:manage_revocations_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {
+            obj["contact_id"]: obj for obj in response.context.dicts[3]["revocations"]
+        }
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -720,7 +712,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": False,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "Guest",
             "main_character_name": "",
@@ -744,17 +736,16 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
         standing_request = StandingRevocation.objects.add_revocation(
             alt_id, StandingRevocation.ContactType.CHARACTER
         )
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(
-            reverse("standingsrequests:manage_get_revocations_json")
-        )
-        request.user = self.user_manager
-        response = views.manage_get_revocations_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:manage_revocations_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {
+            obj["contact_id"]: obj for obj in response.context.dicts[3]["revocations"]
+        }
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -770,7 +761,7 @@ class TestViewManageRevocationsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": False,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date,
             "action_date": None,
             "state": "(no user)",
             "main_character_name": "",

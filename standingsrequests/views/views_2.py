@@ -379,11 +379,16 @@ def manage_requests_list(request):
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def manage_get_revocations_json(request):
-    logger.debug("manage_get_revocations_json called by %s", request.user)
+def manage_revocations_list(request):
     revocations_qs = StandingRevocation.objects.pending_requests()
-    requests_data = _compose_standing_requests_data(revocations_qs)
-    return JsonResponse(requests_data, safe=False)
+    revocations_data = _compose_standing_requests_data(revocations_qs)
+    context = {
+        "DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML,
+        "revocations": revocations_data,
+    }
+    return render(
+        request, "standingsrequests/partials/_manage_revocations_list.html", context
+    )
 
 
 def _compose_standing_requests_data(

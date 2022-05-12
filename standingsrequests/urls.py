@@ -52,8 +52,8 @@ urlpatterns = [
     ),
     path(
         "manage/revocations/",
-        views.manage_get_revocations_json,
-        name="manage_get_revocations_json",
+        views.manage_revocations_list,
+        name="manage_revocations_list",
     ),
     path(
         "manage/revocations/<int:contact_id>/",
