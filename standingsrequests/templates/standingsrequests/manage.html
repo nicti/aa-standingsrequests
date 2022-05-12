@@ -9,88 +9,24 @@
 {% endblock extra_css %}
 
 {% block page_content %}
-    <div ng-app="standingsApp" ng-controller="ManageStandingsController">
-        <error-messages></error-messages>
-
+    <div>
         <!-- Requests -->
 
-        <h2 style="margin-top:0;">
-            {% trans "Pending Requests" %} ({{requests_count|default:"-"}})
-        </h2>
+        <h2 style="margin-top:0;">{% trans "Pending Requests" %} ({{requests_count|default:"-"}})</h2>
         <p>Standing requests with pending action for <strong>{{organization.name}}</strong></p>
         <div class="container-fluid">
-
-            <div id="div_spinner_requests" class="row">
-                <div>
-                    {% include "standingsrequests/partials/_spinner.html" %}
-                </div>
-            </div>
-
-            <div id="div_requests" class="row" style="visibility: hidden">
-                <div class="table-responsive">
-                    <table id="tab_requests" class="table table-condensed table-hover table-striped">
-                        <tr>
-                            <th class="col-md-1">{% trans "Date" %}</th>
-                            <th class="col-md-2">{% trans "Contact Name" %}</th>
-                            <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
-                            <th class="col-md-2">{% trans "Main Character" %}</th>
-                            <th class="col-md-3">{% trans "Scopes / State" %}</th>
-                            <th class="col-md-2">{% trans "Actions" %}</th>
-                        </tr>
-                        {% verbatim %}
-                        <tr ng-repeat="contact in requests">
-                            <td>
-                                {{ contact.request_date | date:'yyyy-MM-dd HH:mm' }}
-                            </td>
-                            <td>
-                                <img ng-src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
-                                    {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
-                                </span>
-                            </td>
-                            <td>
-                                <span ng-show="contact.corporation_ticker">
-                                    [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
-                                </span><br>
-                                <span ng-show="contact.alliance_name" ng-bind="contact.alliance_name"></span>
-                            </td>
-                            <td>
-                                <img ng-src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                <span ng-show="contact.main_character_ticker">
-                                    [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
-                                </span>
-                            </td>
-                            <td>
-                                <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></bool-checkmark>
-                                {{contact.state}}
-                            </td>
-                            <td>
-                                <button class="btn btn-success" ng-click="actionRequest(contact)" title="Confirm the standing was ADDED in game">
-                                    Confirm
-                                </button>
-                                &nbsp;&nbsp;&nbsp;&nbsp;
-                                <button class="btn btn-danger" ng-click="rejectRequest(contact)" title="Reject this standing request">
-                                    Reject
-                                </button>
-
-                            </td>
-                        </tr>
-
-                        <tr ng-hide="requests.length > 0">
-                            <td class="text-muted" colspan="9" style="text-align: left; vertical-align: middle;">
-                                Empty
-                            </td>
-                        </tr>
-
-                        {% endverbatim %}
-                    </table>
-                </div>
+            <div
+                id="div_requests"
+                class="row"
+                hx-get="{% url 'manage_requests_list' %}"
+                hx-trigger="load">
+                {% include "standingsrequests/partials/_spinner.html" %}
             </div>
         </div>
 
         <!-- Revocations -->
 
-        <h2 style="margin-top:0;">
+        {% comment %} <h2 style="margin-top:0;">
             {% trans "Pending Revocations" %} ({{revocations_count|default:"-"}})
         </h2>
         <p>Standing revocations with pending action for <strong>{{organization.name}}</strong></p>
@@ -167,19 +103,20 @@
                     </table>
                 </div>
             </div>
-        </div>
+        </div> {% endcomment %}
+
     </div>
 {% endblock page_content %}
 
 {% block extra_javascript %}
-    <script type="text/javascript">
+    {% comment %} <script type="text/javascript">
         {% include 'standingsrequests/partials/_angular_urls.html' %}
     </script>
     <script src="{% static 'standingsrequests/app.js' %}"></script>
     <script src="{% static 'standingsrequests/error.js' %}"></script>
     <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
-    <script src="{% static 'standingsrequests/manage.js' %}"></script>
-
+    <script src="{% static 'standingsrequests/manage.js' %}"></script> {% endcomment %}
+{% comment %}
     <script type="text/javascript">
         function copyToClipboard(text) {
             if (window.clipboardData && window.clipboardData.setData) {
@@ -213,5 +150,5 @@
                 copyToClipboard(text)
             });
         });
-    </script>
+    </script> {% endcomment %}
 {% endblock extra_javascript %}

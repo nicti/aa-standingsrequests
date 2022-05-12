@@ -2,6 +2,8 @@ from enum import IntEnum
 
 from django.db.models import TextChoices
 
+DATETIME_FORMAT_HTML = "Y-M-d H:i"
+
 
 class OperationMode(TextChoices):
     ALLIANCE = "alliance"

@@ -1,4 +1,5 @@
 from .. import __title__
+from ..constants import DATETIME_FORMAT_HTML
 from ..core import BaseConfig
 from ..models import StandingRequest, StandingRevocation
 
@@ -15,6 +16,7 @@ def add_common_context(request, context: dict) -> dict:
                 StandingRequest.objects.pending_requests().count()
                 + StandingRevocation.objects.pending_requests().count()
             ),
+            "DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML,
         },
         **context,
     }

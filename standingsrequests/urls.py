@@ -43,11 +43,7 @@ urlpatterns = [
     path("view/corps/", views.view_groups_standings, name="view_groups"),
     path("view/corps/json", views.view_groups_standings_json, name="view_groups_json"),
     path("manage/", views.manage_standings, name="manage"),
-    path(
-        "manage/requests/",
-        views.manage_get_requests_json,
-        name="manage_get_requests_json",
-    ),
+    path("manage/requests/", views.manage_requests_list, name="manage_requests_list"),
     # Should always follow the path of the GET path above
     path(
         "manage/requests/<int:contact_id>/",

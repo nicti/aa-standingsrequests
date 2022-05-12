@@ -12,10 +12,10 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
-from app_utils.views import HttpResponseNoContent
 
 from .. import __title__
 from ..app_settings import SR_NOTIFICATIONS_ENABLED, SR_PAGE_CACHE_SECONDS
+from ..constants import DATETIME_FORMAT_HTML
 from ..core import BaseConfig, ContactType
 from ..helpers.evecharacter import EveCharacterHelper
 from ..helpers.evecorporation import EveCorporation
@@ -356,7 +356,6 @@ def view_groups_standings_json(request):
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
-    logger.debug("manage_standings called by %s", request.user)
     context = {
         "organization": BaseConfig.standings_source_entity(),
         "requests_count": StandingRequest.objects.pending_requests().count(),
@@ -369,11 +368,13 @@ def manage_standings(request):
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def manage_get_requests_json(request):
-    logger.debug("manage_get_requests_json called by %s", request.user)
+def manage_requests_list(request):
     requests_qs = StandingRequest.objects.pending_requests()
     requests_data = _compose_standing_requests_data(requests_qs)
-    return JsonResponse(requests_data, safe=False)
+    context = {"DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML, "requests": requests_data}
+    return render(
+        request, "standingsrequests/partials/_manage_requests_list.html", context
+    )
 
 
 @login_required
@@ -508,7 +509,7 @@ def _compose_standing_requests_data(
                 "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
-                "request_date": req.request_date.isoformat(),
+                "request_date": req.request_date,
                 "action_date": req.action_date.isoformat() if req.action_date else None,
                 "has_scopes": has_scopes,
                 "state": state_name,
@@ -541,7 +542,7 @@ def manage_requests_write(request, contact_id):
             )
             actioned += 1
         if actioned > 0:
-            return HttpResponseNoContent()
+            return HttpResponse("")
         return HttpResponseNotFound()
     elif request.method == "DELETE":
         standing_request = get_object_or_404(StandingRequest, contact_id=contact_id)
@@ -557,8 +558,7 @@ def manage_requests_write(request, contact_id):
                 % (entity_name, request.user)
             )
             notify(user=standing_request.user, title=title, message=message)
-
-        return HttpResponseNoContent()
+        return HttpResponse("")
     return HttpResponseNotFound()
 
 
@@ -582,7 +582,7 @@ def manage_revocations_write(request, contact_id):
             )
             actioned += 1
         if actioned > 0:
-            return HttpResponseNoContent()
+            return HttpResponse("")
         return HttpResponseNotFound
     elif request.method == "DELETE":
         standing_revocations_qs = StandingRevocation.objects.filter(
@@ -601,7 +601,7 @@ def manage_revocations_write(request, contact_id):
                 "has been rejected by %s." % (entity_name, request.user)
             )
             notify(user=standing_revocation.user, title=title, message=message)
-        return HttpResponseNoContent()
+        return HttpResponse("")
     return HttpResponseNotFound()
 
 

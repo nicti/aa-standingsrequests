@@ -16,8 +16,8 @@ from .views_1 import (
 from .views_2 import (
     _compose_standing_requests_data,
     download_pilot_standings,
-    manage_get_requests_json,
     manage_get_revocations_json,
+    manage_requests_list,
     manage_requests_write,
     manage_revocations_write,
     manage_standings,
