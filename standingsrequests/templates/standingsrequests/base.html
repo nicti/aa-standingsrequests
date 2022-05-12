@@ -17,3 +17,7 @@
     {% include "standingsrequests/bundles/angular.html" %}
     <link rel="stylesheet" href="{% static 'standingsrequests/css/global.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}
+
+{% block extra_javascript %}
+    <script src="{% static 'standingsrequests/js/vendor/htmx/htmx.min.js' %}" defer></script>
+{% endblock extra_javascript %}

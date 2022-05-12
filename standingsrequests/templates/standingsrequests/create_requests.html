@@ -9,81 +9,77 @@
     </p>
 
     <h3>{% trans "Your Characters" %}</h3>
-    <div id="div_request_characters">
+    <div hx-get="{% url 'standingsrequests:request_characters' %}" hx-trigger="load">
         {% include "standingsrequests/partials/_spinner.html" %}
-        <br>
     </div>
 
     {% if corporations_enabled %}
         <h3>{% trans "Your Corporations" %}</h3>
-        <div id="div_request_corporations">
+        <div hx-get="{% url 'standingsrequests:request_corporations' %}" hx-trigger="load">
             {% include "standingsrequests/partials/_spinner.html" %}
-            <br>
         </div>
     {% endif %}
 
-    <div class="col-lg-12">
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                {% trans "Icon Legend" %}
-            </div>
-            <div class="panel-body">
-                <table class="table">
-                    <tr>
-                        <td>
-                            <i class="fas fa-star fa-fw text-primary"></i>
-                        </td>
-                        <td>
-                            {% trans "Character is in this organisation." %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <i class="fas fa-exclamation-triangle fa-fw text-warning"></i>
-                        </td>
-                        <td>
-                            {% trans "The character / corporation has no standings from this organisation towards it." %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <i class="fas fa-hourglass-start fa-fw"></i>
-                        </td>
-                        <td>
-                            {% trans "The standing has been requested and is pending action by a standings manager." %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <i class="fas fa-hourglass-half fa-fw text-success"></i>
-                        </td>
-                        <td>
-                            {% trans "The request has been accepted by a standings manager, but is waiting for confirmation that those standings have been updated in game." %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <i class="fas fa-reply-all fa-fw text-danger"></i>
-                        </td>
-                        <td>
-                            {% trans "The standing is being revoked by yourself, a standings manager or automatically if you no longer meet the requirements permitting blue standings access. It is pending confirmation." %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <i class="fas fa-info-circle fa-fw text-info"></i>
-                        </td>
-                        <td>
-                            {% trans "More keys are required to request standing for this corporation." %}
-                        </td>
-                    </tr>
-                </table>
-            </div>
+    <br>
+    <div class="panel panel-default">
+        <div class="panel-heading">{% trans "Icon Legend" %}</div>
+        <div class="panel-body">
+            <table class="table">
+                <tr>
+                    <td>
+                        <i class="fas fa-star fa-fw text-primary"></i>
+                    </td>
+                    <td>
+                        {% trans "Character is in this organisation." %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <i class="fas fa-exclamation-triangle fa-fw text-warning"></i>
+                    </td>
+                    <td>
+                        {% trans "The character / corporation has no standings from this organisation towards it." %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <i class="fas fa-hourglass-start fa-fw"></i>
+                    </td>
+                    <td>
+                        {% trans "The standing has been requested and is pending action by a standings manager." %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <i class="fas fa-hourglass-half fa-fw text-success"></i>
+                    </td>
+                    <td>
+                        {% trans "The request has been accepted by a standings manager, but is waiting for confirmation that those standings have been updated in game." %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <i class="fas fa-reply-all fa-fw text-danger"></i>
+                    </td>
+                    <td>
+                        {% trans "The standing is being revoked by yourself, a standings manager or automatically if you no longer meet the requirements permitting blue standings access. It is pending confirmation." %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>
+                        <i class="fas fa-info-circle fa-fw text-info"></i>
+                    </td>
+                    <td>
+                        {% trans "More keys are required to request standing for this corporation." %}
+                    </td>
+                </tr>
+            </table>
         </div>
     </div>
 
 {% endblock %}
 
+{% comment %}
 {% block extra_javascript %}
     <script>
         $(function() {
@@ -111,4 +107,4 @@
             {% endif %}
         });
     </script>
-{% endblock %}
+{% endblock %} {% endcomment %}
