@@ -23,14 +23,15 @@ def view_active_requests(request):
         "requests_count": _standing_requests_to_view().count(),
     }
     return render(
-        request, "standingsrequests/requests.html", add_common_context(request, context)
+        request,
+        "standingsrequests/view_requests.html",
+        add_common_context(request, context),
     )
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def view_requests_json(request):
-
     response_data = compose_standing_requests_data(
         _standing_requests_to_view(), quick_check=True
     )

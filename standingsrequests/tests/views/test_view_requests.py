@@ -46,7 +46,10 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date.strftime(
+                "%Y-%m-%dT%H:%M:%S.%f"
+            )[:-3]
+            + "Z",  # FIXME
             "action_date": standing_request.action_date.isoformat(),
             "state": "Member",
             "main_character_name": "Peter Parker",
@@ -97,7 +100,10 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.isoformat(),
+            "request_date": standing_request.request_date.strftime(
+                "%Y-%m-%dT%H:%M:%S.%f"
+            )[:-3]
+            + "Z",  # FIXME
             "action_date": standing_request.action_date.isoformat(),
             "state": "Member",
             "main_character_name": "Peter Parker",
