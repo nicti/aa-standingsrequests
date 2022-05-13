@@ -153,7 +153,7 @@ def compose_standing_requests_data(
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
                 "request_date": req.request_date,
-                "action_date": req.action_date.isoformat() if req.action_date else None,
+                "action_date": req.action_date,
                 "has_scopes": has_scopes,
                 "state": state_name,
                 "reason": reason,

@@ -1,0 +1,66 @@
+{% load bootstrap %}
+{% load static %}
+{% load i18n %}
+
+
+<div class="table-responsive">
+    <table class="table table-condensed table-hover table-striped">
+        <thead>
+            <tr>
+                <th class="col-md-1">{% trans "Date" %}</th>
+                <th class="col-md-2">{% trans "Contact Name" %}</th>
+                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
+                <th class="col-md-2">{% trans "Main Character" %}</th>
+                <th class="col-md-1">{% trans "Scopes / State" %}</th>
+                <th class="col-md-2">{% trans "Effective / Accepted By" %}</th>
+                <th class="col-md-2">{% trans "Contact Labels" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in requests %}
+                <tr ng-repeat="contact in requests">
+                    <td>
+                        {{ contact.request_date|date:DATETIME_FORMAT_HTML }}
+                    </td>
+                    <td>
+                        <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                        {{ contact.contact_name }}
+                    </td>
+                    <td>
+                        [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
+                        <br>
+                        {{ contact.alliance_name }}
+                    </td>
+                    <td>
+                        <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                        [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
+                    </td>
+                    <td>
+                        {% if contact.has_scopes %}
+                            <i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>
+                        {% else %}
+                            <i class="fas fa-times fa-fw text-danger" title="Does not have required scopes"></i>
+                        {% endif %}
+                        {{contact.state}}
+                    </td>
+                    <td>
+                        {% if contact.is_effective %}
+                            <i class="fas fa-check fa-fw text-success" title="Standing Effective"></i>
+                        {% else %}
+                            <i class="fas fa-times fa-fw text-danger" title="Standing not effective"></i>
+                        {% endif %}
+                        {{contact.action_by}}
+                    </td>
+                    <td>
+                        {{ contact.labels|join:", " }}
+                    </td>
+                </tr>
+            {% empty %}
+                {% comment %} <tr ng-hide="requests.length > 0">
+                    <td class="text-muted" colspan="10" style="text-align: center; vertical-align: middle;">
+                    Empty
+                    </td>
+                </tr> {% endcomment %}
+            {% endfor %}
+    </table>
+</div>

@@ -102,8 +102,8 @@ urlpatterns = [
     # view requests
     path("view/requests/", view_requests.view_active_requests, name="view_requests"),
     path(
-        "view/requests/json/",
-        view_requests.view_requests_json,
-        name="view_requests_json",
+        "view/requests/list/",
+        view_requests.view_requests_list,
+        name="view_requests_list",
     ),
 ]

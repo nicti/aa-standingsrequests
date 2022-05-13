@@ -2,10 +2,6 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
-from app_utils.testing import json_response_to_dict
-
-from standingsrequests.views import view_requests
-
 from ..my_test_data import (
     TestViewPagesBase,
     esi_get_corporations_corporation_id,
@@ -19,18 +15,17 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewActiveRequestsJson(TestViewPagesBase):
     def test_request_character(self, mock_esi, mock_cache):
-        # setup
+        # given
         alt_id = self.alt_character_1.character_id
         standing_request = self._create_standing_for_alt(self.alt_character_1)
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
-        request.user = self.user_manager
-        response = view_requests.view_requests_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:view_requests_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -46,11 +41,8 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
-            + "Z",  # FIXME
-            "action_date": standing_request.action_date.isoformat(),
+            "request_date": standing_request.request_date,
+            "action_date": standing_request.action_date,
             "state": "Member",
             "main_character_name": "Peter Parker",
             "main_character_ticker": "WYE",
@@ -66,7 +58,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.assertDictEqual(data_alt_1, expected_alt_1)
 
     def test_request_corporation(self, mock_esi, mock_cache):
-        # setup
+        # given
         mock_Corporation = mock_esi.client.Corporation
         mock_Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
@@ -77,15 +69,14 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         mock_cache.get.return_value = None
         alt_id = self.alt_corporation.corporation_id
         standing_request = self._create_standing_for_alt(self.alt_corporation)
+        self.client.force_login(self.user_manager)
 
-        # make request
-        request = self.factory.get(reverse("standingsrequests:view_requests_json"))
-        request.user = self.user_manager
-        response = view_requests.view_requests_json(request)
+        # when
+        response = self.client.get(reverse("standingsrequests:view_requests_list"))
 
-        # validate
+        # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -100,11 +91,8 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date.strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
-            + "Z",  # FIXME
-            "action_date": standing_request.action_date.isoformat(),
+            "request_date": standing_request.request_date,
+            "action_date": standing_request.action_date,
             "state": "Member",
             "main_character_name": "Peter Parker",
             "main_character_ticker": "WYE",

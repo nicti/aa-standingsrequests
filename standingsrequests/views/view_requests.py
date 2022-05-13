@@ -1,12 +1,12 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import models
-from django.http import JsonResponse
 from django.shortcuts import render
 
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
+from standingsrequests.constants import DATETIME_FORMAT_HTML
 from standingsrequests.core import BaseConfig
 from standingsrequests.models import StandingRequest
 
@@ -31,11 +31,14 @@ def view_active_requests(request):
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def view_requests_json(request):
-    response_data = compose_standing_requests_data(
+def view_requests_list(request):
+    requests_data = compose_standing_requests_data(
         _standing_requests_to_view(), quick_check=True
     )
-    return JsonResponse(response_data, safe=False)
+    context = {"requests": requests_data, "DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML}
+    return render(
+        request, "standingsrequests/partials/view_requests_list.html", context
+    )
 
 
 def _standing_requests_to_view() -> models.QuerySet:
