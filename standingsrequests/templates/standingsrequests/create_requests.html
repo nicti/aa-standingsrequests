@@ -78,33 +78,3 @@
     </div>
 
 {% endblock %}
-
-{% comment %}
-{% block extra_javascript %}
-    <script>
-        $(function() {
-            /* async load request_characters view into div or show HTTP errors if any */
-            $("#div_request_characters").load(
-                "{% url 'standingsrequests:request_characters' %}",
-                function(responseTxt, statusTxt, xhr) {
-                    if (statusTxt == "error") {
-                        $("#div_request_characters").html(
-                            '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
-                        );
-                    }
-            });
-            {% if corporations_enabled %}
-                /* async load request_corporations view into div or show HTTP errors if any */
-                $("#div_request_corporations").load(
-                    "{% url 'standingsrequests:request_corporations' %}",
-                    function(responseTxt, statusTxt, xhr) {
-                        if (statusTxt == "error") {
-                            $("#div_request_corporations").html(
-                                '<p class="text-danger">{% trans "Failed to load content. Please reload this page to try again." %}</p>'
-                            );
-                        }
-                });
-            {% endif %}
-        });
-    </script>
-{% endblock %} {% endcomment %}

@@ -36,7 +36,11 @@
                         [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
                     </td>
                     <td>
-                        {% comment %} FIXME {% endcomment %} <bool-checkmark value="contact.has_scopes" true-title="Has required scopes" false-title="Missing Scopes add then using Add Scopes"></ bool-checkmark>
+                        {% if contact.has_scopes %}
+                            <i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>
+                        {% else %}
+                            <i class="fas fa-times fa-fw text-danger" title="Does not have required scopes"></i>
+                        {% endif %}
                         {{contact.state}}
                     </td>
                     <td>
