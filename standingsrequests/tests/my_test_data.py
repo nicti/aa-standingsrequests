@@ -2,10 +2,14 @@ import inspect
 import json
 import os
 from copy import deepcopy
+from datetime import timedelta
 from unittest.mock import Mock
 
 from bravado.exception import HTTPNotFound
 
+from django.contrib.auth.models import User
+from django.test import RequestFactory, TestCase
+from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import (
@@ -13,10 +17,20 @@ from allianceauth.eveonline.models import (
     EveCharacter,
     EveCorporationInfo,
 )
+from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.esi_testing import BravadoOperationStub
+from app_utils.testing import add_character_to_user
 
-from ..managers import _ContactsWrapper
-from ..models import CharacterAffiliation, Contact, ContactSet, CorporationDetails
+from standingsrequests.core import ContactType
+from standingsrequests.managers import _ContactsWrapper
+from standingsrequests.models import (
+    CharacterAffiliation,
+    Contact,
+    ContactSet,
+    CorporationDetails,
+    StandingRequest,
+    StandingRevocation,
+)
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
@@ -24,6 +38,8 @@ TEST_STANDINGS_CORPORATION_ID = 2001
 TEST_STANDINGS_CORPORATION_NAME = "Wayne Technologies"
 TEST_STANDINGS_ALLIANCE_ID = 3001
 TEST_STANDINGS_ALLIANCE_NAME = "Wayne Enterprises"
+
+TEST_SCOPE = "publicData"
 
 
 ##########################
@@ -443,3 +459,123 @@ def load_corporation_details():
                 "ticker": record["corporation_ticker"],
             },
         )
+
+
+class TestViewPagesBase(TestCase):
+    """Base TestClass for all tests that deal with standing requests
+
+    Defines common test data
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+
+        create_standings_char()
+        create_eve_objects()
+
+        cls.contact_set = create_contacts_set()
+
+        # State is alliance, all members can add standings
+        member_state = AuthUtils.get_member_state()
+        member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+        perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
+        member_state.permissions.add(perm)
+
+        # Requesting user - can only make requests
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_requestor = AuthUtils.create_member(
+            cls.main_character_1.character_name
+        )
+        add_character_to_user(
+            cls.user_requestor,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_SCOPE],
+        )
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
+        add_character_to_user(
+            cls.user_requestor,
+            cls.alt_character_1,
+            scopes=[TEST_SCOPE],
+        )
+        cls.alt_corporation = EveCorporationInfo.objects.get(
+            corporation_id=cls.alt_character_1.corporation_id
+        )
+        cls.alt_character_2 = EveCharacter.objects.get(character_id=1008)
+        add_character_to_user(
+            cls.user_requestor,
+            cls.alt_character_2,
+            scopes=[TEST_SCOPE],
+        )
+
+        # Standing manager - can do everything
+        cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
+        cls.user_manager = AuthUtils.create_member(cls.main_character_2.character_name)
+        add_character_to_user(
+            cls.user_manager,
+            cls.main_character_2,
+            is_main=True,
+            scopes=[TEST_SCOPE],
+        )
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.affect_standings", cls.user_manager
+        )
+        cls.user_manager = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.view", cls.user_manager
+        )
+        cls.user_manager = User.objects.get(pk=cls.user_manager.pk)
+
+        # Old user - has no main and no rights
+        cls.user_former_member = AuthUtils.create_user("Lex Luthor")
+        cls.alt_character_3 = EveCharacter.objects.get(character_id=1010)
+        add_character_to_user(
+            cls.user_former_member,
+            cls.alt_character_3,
+            scopes=[TEST_SCOPE],
+        )
+
+    def setUp(self):
+        StandingRequest.objects.all().delete()
+        StandingRevocation.objects.all().delete()
+
+    def _create_standing_for_alt(self, alt: object) -> StandingRequest:
+        if isinstance(alt, EveCharacter):
+            contact_id = alt.character_id
+            contact_type_id = ContactType.character_id
+        elif isinstance(alt, EveCorporationInfo):
+            contact_id = alt.corporation_id
+            contact_type_id = ContactType.corporation_id
+        else:
+            raise NotImplementedError()
+
+        return StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=contact_id,
+            contact_type_id=contact_type_id,
+            action_by=self.user_manager,
+            action_date=now() - timedelta(days=1, hours=1),
+            is_effective=True,
+            effective_date=now() - timedelta(days=1),
+        )
+
+    def _set_standing_for_alt_in_game(self, alt: object) -> None:
+        if isinstance(alt, EveCharacter):
+            contact_id = alt.character_id
+            Contact.objects.update_or_create(
+                contact_set=self.contact_set,
+                eve_entity_id=contact_id,
+                defaults={"standing": 10},
+            )
+        elif isinstance(alt, EveCorporationInfo):
+            contact_id = alt.corporation_id
+            Contact.objects.update_or_create(
+                contact_set=self.contact_set,
+                eve_entity_id=contact_id,
+                defaults={"standing": 10},
+            )
+        else:
+            raise NotImplementedError()
+
+        self.contact_set.refresh_from_db()

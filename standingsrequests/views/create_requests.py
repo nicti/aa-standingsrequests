@@ -1,5 +1,4 @@
 from django.contrib import messages
-from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth.decorators import login_required, permission_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
@@ -11,15 +10,16 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
-from .. import __title__
-from ..app_settings import SR_CORPORATIONS_ENABLED
-from ..constants import CreateCharacterRequestError
-from ..core import BaseConfig, MainOrganizations
-from ..decorators import token_required_by_state
-from ..helpers.evecorporation import EveCorporation
-from ..models import ContactSet, StandingRequest, StandingRevocation
-from ..tasks import update_all, update_associations_api
-from .helpers import DEFAULT_ICON_SIZE, add_common_context
+from standingsrequests import __title__
+from standingsrequests.app_settings import SR_CORPORATIONS_ENABLED
+from standingsrequests.constants import CreateCharacterRequestError
+from standingsrequests.core import BaseConfig, MainOrganizations
+from standingsrequests.decorators import token_required_by_state
+from standingsrequests.helpers.evecorporation import EveCorporation
+from standingsrequests.models import ContactSet, StandingRequest, StandingRevocation
+from standingsrequests.tasks import update_all, update_associations_api
+
+from ._common import DEFAULT_ICON_SIZE, add_common_context
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -405,17 +405,3 @@ def view_requester_add_scopes(request, token):
         % {"char_name": EveEntity.objects.resolve_name(token.character_id)},
     )
     return redirect("standingsrequests:create_requests")
-
-
-@login_required
-@staff_member_required
-def admin_changeset_update_now(request):
-    update_all.delay(user_pk=request.user.pk)
-    messages.info(
-        request,
-        _(
-            "Started updating contacts and affiliations. "
-            "You will receive a notification when completed."
-        ),
-    )
-    return redirect("admin:standingsrequests_contactset_changelist")
