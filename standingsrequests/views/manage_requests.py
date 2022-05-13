@@ -32,7 +32,9 @@ def manage_standings(request):
         "revocations_count": StandingRevocation.objects.pending_requests().count(),
     }
     return render(
-        request, "standingsrequests/manage.html", add_common_context(request, context)
+        request,
+        "standingsrequests/manage_requests.html",
+        add_common_context(request, context),
     )
 
 
@@ -43,7 +45,7 @@ def manage_requests_list(request):
     requests_data = compose_standing_requests_data(requests_qs)
     context = {"DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML, "requests": requests_data}
     return render(
-        request, "standingsrequests/partials/_manage_requests_list.html", context
+        request, "standingsrequests/partials/manage_requests_list.html", context
     )
 
 
@@ -57,7 +59,7 @@ def manage_revocations_list(request):
         "revocations": revocations_data,
     }
     return render(
-        request, "standingsrequests/partials/_manage_revocations_list.html", context
+        request, "standingsrequests/partials/manage_revocations_list.html", context
     )
 
 

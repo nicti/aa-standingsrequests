@@ -44,7 +44,7 @@ def view_groups_standings(request):
     }
     return render(
         request,
-        "standingsrequests/view_groups.html",
+        "standingsrequests/group_standings.html",
         add_common_context(request, context),
     )
 

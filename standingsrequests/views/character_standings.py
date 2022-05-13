@@ -41,7 +41,7 @@ def view_pilots_standings(request):
     }
     return render(
         request,
-        "standingsrequests/view_pilots.html",
+        "standingsrequests/character_standings.html",
         add_common_context(request, context),
     )
 

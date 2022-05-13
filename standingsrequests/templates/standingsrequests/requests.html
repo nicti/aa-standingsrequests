@@ -1,4 +1,4 @@
-{% extends "standingsrequests/base.html" %}
+{% extends "standingsrequests/_base.html" %}
 {% load bootstrap %}
 {% load static %}
 {% load i18n %}
@@ -82,6 +82,7 @@
 {% endblock page_content %}
 
 {% block extra_javascript %}
+    {% include "standingsrequests/bundles/angular.html" %}
     <script type="text/javascript">
         {% include 'standingsrequests/partials/_angular_urls.html' %}
     </script>

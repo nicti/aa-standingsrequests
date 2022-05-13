@@ -11,16 +11,8 @@
             {% block page_content %}{% endblock %}
         </div>
     </div>
-    <script src="{% static 'standingsrequests/js/vendor/htmx/htmx.min.js' %}" defer></script>
-    <!-- HTMX -->
-    <script>
-      document.body.addEventListener('htmx:configRequest', (event) => {
-        event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
-      })
-    </script>
 {% endblock %}
 
 {% block extra_css %}
-    {% include "standingsrequests/bundles/angular.html" %}
     <link rel="stylesheet" href="{% static 'standingsrequests/css/global.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}

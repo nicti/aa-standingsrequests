@@ -1,0 +1,8 @@
+{% load static %}
+
+<script src="{% static 'standingsrequests/js/vendor/htmx/htmx.min.js' %}" defer></script>
+<script>
+    document.body.addEventListener('htmx:configRequest', (event) => {
+    event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    })
+</script>
