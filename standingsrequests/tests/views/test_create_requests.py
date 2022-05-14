@@ -31,6 +31,7 @@ from ..my_test_data import (
     create_entity,
     create_standings_char,
     esi_get_corporations_corporation_id,
+    esi_post_characters_affiliation,
     esi_post_universe_names,
     get_my_test_data,
     load_eve_entities,
@@ -442,6 +443,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MANAGERS_PATH + ".esi")
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCorporationStanding(NoSocketsTestCase):
     @classmethod
@@ -475,8 +477,11 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
         return success
 
-    def test_should_create_new_request_when_valid(self):
+    def test_should_create_new_request_when_valid(self, mock_esi):
         # given
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
+            esi_post_characters_affiliation
+        )
         character_1009 = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, character_1009, scopes=["publicData"])
         character_1010 = create_entity(EveCharacter, 1010)
@@ -489,8 +494,11 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         self.assertFalse(obj.is_actioned)
         self.assertFalse(obj.is_effective)
 
-    def test_should_return_false_when_not_enough_tokens(self):
+    def test_should_return_false_when_not_enough_tokens(self, mock_esi):
         # given
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
+            esi_post_characters_affiliation
+        )
         character_1009 = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, character_1009, scopes=["publicData"])
         # when
@@ -498,8 +506,11 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         # then
         self.assertFalse(result)
 
-    def test_should_return_false_if_pending_request(self):
+    def test_should_return_false_if_pending_request(self, mock_esi):
         # given
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
+            esi_post_characters_affiliation
+        )
         StandingRequest.objects.create(
             contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
         )
@@ -508,8 +519,11 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         # then
         self.assertFalse(result)
 
-    def test_should_return_false_if_pending_revocation(self):
+    def test_should_return_false_if_pending_revocation(self, mock_esi):
         # given
+        mock_esi.client.Character.post_characters_affiliation.side_effect = (
+            esi_post_characters_affiliation
+        )
         StandingRevocation.objects.create(
             contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
         )
