@@ -658,7 +658,7 @@ class CorporationDetailsManager(models.Manager):
             if data.get("alliance_id")
             else None
         )
-        ceo_id = data["ceo_id"] if data["ceo_id"] > 1 else None
+        ceo_id = data["ceo_id"] if data["ceo_id"] and data["ceo_id"] > 1 else None
         ceo = EveEntity.objects.get_or_create(id=ceo_id)[0] if ceo_id else None
         faction = (
             EveEntity.objects.get_or_create(id=data["faction_id"])[0]

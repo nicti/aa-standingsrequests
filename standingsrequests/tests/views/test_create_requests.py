@@ -238,7 +238,7 @@ class TestViewsBasics(TestViewPagesBase):
 #         self.assertEqual(response.status_code, 200)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCharacterStanding(NoSocketsTestCase):
     @classmethod
@@ -251,7 +251,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             1001, permissions=["standingsrequests.request_standings"]
         )
 
-    def view_request_pilot_standing(self, character_id: int) -> bool:
+    def _view_request_pilot_standing(self, character_id: int) -> bool:
         request = self.factory.get(
             reverse(
                 "standingsrequests:request_character_standing",
@@ -259,7 +259,19 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             )
         )
         request.user = self.user
-        with patch(VIEWS_PATH + ".messages.error") as mock_message:
+        with patch(VIEWS_PATH + ".messages.error") as mock_message, patch(
+            MANAGERS_PATH + ".esi"
+        ) as mock_esi:
+            mock_esi.client.Character.post_characters_affiliation.side_effect = (
+                esi_post_characters_affiliation
+            )
+            mock_Corporation = mock_esi.client.Corporation
+            mock_Corporation.get_corporations_corporation_id.side_effect = (
+                esi_get_corporations_corporation_id
+            )
+            mock_esi.client.Universe.post_universe_names.side_effect = (
+                esi_post_universe_names
+            )
             response = create_requests.request_character_standing(request, character_id)
             success = not mock_message.called
         self.assertEqual(response.status_code, 302)
@@ -270,7 +282,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         # when
         alt_character = create_entity(EveCharacter, 1008)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertTrue(result)
         obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
@@ -287,7 +299,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             user=self.user,
         )
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertFalse(result)
 
@@ -301,7 +313,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             user=self.user,
         )
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertFalse(result)
 
@@ -310,7 +322,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         alt_character = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, alt_character)
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertFalse(result)
 
@@ -318,7 +330,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         # given
         random_character = create_entity(EveCharacter, 1007)
         # when
-        result = self.view_request_pilot_standing(random_character.character_id)
+        result = self._view_request_pilot_standing(random_character.character_id)
         # then
         self.assertFalse(result)
 
@@ -328,7 +340,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         other_character = create_entity(EveCharacter, 1006)
         add_character_to_user(user, other_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(other_character.character_id)
+        result = self._view_request_pilot_standing(other_character.character_id)
         # then
         self.assertFalse(result)
 
@@ -337,7 +349,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
         alt_character = create_entity(EveCharacter, 1110)
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertTrue(result)
         obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
@@ -368,7 +380,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
             1001, permissions=["standingsrequests.request_standings"]
         )
 
-    def view_request_pilot_standing(self, character_id: int) -> bool:
+    def _view_request_pilot_standing(self, character_id: int) -> bool:
         request = self.factory.get(
             reverse("standingsrequests:remove_character_standing", args=[character_id])
         )
@@ -390,7 +402,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
             contact_type=StandingRequest.ContactType.CHARACTER,
         )
         # when
-        result = self.view_request_pilot_standing(alt_character.character_id)
+        result = self._view_request_pilot_standing(alt_character.character_id)
         # then
         self.assertTrue(result)
         self.assertFalse(
@@ -404,7 +416,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         random_character = create_entity(EveCharacter, 1007)
         # when
         with self.assertRaises(Http404):
-            self.view_request_pilot_standing(random_character.character_id)
+            self._view_request_pilot_standing(random_character.character_id)
 
     def test_should_not_remove_request_if_character_is_owned_by_sombody_else(self):
         # given
@@ -413,7 +425,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         add_character_to_user(user, other_character, scopes=["publicData"])
         # when
         with self.assertRaises(Http404):
-            self.view_request_pilot_standing(other_character.character_id)
+            self._view_request_pilot_standing(other_character.character_id)
 
     def test_should_return_false_if_character_in_organization(self):
         # given
@@ -421,7 +433,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
         with self.assertRaises(Http404):
-            self.view_request_pilot_standing(alt_character.character_id)
+            self._view_request_pilot_standing(alt_character.character_id)
 
     # I believe we do not need this requirement
     # def test_should_create_revocation_if_character_has_satisfied_standing(self):
@@ -429,7 +441,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
     #     alt_character = create_entity(EveCharacter, 1110)
     #     add_character_to_user(self.user, alt_character, scopes=["publicData"])
     #     # when
-    #     result = self.view_request_pilot_standing(alt_character.character_id)
+    #     result = self._view_request_pilot_standing(alt_character.character_id)
     #     # then
     #     self.assertTrue(result)
 
@@ -439,11 +451,10 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
         with self.assertRaises(Http404):
-            self.view_request_pilot_standing(alt_character.character_id)
+            self._view_request_pilot_standing(alt_character.character_id)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MANAGERS_PATH + ".esi")
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
 class TestRequestCorporationStanding(NoSocketsTestCase):
     @classmethod
@@ -456,19 +467,28 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
             1001, permissions=["standingsrequests.request_standings"]
         )
 
-    def view_request_corp_standing(self, corporation_id: int) -> bool:
+    def _view_request_corp_standing(self, corporation_id: int) -> bool:
         request = self.factory.get(
-            reverse(
-                "standingsrequests:request_corp_standing",
-                args=[corporation_id],
-            )
+            reverse("standingsrequests:request_corp_standing", args=[corporation_id])
         )
         request.user = self.user
         with patch(MODELS_PATH + ".EveCorporation.get_by_id") as mock_get_corp_by_id:
             mock_get_corp_by_id.return_value = EveCorporation(
                 **get_my_test_data()["EveCorporationInfo"]["2102"]
             )
-            with patch(VIEWS_PATH + ".messages.warning") as mock_message:
+            with patch(VIEWS_PATH + ".messages.warning") as mock_message, patch(
+                MANAGERS_PATH + ".esi"
+            ) as mock_esi:
+                mock_esi.client.Character.post_characters_affiliation.side_effect = (
+                    esi_post_characters_affiliation
+                )
+                mock_Corporation = mock_esi.client.Corporation
+                mock_Corporation.get_corporations_corporation_id.side_effect = (
+                    esi_get_corporations_corporation_id
+                )
+                mock_esi.client.Universe.post_universe_names.side_effect = (
+                    esi_post_universe_names
+                )
                 response = create_requests.request_corp_standing(
                     request, corporation_id
                 )
@@ -477,58 +497,46 @@ class TestRequestCorporationStanding(NoSocketsTestCase):
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
         return success
 
-    def test_should_create_new_request_when_valid(self, mock_esi):
+    def test_should_create_new_request_when_valid(self):
         # given
-        mock_esi.client.Character.post_characters_affiliation.side_effect = (
-            esi_post_characters_affiliation
-        )
         character_1009 = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, character_1009, scopes=["publicData"])
         character_1010 = create_entity(EveCharacter, 1010)
         add_character_to_user(self.user, character_1010, scopes=["publicData"])
         # when
-        result = self.view_request_corp_standing(2102)
+        result = self._view_request_corp_standing(2102)
         # then
         self.assertTrue(result)
         obj = StandingRequest.objects.get(contact_id=2102)
         self.assertFalse(obj.is_actioned)
         self.assertFalse(obj.is_effective)
 
-    def test_should_return_false_when_not_enough_tokens(self, mock_esi):
+    def test_should_return_false_when_not_enough_tokens(self):
         # given
-        mock_esi.client.Character.post_characters_affiliation.side_effect = (
-            esi_post_characters_affiliation
-        )
         character_1009 = create_entity(EveCharacter, 1009)
         add_character_to_user(self.user, character_1009, scopes=["publicData"])
         # when
-        result = self.view_request_corp_standing(2102)
+        result = self._view_request_corp_standing(2102)
         # then
         self.assertFalse(result)
 
-    def test_should_return_false_if_pending_request(self, mock_esi):
+    def test_should_return_false_if_pending_request(self):
         # given
-        mock_esi.client.Character.post_characters_affiliation.side_effect = (
-            esi_post_characters_affiliation
-        )
         StandingRequest.objects.create(
             contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
         )
         # when
-        result = self.view_request_corp_standing(2102)
+        result = self._view_request_corp_standing(2102)
         # then
         self.assertFalse(result)
 
-    def test_should_return_false_if_pending_revocation(self, mock_esi):
+    def test_should_return_false_if_pending_revocation(self):
         # given
-        mock_esi.client.Character.post_characters_affiliation.side_effect = (
-            esi_post_characters_affiliation
-        )
         StandingRevocation.objects.create(
             contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
         )
         # when
-        result = self.view_request_corp_standing(2102)
+        result = self._view_request_corp_standing(2102)
         # then
         self.assertFalse(result)
 

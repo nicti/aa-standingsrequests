@@ -20,7 +20,7 @@ class TestEveCorporation(NoSocketsTestCase):
             corporation_id=2001,
             corporation_name="Wayne Technologies",
             ticker="WYT",
-            ceo_id=2987,
+            ceo_id=1003,
             member_count=3,
             alliance_id=3001,
             alliance_name="Wayne Enterprises",
