@@ -265,8 +265,7 @@ class TestRequestCharacterStanding(NoSocketsTestCase):
             mock_esi.client.Character.post_characters_affiliation.side_effect = (
                 esi_post_characters_affiliation
             )
-            mock_Corporation = mock_esi.client.Corporation
-            mock_Corporation.get_corporations_corporation_id.side_effect = (
+            mock_esi.client.Corporation.get_corporations_corporation_id.side_effect = (
                 esi_get_corporations_corporation_id
             )
             mock_esi.client.Universe.post_universe_names.side_effect = (

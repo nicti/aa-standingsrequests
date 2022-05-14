@@ -587,7 +587,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertIsNone(obj.ceo_id)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestRequestLogEntryManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):

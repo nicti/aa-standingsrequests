@@ -47,7 +47,9 @@ class TestOtherTasks(NoSocketsTestCase):
         tasks.validate_requests()
         self.assertTrue(mock_validate_standings_requests.called)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
+    @override_settings(
+        CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True
+    )
     @patch(MODULE_PATH + ".CorporationDetails.objects.update_or_create_from_esi")
     @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_evecharacter_relations")
     @patch(MODULE_PATH + ".CharacterAffiliation.objects.update_from_esi")
@@ -66,7 +68,7 @@ class TestOtherTasks(NoSocketsTestCase):
         self.assertTrue(mock_update_or_create_from_esi.called)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestPurgeTasks(NoSocketsTestCase):
     @patch(MODULE_PATH + ".purge_stale_standings_data")
     def test_purge_stale_data(self, mock_purge_stale_standings_data):
@@ -129,7 +131,7 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
         self.assertSetEqual(current_pks, expected)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestUpdateAllCorporationDetails(NoSocketsTestCase):
     def setUp(self):
         create_contacts_set()

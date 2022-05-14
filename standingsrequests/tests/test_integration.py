@@ -30,6 +30,7 @@ from .my_test_data import (
     create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_characters_affiliation,
+    esi_post_universe_names,
     load_eve_entities,
 )
 
@@ -41,7 +42,7 @@ TEST_REQUIRED_SCOPE = "publicData"
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
@@ -174,12 +175,17 @@ class TestMainUseCases(WebTest):
         return {row["contact_id"]: row for row in response.context.dicts[3][key]}
 
     def _setup_mocks(self, mock_esi, mock_esi_manager):
-        mock_Corporation = mock_esi.client.Corporation
-        mock_Corporation.get_corporations_corporation_id.side_effect = (
+        mock_esi.client.Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        mock_esi_manager.client.Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
         )
         mock_esi_manager.client.Character.post_characters_affiliation.side_effect = (
             esi_post_characters_affiliation
+        )
+        mock_esi.client.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
         )
 
     def setUp(self) -> None:
