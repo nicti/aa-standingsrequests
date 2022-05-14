@@ -12,7 +12,7 @@
     </p>
     <div class="container-fluid">
         <div
-            hx-get="{% url 'standingsrequests:view_requests_list' %}"
+            hx-get="{% url 'standingsrequests:effective_requests_list' %}"
             hx-trigger="load">
             {% include "standingsrequests/partials/_spinner.html" %}
         </div>

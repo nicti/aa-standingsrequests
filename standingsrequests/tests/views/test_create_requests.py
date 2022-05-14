@@ -231,9 +231,9 @@ class TestViewsBasics(TestViewPagesBase):
 #         self.assertEqual(response.status_code, 200)
 
 #     def test_user_can_open_accepted_requests(self, mock_esi):
-#         request = self.factory.get(reverse("standingsrequests:view_requests"))
+#         request = self.factory.get(reverse("standingsrequests:effective_requests"))
 #         request.user = self.user_manager
-#         response = create_requests.view_active_requests(request)
+#         response = create_requests.effective_requests(request)
 #         self.assertEqual(response.status_code, 200)
 
 

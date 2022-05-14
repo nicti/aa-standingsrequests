@@ -21,7 +21,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.client.force_login(self.user_manager)
 
         # when
-        response = self.client.get(reverse("standingsrequests:view_requests_list"))
+        response = self.client.get(reverse("standingsrequests:effective_requests_list"))
 
         # then
         self.assertEqual(response.status_code, 200)
@@ -72,7 +72,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         self.client.force_login(self.user_manager)
 
         # when
-        response = self.client.get(reverse("standingsrequests:view_requests_list"))
+        response = self.client.get(reverse("standingsrequests:effective_requests_list"))
 
         # then
         self.assertEqual(response.status_code, 200)

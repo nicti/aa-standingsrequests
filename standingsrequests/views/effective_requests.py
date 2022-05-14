@@ -17,27 +17,27 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def view_active_requests(request):
+def effective_requests(request):
     context = {
         "organization": BaseConfig.standings_source_entity(),
         "requests_count": _standing_requests_to_view().count(),
     }
     return render(
         request,
-        "standingsrequests/view_requests.html",
+        "standingsrequests/effective_requests.html",
         add_common_context(request, context),
     )
 
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def view_requests_list(request):
+def effective_requests_list(request):
     requests_data = compose_standing_requests_data(
         _standing_requests_to_view(), quick_check=True
     )
     context = {"requests": requests_data, "DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML}
     return render(
-        request, "standingsrequests/partials/view_requests_list.html", context
+        request, "standingsrequests/partials/effective_requests_list.html", context
     )
 
 

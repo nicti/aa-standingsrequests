@@ -4,9 +4,9 @@ from .views import (
     admin,
     character_standings,
     create_requests,
+    effective_requests,
     group_standings,
     manage_requests,
-    view_requests,
 )
 
 app_name = "standingsrequests"
@@ -100,10 +100,14 @@ urlpatterns = [
         name="manage_revocations_write",
     ),
     # view requests
-    path("view/requests/", view_requests.view_active_requests, name="view_requests"),
+    path(
+        "view/requests/",
+        effective_requests.effective_requests,
+        name="effective_requests",
+    ),
     path(
         "view/requests/list/",
-        view_requests.view_requests_list,
-        name="view_requests_list",
+        effective_requests.effective_requests_list,
+        name="effective_requests_list",
     ),
 ]
