@@ -4,124 +4,114 @@
 {% load i18n %}
 
 {% block page_content %}
-    <div ng-app="standingsApp" ng-controller="PilotListController">
-        <standings-filter-controls states="true" scopes="false"></standings-filter-controls>
-        <div class="col-lg-12 container">
-            <h2 class="page-header">
-                {% trans "Characters" %} ({{pilots_count|default:"-"}})
-                {% if perms.standingstool.download %}
-                    <div class="pull-right">
-                        <a href="{% url 'standingsrequests:download_pilots' %}" class="btn btn-default">
-                            {% trans "Download" %}
-                        </a>
-                    </div>
-                {% endif %}
-            </h2>
-            {% include "standingsrequests/partials/_contacts_legend.html" %}
-            <div class="pull-right form-inline">
-                <div class="form-group" style="padding-bottom:1.9em;">
-                    <label for="userPageSize">Page size</label>
-                    <select id="userPageSize" type="text" ng-model="pageSize" class="form-control" style="width:5em;">
-                        <option value="10">10</option>
-                        <option value="50" selected>50</option>
-                        <option value="100">100</option>
-                        <option value="500">500</option>
-                        <option value="1000">1000</option>
-                        <option value="">Everything</option>
-                    </select>
+    <div class="col-lg-12 container">
+        <h2 class="page-header">
+            {% trans "Characters" %} ({{pilots_count|default:"-"}})
+            {% if perms.standingstool.download %}
+                <div class="pull-right">
+                    <a href="{% url 'standingsrequests:download_pilots' %}" class="btn btn-default">
+                        {% trans "Download" %}
+                    </a>
                 </div>
-                <ul uib-pagination total-items="filteredStandings.length" ng-model="currentPage" max-size="5"
-                    boundary-link-numbers="true" boundary-links="true" style="margin:0;"
-                    items-per-page="pageSize"
-                    previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></ul>
-            </div>
-            <div class="col-lg-12 container">
+            {% endif %}
+        </h2>
 
-                 <div id="div_spinner" class="row">
-                    <div class="col-md-12">
-                        {% include "standingsrequests/partials/_spinner.html" %}
-                    </div>
-                </div>
-
-                <div id="div_results" class="row" style="visibility: hidden">
-                    <div class="table-responsive">
-                        <table class="table table-condensed table-hover table-striped">
-                            <tr>
-                                <th class="col-md-2">{% trans "Character" %}</th>
-                                <th class="col-md-2">{% trans "Corporation" %}</th>
-                                <th class="col-md-2">{% trans "Alliance" %}</th>
-                                <th class="col-md-1">{% trans "Faction" %}</th>
-                                <th class="col-md-1">{% trans "Standing" %}</th>
-                                <th class="col-md-1">{% trans "Labels" %}</th>
-                                <th class="col-md-2">{% trans "Main Character" %}</th>
-                                <th class="col-md-1">{% trans "State" %}</th>
-                            </tr>
-                            {% verbatim %}
-                            <tr ng-repeat="character in filteredStandings = (pilots | filterStandings) | limitTo : pageSize : (currentPage-1) * pageSize as pilotsFiltered">
-                                <td>
-                                    <img ng-src="{{ character.character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    {{ character.character_name }}
-                                </td>
-                                <td>
-                                    <span ng-show="character.corporation_ticker">
-                                        [{{ character.corporation_ticker }}]
-                                    </span>
-                                    <span ng-show="character.corporation_name">
-                                        {{ character.corporation_name }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span ng-show="character.alliance_name" ng-bind="character.alliance_name"></span>
-                                </td>
-                                <td>
-                                    <span ng-show="character.faction_name" ng-bind="character.faction_name"></span>
-                                </td>
-                                <td>
-                                    <span style="font-size:1.5em;">
-                                        <standings-icon standing="character.standing"></standings-icon>
-                                    </span>
-                                </td>
-                                <td>
-                                    <span ng-repeat="label in character.labels | orderBy">
-                                        {{ label }}
-                                        <span ng-show="!$last">,&nbsp;</span>
-                                    </span>
-                                </td>
-                                <td>
-                                    <img ng-src="{{ character.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                                    <span ng-show="character.main_character_ticker">
-                                        [{{ character.main_character_ticker }}]
-                                    </span>
-                                    <span ng-show="character.main_character_name">
-                                        {{ character.main_character_name }}
-                                    </span>
-                                </td>
-                                <td>
-                                    {{character.state}}
-                                </td>
-                            </tr>
-
-                            <tr ng-hide="pilotsFiltered.length > 0">
-                                <td class="text-muted" colspan="8" style="text-align: left; vertical-align: middle;">
-                                Empty
-                                </td>
-                            </tr>
-
-                            {% endverbatim %}
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <div class="table-responsive">
+            <table
+                id="tab-character-standings"
+                class="table table-striped table-width-fix">
+                <thead>
+                    <tr>
+                        <th>{% trans "Character" %}</th>
+                        <th>{% trans "Corporation" %}</th>
+                        <th>{% trans "Alliance" %}</th>
+                        <th>{% trans "Faction" %}</th>
+                        <th>{% trans "Standing" %}</th>
+                        <th>{% trans "Labels" %}</th>
+                        <th>{% trans "Main Character" %}</th>
+                        <th>{% trans "State" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
         </div>
     </div>
 {% endblock page_content %}
 
 {% block extra_javascript %}
-    {% include "standingsrequests/bundles/angular.html" %}
-    <script type="text/javascript">
-        {% include 'standingsrequests/partials/_angular_urls.html' %}
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    <script type="application/javascript">
+        $(document).ready(function () {
+            $('#tab-character-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:view_pilots_json' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'character_name_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'corporation_name' },
+                    { data: 'alliance_name' },
+                    { data: 'faction_name' },
+                    { data: 'standing' },
+                    { data: 'labels_str' },
+                    {
+                        data: 'main_character_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'state' },
+                    /* invisible columns */
+                    { data: 'main_character_name' },
+                ],
+                order: [[0, "asc"]],
+                columnDefs: [
+                    { "visible": false, "targets": [8] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 1,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 2,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 3,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 4,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 8,
+                            title: "{% translate 'Main' %}",
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+        });
     </script>
-    <script src="{% static 'standingsrequests/app.js' %}"></script>
-    <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
-    <script src="{% static 'standingsrequests/view_pilots.js' %}"></script>
+
 {% endblock extra_javascript %}
+
+{% block extra_css %}
+    {{ block.super }}
+    {% include 'bundles/datatables-css.html' %}
+{% endblock extra_css %}

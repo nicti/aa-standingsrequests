@@ -2,3 +2,8 @@
 .badge-nav {
     font-size: 11px;
 }
+
+/* fix to remove vertical slider when in response mode */
+.table-width-fix {
+    width: 100% !important;
+}

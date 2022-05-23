@@ -2,6 +2,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.utils.html import format_html
 from django.views.decorators.cache import cache_page
 from eveuniverse.models import EveEntity
 
@@ -72,21 +73,39 @@ def view_pilots_standings_json(request):
     )
     characters_data = list()
     for contact in character_contacts_qs:
+        character_icon_url = contact.eve_entity.icon_url(DEFAULT_ICON_SIZE)
+        character_name_html = format_html(
+            '<span class="text-nowrap">'
+            '<img src="{}" class="img-circle" style="width:32px;height:32px"> {}'
+            "</span>",
+            contact.eve_entity.icon_url(),
+            contact.eve_entity.name,
+        )
         try:
             character = contact.eve_entity.character_affiliation.eve_character
             user = character.character_ownership.user
         except (AttributeError, ObjectDoesNotExist):
             main = None
             state = ""
-            main_character_name = None
-            main_character_ticker = None
-            main_character_icon_url = None
+            main_character_name = ""
+            main_character_ticker = ""
+            main_character_icon_url = ""
+            main_character_html = ""
         else:
             main = user.profile.main_character
             state = user.profile.state.name if user.profile.state else ""
             main_character_name = main.character_name
             main_character_ticker = main.corporation_ticker
             main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+            main_character_html = format_html(
+                '<span class="text-nowrap">'
+                '<img src="{}" class="img-circle" style="width:32px;height:32px">'
+                " [{}] {}"
+                "</span>",
+                main_character_icon_url,
+                main_character_ticker,
+                main_character_name,
+            )
         try:
             assoc = contact.eve_entity.character_affiliation
         except (AttributeError, ObjectDoesNotExist):
@@ -102,14 +121,18 @@ def view_pilots_standings_json(request):
             alliance_id = assoc.alliance.id if assoc.alliance else None
             alliance_name = assoc.alliance.name if assoc.alliance else ""
             faction_id = assoc.faction.id if assoc.faction else None
-            faction_name = assoc.faction.name if assoc.faction else None
+            faction_name = assoc.faction.name if assoc.faction else ""
 
         labels = [label.name for label in contact.labels.all()]
         characters_data.append(
             {
                 "character_id": contact.eve_entity_id,
                 "character_name": contact.eve_entity.name,
-                "character_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
+                "character_icon_url": character_icon_url,
+                "character_name_html": {
+                    "display": character_name_html,
+                    "sort": contact.eve_entity.name,
+                },
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
                 "alliance_id": alliance_id,
@@ -120,8 +143,13 @@ def view_pilots_standings_json(request):
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,
-                "standing": contact.standing,
+                "main_character_html": {
+                    "display": main_character_html,
+                    "sort": main_character_name,
+                },
+                "standing": contact.standing if contact.standing else "",
                 "labels": labels,
+                "labels_str": ", ".join(labels),
             }
         )
     return JsonResponse(characters_data, safe=False)

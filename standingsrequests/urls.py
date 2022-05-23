@@ -70,6 +70,22 @@ urlpatterns = [
         character_standings.download_pilot_standings,
         name="download_pilots",
     ),
+    # effective requests
+    path(
+        "view/requests/",
+        effective_requests.effective_requests,
+        name="effective_requests",
+    ),
+    path(
+        "view/requests/list/",
+        effective_requests.effective_requests_list,
+        name="effective_requests_list",
+    ),
+    path(
+        "view/requests/list2/",
+        effective_requests.EffectiveRequestListView.as_view(),
+        name="effective_requests_list_2",
+    ),
     # group standings
     path("view/corps/", group_standings.view_groups_standings, name="view_groups"),
     path(
@@ -98,16 +114,5 @@ urlpatterns = [
         "manage/revocations/<int:contact_id>/",
         manage_requests.manage_revocations_write,
         name="manage_revocations_write",
-    ),
-    # view requests
-    path(
-        "view/requests/",
-        effective_requests.effective_requests,
-        name="effective_requests",
-    ),
-    path(
-        "view/requests/list/",
-        effective_requests.effective_requests_list,
-        name="effective_requests_list",
     ),
 ]

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.2.0] - tbd.
+
+## Changed
+
+- Replaced angularjs, which is no longer supported
+
 ## [1.1.1] - 2022-03-02
 
 ## Changed
