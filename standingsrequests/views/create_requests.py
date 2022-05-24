@@ -138,7 +138,7 @@ def request_characters(request):
     context = {"characters": characters_data}
     return render(
         request,
-        "standingsrequests/partials/_request_characters.html",
+        "standingsrequests/partials/request_characters.html",
         add_common_context(request, context),
     )
 
@@ -228,7 +228,7 @@ def request_corporations(request):
     context = {"corps": corporations_data}
     return render(
         request,
-        "standingsrequests/partials/_request_corporations.html",
+        "standingsrequests/partials/request_corporations.html",
         add_common_context(request, context),
     )
 

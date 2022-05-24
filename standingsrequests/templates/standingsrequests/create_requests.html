@@ -10,13 +10,13 @@
 
     <h3>{% trans "Your Characters" %}</h3>
     <div hx-get="{% url 'standingsrequests:request_characters' %}" hx-trigger="load">
-        {% include "standingsrequests/partials/_spinner.html" %}
+        {% include "standingsrequests/partials/spinner.html" %}
     </div>
 
     {% if corporations_enabled %}
         <h3>{% trans "Your Corporations" %}</h3>
         <div hx-get="{% url 'standingsrequests:request_corporations' %}" hx-trigger="load">
-            {% include "standingsrequests/partials/_spinner.html" %}
+            {% include "standingsrequests/partials/spinner.html" %}
         </div>
     {% endif %}
 

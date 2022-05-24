@@ -81,11 +81,6 @@ urlpatterns = [
         effective_requests.effective_requests_list,
         name="effective_requests_list",
     ),
-    path(
-        "view/requests/list2/",
-        effective_requests.EffectiveRequestListView.as_view(),
-        name="effective_requests_list_2",
-    ),
     # group standings
     path("view/groups/", group_standings.view_groups_standings, name="view_groups"),
     path(

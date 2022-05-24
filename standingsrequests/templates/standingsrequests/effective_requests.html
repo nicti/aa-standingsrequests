@@ -14,7 +14,7 @@
         <div
             hx-get="{% url 'standingsrequests:effective_requests_list' %}"
             hx-trigger="load">
-            {% include "standingsrequests/partials/_spinner.html" %}
+            {% include "standingsrequests/partials/spinner.html" %}
         </div>
     </div>
 {% endblock page_content %}

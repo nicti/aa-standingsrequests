@@ -1,7 +1,6 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import models
 from django.shortcuts import render
-from django.views.generic import ListView
 
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
@@ -48,18 +47,3 @@ def _standing_requests_to_view() -> models.QuerySet:
         .select_related("user__profile")
         .order_by("-request_date")
     )
-
-
-class EffectiveRequestListView(ListView):
-    model = StandingRequest
-    template_name = "standingsrequests/partials/effective_requests_list_2.html"
-
-    def get_queryset(self):
-        qs = _standing_requests_to_view()
-
-        return qs
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["DATETIME_FORMAT_HTML"] = DATETIME_FORMAT_HTML
-        return context

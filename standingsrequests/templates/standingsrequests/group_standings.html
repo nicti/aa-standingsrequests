@@ -6,8 +6,9 @@
         {% trans "Groups" %} ({{groups_count|default:"-"}})
     </h2>
 
-    {% include "standingsrequests/partials/_view_groups_corporations.html" %}
-    {% include "standingsrequests/partials/_view_groups_alliances.html" %}
+    {% include "standingsrequests/partials/tab_groups_corporations.html" %}
+    {% include "standingsrequests/partials/tab_groups_alliances.html" %}
+    {% include "standingsrequests/partials/standings_legend.html" %}
 {% endblock page_content %}
 
 {% block extra_javascript %}
