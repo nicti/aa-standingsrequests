@@ -23,7 +23,7 @@
                     </td>
                     <td>
                         <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                        <span class="copy_to_clipboard">
+                        <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
                             {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
                         </span>
                     </td>
@@ -69,3 +69,16 @@
         </tbody>
     </table>
 </div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".copy_to_clipboard").click(function(){
+            const text = event.currentTarget.getAttribute("data-text");
+            navigator.clipboard.writeText(text).then(function() {
+                /* clipboard successfully set */
+            }, function() {
+                console.error("Failed to copy to clipboard");
+            });
+        });
+    });
+</script>
