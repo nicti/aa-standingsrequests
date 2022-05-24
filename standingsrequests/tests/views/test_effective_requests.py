@@ -2,6 +2,8 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
+from app_utils.testing import json_response_to_dict
+
 from ..my_test_data import (
     TestViewPagesBase,
     esi_get_corporations_corporation_id,
@@ -17,15 +19,15 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
     def test_request_character(self, mock_esi, mock_cache):
         # given
         alt_id = self.alt_character_1.character_id
-        standing_request = self._create_standing_for_alt(self.alt_character_1)
+        self._create_standing_for_alt(self.alt_character_1)
         self.client.force_login(self.user_manager)
 
         # when
-        response = self.client.get(reverse("standingsrequests:effective_requests_list"))
+        response = self.client.get(reverse("standingsrequests:effective_requests_data"))
 
         # then
         self.assertEqual(response.status_code, 200)
-        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -41,8 +43,6 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date,
-            "action_date": standing_request.action_date,
             "state": "Member",
             "main_character_name": "Peter Parker",
             "main_character_ticker": "WYE",
@@ -55,7 +55,7 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "reason": None,
             "labels": [],
         }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertPartialDictEqual(data_alt_1, expected_alt_1)
 
     def test_request_corporation(self, mock_esi, mock_cache):
         # given
@@ -68,15 +68,15 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         )
         mock_cache.get.return_value = None
         alt_id = self.alt_corporation.corporation_id
-        standing_request = self._create_standing_for_alt(self.alt_corporation)
+        self._create_standing_for_alt(self.alt_corporation)
         self.client.force_login(self.user_manager)
 
         # when
-        response = self.client.get(reverse("standingsrequests:effective_requests_list"))
+        response = self.client.get(reverse("standingsrequests:effective_requests_data"))
 
         # then
         self.assertEqual(response.status_code, 200)
-        data = {obj["contact_id"]: obj for obj in response.context.dicts[3]["requests"]}
+        data = json_response_to_dict(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -91,8 +91,6 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "alliance_id": None,
             "alliance_name": "",
             "has_scopes": True,
-            "request_date": standing_request.request_date,
-            "action_date": standing_request.action_date,
             "state": "Member",
             "main_character_name": "Peter Parker",
             "main_character_ticker": "WYE",
@@ -105,4 +103,4 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
             "reason": None,
             "labels": [],
         }
-        self.assertDictEqual(data[alt_id], expected_alt_1)
+        self.assertPartialDictEqual(data[alt_id], expected_alt_1)

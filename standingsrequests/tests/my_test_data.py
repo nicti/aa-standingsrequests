@@ -32,6 +32,8 @@ from standingsrequests.models import (
     StandingRevocation,
 )
 
+from .utils import PartialDictEqualMixin
+
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"
 TEST_STANDINGS_CORPORATION_ID = 2001
@@ -461,7 +463,7 @@ def load_corporation_details():
         )
 
 
-class TestViewPagesBase(TestCase):
+class TestViewPagesBase(PartialDictEqualMixin, TestCase):
     """Base TestClass for all tests that deal with standing requests
 
     Defines common test data

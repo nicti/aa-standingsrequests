@@ -72,7 +72,7 @@ class TestViewManageRequests(TestViewPagesBase):
             "reason": None,
             "labels": [],
         }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertPartialDictEqual(data_alt_1, expected_alt_1)
 
     def test_request_corporation(self, mock_esi, mock_cache):
         # given
@@ -126,7 +126,7 @@ class TestViewManageRequests(TestViewPagesBase):
             "reason": None,
             "labels": [],
         }
-        self.assertDictEqual(data[alt_id], expected_alt_1)
+        self.assertPartialDictEqual(data[alt_id], expected_alt_1)
 
 
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
@@ -182,7 +182,7 @@ class TestViewManageRevocations(TestViewPagesBase):
             "reason": "Character owner has lost permission",
             "labels": ["red", "yellow"],
         }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertPartialDictEqual(data_alt_1, expected_alt_1)
 
     def test_revoke_corporation(self, mock_esi, mock_cache):
         # given
@@ -239,7 +239,7 @@ class TestViewManageRevocations(TestViewPagesBase):
             "reason": "None recorded",
             "labels": [],
         }
-        self.assertDictEqual(data[alt_id], expected_alt_1)
+        self.assertPartialDictEqual(data[alt_id], expected_alt_1)
 
     def test_can_show_user_without_main(self, mock_esi, mock_cache):
         # given
@@ -289,7 +289,7 @@ class TestViewManageRevocations(TestViewPagesBase):
             "reason": "None recorded",
             "labels": ["red"],
         }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertPartialDictEqual(data_alt_1, expected_alt_1)
 
     def test_can_handle_requests_without_user(self, mock_esi, mock_cache):
         # setup
@@ -338,4 +338,4 @@ class TestViewManageRevocations(TestViewPagesBase):
             "reason": "None recorded",
             "labels": ["yellow"],
         }
-        self.assertDictEqual(data_alt_1, expected_alt_1)
+        self.assertPartialDictEqual(data_alt_1, expected_alt_1)

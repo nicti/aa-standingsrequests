@@ -1,12 +1,14 @@
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import models
+from django.http import JsonResponse
 from django.shortcuts import render
+from django.utils.html import format_html
 
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
-from standingsrequests.constants import DATETIME_FORMAT_HTML
+from standingsrequests.constants import DATETIME_FORMAT_PY
 from standingsrequests.core import BaseConfig
 from standingsrequests.models import StandingRequest
 
@@ -31,14 +33,33 @@ def effective_requests(request):
 
 @login_required
 @permission_required("standingsrequests.affect_standings")
-def effective_requests_list(request):
+def effective_requests_data(request):
     requests_data = compose_standing_requests_data(
         _standing_requests_to_view(), quick_check=True
     )
-    context = {"requests": requests_data, "DATETIME_FORMAT_HTML": DATETIME_FORMAT_HTML}
-    return render(
-        request, "standingsrequests/partials/effective_requests_list.html", context
-    )
+    for req in requests_data:
+        req["request_date_str"] = {
+            "display": req["request_date"].strftime(DATETIME_FORMAT_PY),
+            "sort": req["request_date"].isoformat(),
+        }
+        req["labels_str"] = ", ".join(req["labels"])
+        scopes_html = (
+            '<i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>'
+            if req["has_scopes"]
+            else '<i class="fas fa-times fa-fw text-danger" title="Does not have required scopes"></i>'
+        )
+        req["scopes_state_html"] = format_html(
+            "{} {}", format_html(scopes_html), req["state"]
+        )
+        effective_html = (
+            '<i class="fas fa-check fa-fw text-success" title="Standing Effective"></i>'
+            if req["is_effective"]
+            else '<i class="fas fa-times fa-fw text-danger" title="Standing not effective"></i>'
+        )
+        req["scopes_state_html"] = format_html(
+            "{} {}", format_html(effective_html), req["action_by"]
+        )
+    return JsonResponse(requests_data, safe=False)
 
 
 def _standing_requests_to_view() -> models.QuerySet:

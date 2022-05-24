@@ -88,6 +88,7 @@ def compose_standing_requests_data(
         main_character_name = ""
         main_character_ticker = ""
         main_character_icon_url = ""
+        main_character_html = ""
         if req.user:
             state_name = req.user.profile.state.name
             main = req.user.profile.main_character
@@ -95,6 +96,10 @@ def compose_standing_requests_data(
                 main_character_name = main.character_name
                 main_character_ticker = main.corporation_ticker
                 main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+                main_character_html = label_with_icon(
+                    main_character_icon_url,
+                    f"[{main_character_ticker}] {main_character_name}",
+                )
         else:
             state_name = "(no user)"
 
@@ -145,6 +150,19 @@ def compose_standing_requests_data(
             alliance_name = ""
             has_scopes = False
 
+        if contact_name:
+            contact_name_html = label_with_icon(contact_icon_url, contact_name)
+        else:
+            contact_name_html = ""
+        if corporation_name:
+            organization_html = f"{corporation_ticker} {corporation_name}"
+            if alliance_name:
+                organization_html = format_html(
+                    "{}<br>{}", organization_html, alliance_name
+                )
+        else:
+            organization_html = ""
+
         if req.is_standing_revocation:
             reason = req.get_reason_display()
         else:
@@ -160,11 +178,16 @@ def compose_standing_requests_data(
                 "contact_id": req.contact_id,
                 "contact_name": contact_name,
                 "contact_icon_url": contact_icon_url,
+                "contact_name_html": {
+                    "display": contact_name_html,
+                    "sort": contact_name,
+                },
                 "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
                 "corporation_ticker": corporation_ticker,
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
+                "organization_html": organization_html,
                 "request_date": req.request_date,
                 "action_date": req.action_date,
                 "has_scopes": has_scopes,
@@ -174,6 +197,7 @@ def compose_standing_requests_data(
                 "main_character_name": main_character_name,
                 "main_character_ticker": main_character_ticker,
                 "main_character_icon_url": main_character_icon_url,
+                "main_character_html": main_character_html,
                 "actioned": req.is_actioned,
                 "is_effective": req.is_effective,
                 "is_corporation": req.is_corporation,

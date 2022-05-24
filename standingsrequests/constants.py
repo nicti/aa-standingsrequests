@@ -3,6 +3,7 @@ from enum import IntEnum
 from django.db.models import TextChoices
 
 DATETIME_FORMAT_HTML = "Y-M-d H:i"
+DATETIME_FORMAT_PY = "%Y-%m-%d %H:%M"
 
 
 class OperationMode(TextChoices):

@@ -77,9 +77,9 @@ urlpatterns = [
         name="effective_requests",
     ),
     path(
-        "view/requests/list/",
-        effective_requests.effective_requests_list,
-        name="effective_requests_list",
+        "view/requests/data/",
+        effective_requests.effective_requests_data,
+        name="effective_requests_data",
     ),
     # group standings
     path("view/groups/", group_standings.view_groups_standings, name="view_groups"),
