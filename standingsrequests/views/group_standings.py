@@ -127,7 +127,7 @@ def view_corporation_standings_json(request):
                 main_character_html = ""
             state_name = user.profile.state.name
 
-        labels_str = ", ".join([label.name for label in contact.labels.all()])
+        labels_str = ", ".join(contact.labels_sorted)
         corporation_html = label_with_icon(
             contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), contact.eve_entity.name
         )
@@ -181,7 +181,7 @@ def view_alliance_standings_json(request):
                     "sort": contact.eve_entity.name,
                 },
                 "standing": contact.standing,
-                "labels_str": ", ".join([label.name for label in contact.labels.all()]),
+                "labels_str": ", ".join(contact.labels_sorted),
             }
         )
     return JsonResponse(alliances_data, safe=False)

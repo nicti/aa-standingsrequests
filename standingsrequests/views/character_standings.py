@@ -114,7 +114,7 @@ def view_pilots_standings_json(request):
             faction_id = assoc.faction.id if assoc.faction else None
             faction_name = assoc.faction.name if assoc.faction else ""
 
-        labels = [label.name for label in contact.labels.all()]
+        labels = contact.labels_sorted
         characters_data.append(
             {
                 "character_id": contact.eve_entity_id,

@@ -172,7 +172,7 @@ def compose_standing_requests_data(
         except KeyError:
             labels = []
         else:
-            labels = [obj.name for obj in my_contact.labels.all()]
+            labels = my_contact.labels_sorted
         requests_data.append(
             {
                 "contact_id": req.contact_id,
