@@ -3,11 +3,7 @@ from django.urls import reverse
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import (
-    NoSocketsTestCase,
-    add_character_to_user,
-    json_response_to_python,
-)
+from app_utils.testing import add_character_to_user, json_response_to_python
 
 from standingsrequests.views import group_standings
 
@@ -17,11 +13,12 @@ from ..my_test_data import (
     load_corporation_details,
     load_eve_entities,
 )
+from ..utils import NoSocketsTestCasePlus
 
 TEST_SCOPE = "publicData"
 
 
-class TestGroupStandingsJson(NoSocketsTestCase):
+class TestGroupStandingsJson(NoSocketsTestCasePlus):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -50,68 +47,65 @@ class TestGroupStandingsJson(NoSocketsTestCase):
             scopes=[TEST_SCOPE],
         )
 
-    def test_normal(self):
+    def test_corporations_data(self):
         # given
         self.maxDiff = None
-        request = self.factory.get(reverse("standingsrequests:view_groups_json"))
+        request = self.factory.get(
+            reverse("standingsrequests:view_corporation_standings_json")
+        )
         request.user = self.user
-        my_view_without_cache = group_standings.view_groups_standings_json.__wrapped__
+        my_view_without_cache = (
+            group_standings.view_corporation_standings_json.__wrapped__
+        )
         # when
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
-        corporations = {obj["corporation_id"]: obj for obj in data["corps"]}
+        corporations = {obj["corporation_id"]: obj for obj in data}
         self.assertSetEqual(set(corporations.keys()), {2001, 2003, 2102})
         obj = corporations[2001]
-        self.assertDictEqual(
-            obj,
-            {
-                "corporation_id": 2001,
-                "corporation_name": "Wayne Technologies",
-                "corporation_icon_url": "https://images.evetech.net/corporations/2001/logo?size=32",
-                "alliance_id": 3001,
-                "alliance_name": "Wayne Enterprises",
-                "faction_id": None,
-                "faction_name": "",
-                "standing": 10.0,
-                "labels": [],
-                "state": "",
-                "main_character_name": "",
-                "main_character_ticker": "",
-                "main_character_icon_url": "",
-            },
-        )
+        expected = {
+            "corporation_id": 2001,
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises",
+            "faction_id": None,
+            "faction_name": "",
+            "standing": 10.0,
+            "state": "",
+            "main_character_name": "",
+        }
+        self.assertPartialDictEqual(obj, expected)
         obj = corporations[2003]
-        self.assertDictEqual(
+        self.assertPartialDictEqual(
             obj,
             {
                 "corporation_id": 2003,
-                "corporation_name": "CatCo Worldwide Media",
-                "corporation_icon_url": "https://images.evetech.net/corporations/2003/logo?size=32",
                 "alliance_id": None,
                 "alliance_name": "",
                 "faction_id": None,
                 "faction_name": "",
                 "standing": 5.0,
-                "labels": [],
                 "state": "",
                 "main_character_name": "",
-                "main_character_ticker": "",
-                "main_character_icon_url": "",
             },
         )
 
-        alliances = {obj["alliance_id"]: obj for obj in data["alliances"]}
+    def test_alliances_data(self):
+        # given
+        self.maxDiff = None
+        request = self.factory.get(
+            reverse("standingsrequests:view_alliance_standings_json")
+        )
+        request.user = self.user
+        my_view_without_cache = group_standings.view_alliance_standings_json.__wrapped__
+        # when
+        response = my_view_without_cache(request)
+        # then
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+
+        alliances = {obj["alliance_id"]: obj for obj in data}
         self.assertSetEqual(set(alliances.keys()), {3010})
         obj = alliances[3010]
-        self.assertDictEqual(
-            obj,
-            {
-                "alliance_id": 3010,
-                "alliance_name": "Bad Boys Inc",
-                "alliance_icon_url": "https://images.evetech.net/alliances/3010/logo?size=32",
-                "standing": -10.0,
-                "labels": [],
-            },
-        )
+        self.assertPartialDictEqual(obj, {"alliance_id": 3010, "standing": -10.0})

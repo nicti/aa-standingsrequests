@@ -87,11 +87,16 @@ urlpatterns = [
         name="effective_requests_list_2",
     ),
     # group standings
-    path("view/corps/", group_standings.view_groups_standings, name="view_groups"),
+    path("view/groups/", group_standings.view_groups_standings, name="view_groups"),
     path(
-        "view/corps/json",
-        group_standings.view_groups_standings_json,
-        name="view_groups_json",
+        "view/groups/corporations_json",
+        group_standings.view_corporation_standings_json,
+        name="view_corporation_standings_json",
+    ),
+    path(
+        "view/groups/alliances_json",
+        group_standings.view_alliance_standings_json,
+        name="view_alliance_standings_json",
     ),
     # manage requests
     path("manage/", manage_requests.manage_standings, name="manage"),

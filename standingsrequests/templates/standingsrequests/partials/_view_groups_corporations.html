@@ -3,59 +3,19 @@
 <h3>{% trans "Corporations" %}</h3>
 
 <div class="table-responsive">
-    <table class="table table-condensed table-hover table-striped">
-        <tr>
-            <th class="col-md-2">{% trans "Name" %}</th>
-            <th class="col-md-2">{% trans "Alliance" %}</th>
-            <th class="col-md-2">{% trans "Faction" %}</th>
-            <th class="col-md-1">{% trans "Standing" %}</th>
-            <th class="col-md-2">{% trans "Labels" %}</th>
-            <th class="col-md-2">{% trans "Main Character" %}</th>
-            <th class="col-md-1">{% trans "State" %}</th>
-        </tr>
-        {% verbatim %}
-        <tr ng-repeat="entity in corps | filterStandings as corpsFiltered">
-            <td>
-                <img ng-src="{{ entity.corporation_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                {{ entity.corporation_name }}
-            </td>
-            <td>
-                {{ entity.alliance_name }}
-            </td>
-            <td>
-                {{ entity.faction_name }}
-            </td>
-            <td>
-                <span style="font-size:1.5em;">
-                    <standings-icon standing="entity.standing"></standings-icon>
-                </span>
-            </td>
-            <td>
-                <span ng-repeat="label in entity.labels | orderBy">
-                    {{ label }}
-                    <span ng-show="!$last">,&nbsp;</span>
-                </span>
-            </td>
-            <td>
-                <img ng-src="{{ entity.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
-                <span ng-show="entity.main_character_ticker">
-                    [{{ entity.main_character_ticker }}]
-                </span>
-                <span ng-show="entity.main_character_name">
-                    {{ entity.main_character_name }}
-                </span>
-            </td>
-            <td>
-                {{entity.state}}
-            </td>
-        </tr>
-
-        <tr ng-hide="corpsFiltered.length > 0">
-            <td class="text-muted" colspan="3" style="text-align: left; vertical-align: middle;">
-            Empty
-            </td>
-        </tr>
-        {% endverbatim %}
-
+    <table id="tab-corporation-standings" class="table table-striped table-width-fix">
+        <thead>
+            <tr>
+                <th class="col-md-2">{% trans "Name" %}</th>
+                <th class="col-md-2">{% trans "Alliance" %}</th>
+                <th class="col-md-2">{% trans "Faction" %}</th>
+                <th class="col-md-1">{% trans "Standing" %}</th>
+                <th class="col-md-2">{% trans "Labels" %}</th>
+                <th class="col-md-2">{% trans "Main Character" %}</th>
+                <th class="col-md-1">{% trans "State" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
     </table>
 </div>

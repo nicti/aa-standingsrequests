@@ -2,35 +2,109 @@
 {% load static i18n %}
 
 {% block page_content %}
-    <div ng-app="standingsApp" ng-controller="GroupsListController">
-        <standings-filter-controls></standings-filter-controls>
+    <h2 class="page-header">
+        {% trans "Groups" %} ({{groups_count|default:"-"}})
+    </h2>
 
-        <h2 class="page-header">
-            {% trans "Groups" %} ({{groups_count|default:"-"}})
-        </h2>
-
-        {% include "standingsrequests/partials/_contacts_legend.html" %}
-
-        <div id="div_spinner">
-            {% include "standingsrequests/partials/_spinner.html" %}
-        </div>
-
-        <div id="div_results" class="container-fluid" style="visibility: hidden">
-            <div class="row">
-                {% include "standingsrequests/partials/_view_groups_corporations.html" %}
-                {% include "standingsrequests/partials/_view_groups_alliances.html" %}
-            </div>
-        </div>
-
-    </div>
+    {% include "standingsrequests/partials/_view_groups_corporations.html" %}
+    {% include "standingsrequests/partials/_view_groups_alliances.html" %}
 {% endblock page_content %}
 
 {% block extra_javascript %}
-    {% include "standingsrequests/bundles/angular.html" %}
-    <script type="text/javascript">
-        {% include 'standingsrequests/partials/_angular_urls.html' %}
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    <script type="application/javascript">
+        $(document).ready(function () {
+            $('#tab-corporation-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:view_corporation_standings_json' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'corporation_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'alliance_name' },
+                    { data: 'faction_name' },
+                    { data: 'standing' },
+                    { data: 'labels_str' },
+                    { data: 'main_character_name' },
+                    { data: 'state' },
+                     /* invisible columns */
+                    { data: 'main_character_name' },
+                ],
+                order: [[0, "asc"]],
+                columnDefs: [
+                    { "visible": false, "targets": [7] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 1,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 2,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 3,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 7,
+                            title: "{% translate 'Main' %}",
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 6,
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+            $('#tab-alliance-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:view_alliance_standings_json' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'alliance_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'standing' },
+                    { data: 'labels_str' },
+                ],
+                order: [[0, "asc"]],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 1,
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+        });
     </script>
-    <script src="{% static 'standingsrequests/app.js' %}"></script>
-    <script src="{% static 'standingsrequests/standings_filter.js' %}"></script>
-    <script src="{% static 'standingsrequests/view_groups.js' %}"></script>
+
 {% endblock extra_javascript %}
+
+{% block extra_css %}
+    {{ block.super }}
+    {% include 'bundles/datatables-css.html' %}
+{% endblock extra_css %}

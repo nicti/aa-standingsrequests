@@ -12,7 +12,7 @@ from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
 from standingsrequests.core import BaseConfig
 from standingsrequests.models import ContactSet, ContactType, StandingRequest
 
-from ._common import DEFAULT_ICON_SIZE, add_common_context
+from ._common import DEFAULT_ICON_SIZE, add_common_context, label_with_icon
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -52,7 +52,7 @@ def view_groups_standings(request):
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
-def view_groups_standings_json(request):
+def view_corporation_standings_json(request):
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -110,35 +110,59 @@ def view_groups_standings_json(request):
             main = user.profile.main_character
         except (KeyError, AttributeError, ObjectDoesNotExist):
             main_character_name = ""
-            main_character_ticker = ""
-            main_character_icon_url = ""
             state_name = ""
+            main_character_html = ""
         else:
             main_character_name = main.character_name if main else ""
             main_character_ticker = main.corporation_ticker if main else ""
             main_character_icon_url = (
                 main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
             )
+            if main_character_name:
+                main_character_html = label_with_icon(
+                    main_character_icon_url,
+                    f"[{main_character_ticker}] {main_character_name}",
+                )
+            else:
+                main_character_html = ""
             state_name = user.profile.state.name
 
-        labels = [label.name for label in contact.labels.all()]
+        labels_str = ", ".join([label.name for label in contact.labels.all()])
+        corporation_html = label_with_icon(
+            contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), contact.eve_entity.name
+        )
         corporations_data.append(
             {
                 "corporation_id": contact.eve_entity_id,
-                "corporation_name": contact.eve_entity.name,
-                "corporation_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
+                "corporation_html": {
+                    "display": corporation_html,
+                    "sort": contact.eve_entity.name,
+                },
                 "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
                 "faction_id": faction_id,
                 "faction_name": faction_name,
                 "standing": contact.standing,
-                "labels": labels,
+                "labels_str": labels_str,
                 "state": state_name,
                 "main_character_name": main_character_name,
-                "main_character_ticker": main_character_ticker,
-                "main_character_icon_url": main_character_icon_url,
+                "main_character_html": {
+                    "display": main_character_html,
+                    "sort": main_character_name,
+                },
             }
         )
+    return JsonResponse(corporations_data, safe=False)
+
+
+@cache_page(SR_PAGE_CACHE_SECONDS)
+@login_required
+@permission_required("standingsrequests.view")
+def view_alliance_standings_json(request):
+    try:
+        contacts = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = ContactSet()
     alliances_data = list()
     for contact in (
         contacts.contacts.filter_alliances()
@@ -146,14 +170,18 @@ def view_groups_standings_json(request):
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     ):
+        alliance_html = label_with_icon(
+            contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), contact.eve_entity.name
+        )
         alliances_data.append(
             {
                 "alliance_id": contact.eve_entity_id,
-                "alliance_name": contact.eve_entity.name,
-                "alliance_icon_url": contact.eve_entity.icon_url(DEFAULT_ICON_SIZE),
+                "alliance_html": {
+                    "display": alliance_html,
+                    "sort": contact.eve_entity.name,
+                },
                 "standing": contact.standing,
-                "labels": [label.name for label in contact.labels.all()],
+                "labels_str": ", ".join([label.name for label in contact.labels.all()]),
             }
         )
-    my_groups_data = {"corps": corporations_data, "alliances": alliances_data}
-    return JsonResponse(my_groups_data, safe=False)
+    return JsonResponse(alliances_data, safe=False)

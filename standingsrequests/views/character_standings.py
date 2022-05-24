@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.utils.html import format_html
 from django.views.decorators.cache import cache_page
 from eveuniverse.models import EveEntity
 
@@ -17,7 +16,7 @@ from standingsrequests.core import BaseConfig
 from standingsrequests.helpers.writers import UnicodeWriter
 from standingsrequests.models import ContactSet, StandingRequest
 
-from ._common import DEFAULT_ICON_SIZE, add_common_context
+from ._common import DEFAULT_ICON_SIZE, add_common_context, label_with_icon
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -74,10 +73,7 @@ def view_pilots_standings_json(request):
     characters_data = list()
     for contact in character_contacts_qs:
         character_icon_url = contact.eve_entity.icon_url(DEFAULT_ICON_SIZE)
-        character_name_html = format_html(
-            '<span class="text-nowrap">'
-            '<img src="{}" class="img-circle" style="width:32px;height:32px"> {}'
-            "</span>",
+        character_name_html = label_with_icon(
             contact.eve_entity.icon_url(),
             contact.eve_entity.name,
         )
@@ -97,14 +93,9 @@ def view_pilots_standings_json(request):
             main_character_name = main.character_name
             main_character_ticker = main.corporation_ticker
             main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
-            main_character_html = format_html(
-                '<span class="text-nowrap">'
-                '<img src="{}" class="img-circle" style="width:32px;height:32px">'
-                " [{}] {}"
-                "</span>",
+            main_character_html = label_with_icon(
                 main_character_icon_url,
-                main_character_ticker,
-                main_character_name,
+                f"[{main_character_ticker}] {main_character_name}",
             )
         try:
             assoc = contact.eve_entity.character_affiliation

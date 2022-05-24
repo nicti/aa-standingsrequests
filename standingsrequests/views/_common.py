@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.html import format_html
 
 from allianceauth.eveonline.models import EveCharacter
 
@@ -10,6 +11,18 @@ from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import ContactSet, StandingRequest, StandingRevocation
 
 DEFAULT_ICON_SIZE = 32
+
+
+def label_with_icon(icon_url: str, text: str):
+    return format_html(
+        '<span class="text-nowrap">'
+        '<img src="{}" class="img-circle" style="width:{}px;height:{}px"> {}'
+        "</span>",
+        icon_url,
+        DEFAULT_ICON_SIZE,
+        DEFAULT_ICON_SIZE,
+        text,
+    )
 
 
 def add_common_context(request, context: dict) -> dict:

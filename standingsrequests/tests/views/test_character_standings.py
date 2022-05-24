@@ -3,21 +3,18 @@ from django.urls import reverse
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import (
-    NoSocketsTestCase,
-    add_character_to_user,
-    json_response_to_dict,
-)
+from app_utils.testing import add_character_to_user, json_response_to_dict
 
 from standingsrequests.models import CharacterAffiliation
 from standingsrequests.views import character_standings
 
 from ..my_test_data import create_contacts_set, create_eve_objects, load_eve_entities
+from ..utils import NoSocketsTestCasePlus
 
 TEST_SCOPE = "publicData"
 
 
-class TestViewPilotStandingsJson(NoSocketsTestCase):
+class TestViewPilotStandingsJson(NoSocketsTestCasePlus):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -64,7 +61,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
         self.assertSetEqual(set(data.keys()), expected)
 
         data_character_1002 = data[1002]
-        expected_character_1002 = {
+        expected = {
             "character_id": 1002,
             "character_name": "Peter Parker",
             "character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
@@ -73,7 +70,7 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "alliance_id": 3001,
             "alliance_name": "Wayne Enterprises",
             "faction_id": None,
-            "faction_name": None,
+            "faction_name": "",
             "state": "Member",
             "main_character_ticker": "WYE",
             "standing": 10.0,
@@ -81,10 +78,10 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "main_character_name": "Peter Parker",
             "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
         }
-        self.assertDictEqual(data_character_1002, expected_character_1002)
+        self.assertPartialDictEqual(data_character_1002, expected)
 
         data_character_1009 = data[1009]
-        expected_character_1009 = {
+        expected = {
             "character_id": 1009,
             "character_name": "Lex Luthor",
             "character_icon_url": "https://images.evetech.net/characters/1009/portrait?size=32",
@@ -93,12 +90,12 @@ class TestViewPilotStandingsJson(NoSocketsTestCase):
             "alliance_id": None,
             "alliance_name": "",
             "faction_id": None,
-            "faction_name": None,
+            "faction_name": "",
             "state": "",
-            "main_character_ticker": None,
+            "main_character_ticker": "",
             "standing": -10.0,
             "labels": ["red"],
-            "main_character_name": None,
-            "main_character_icon_url": None,
+            "main_character_name": "",
+            "main_character_icon_url": "",
         }
-        self.assertDictEqual(data_character_1009, expected_character_1009)
+        self.assertPartialDictEqual(data_character_1009, expected)
