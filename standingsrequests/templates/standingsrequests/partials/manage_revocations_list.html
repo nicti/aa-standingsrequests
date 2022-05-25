@@ -6,13 +6,13 @@
     <table id="tab_revocations" class="table table-condensed table-hover table-striped">
         <thead>
             <tr>
-                <th class="col-md-1">{% trans "Date" %}</th>
-                <th class="col-md-2">{% trans "Contact Name" %}</th>
-                <th class="col-md-2">{% trans "Corporation / Alliance" %}</th>
-                <th class="col-md-2">{% trans "Main Character" %}</th>
-                <th class="col-md-1">{% trans "Scopes / State" %}</th>
-                <th class="col-md-2">{% trans "Reason / Contact Labels" %}</th>
-                <th class="col-md-2">{% trans "Actions" %}</th>
+                <th class="col-md-1">{% translate "Date" %}</th>
+                <th class="col-md-2">{% translate "Contact Name" %}</th>
+                <th class="col-md-2">{% translate "Corporation / Alliance" %}</th>
+                <th class="col-md-2">{% translate "Main Character" %}</th>
+                <th class="col-md-1">{% translate "Scopes / State" %}</th>
+                <th class="col-md-2">{% translate "Reason / Contact Labels" %}</th>
+                <th class="col-md-2">{% translate "Actions" %}</th>
             </tr>
         </thead>
         <tbody>
@@ -51,14 +51,14 @@
                     <td>
                         <button class="btn btn-success"
                                 hx-put="{% url 'manage_revocations_write' contact.contact_id %}"
-                                title="{% trans 'Confirm the standing was REMOVED in game' %}">
+                                title="{% translate 'Confirm the standing was REMOVED in game' %}">
                             Confirm
                         </button>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                         <button class="btn btn-danger"
-                                hx-confirm="{% trans 'Are you sure?' %}"
+                                hx-confirm="{% translate 'Are you sure?' %}"
                                 hx-delete="{% url 'manage_revocations_write' contact.contact_id %}"
-                                title="{% trans 'Reject this revocation request' %}">
+                                title="{% translate 'Reject this revocation request' %}">
                             Reject
                         </button>
                     </td>

@@ -7,11 +7,11 @@
         <div class="table-responsive">
             <table class="table table-condensed table-hover table-striped">
                 <tr>
-                    <th class="col-md-4">{% trans "Corporation" %}</th>
-                    <th class="col-md-2">{% trans "Alliance" %}</th>
-                    <th class="col-md-1">{% trans "Keys/Req" %}</th>
-                    <th class="col-md-1">{% trans "Standing" %}</th>
-                    <th class="col-md-1">{% trans "Actions" %}</th>
+                    <th class="col-md-4">{% translate "Corporation" %}</th>
+                    <th class="col-md-2">{% translate "Alliance" %}</th>
+                    <th class="col-md-1">{% translate "Keys/Req" %}</th>
+                    <th class="col-md-1">{% translate "Standing" %}</th>
+                    <th class="col-md-1">{% translate "Actions" %}</th>
                 </tr>
                 {% for st in corps %}
                     <tr>
@@ -30,15 +30,15 @@
                             <p>
                                 <span style="font-size:2em;">
                                     {% if st.inOrganisation == True %}
-                                        <i class="fas fa-star fa-fw text-primary" title="{% trans 'In Organisation' %}"></i>
+                                        <i class="fas fa-star fa-fw text-primary" title="{% translate 'In Organisation' %}"></i>
                                     {% elif st.requestActioned == True %}
-                                        <i class="fas fa-hourglass-half fa-fw text-success" title="{% trans 'Accepted, pending update in game.' %}"></i>
+                                        <i class="fas fa-hourglass-half fa-fw text-success" title="{% translate 'Accepted, pending update in game.' %}"></i>
                                     {% elif st.pendingRequest == True %}
-                                        <i class="fas fa-hourglass-start fa-fw" title="{% trans 'Standing Pending' %}"></i>
+                                        <i class="fas fa-hourglass-start fa-fw" title="{% translate 'Standing Pending' %}"></i>
                                     {% elif st.pendingRevocation == True %}
-                                        <i class="fas fa-reply-all fa-fw text-danger" title="{% trans 'Standing is being revoked' %}"></i>
+                                        <i class="fas fa-reply-all fa-fw text-danger" title="{% translate 'Standing is being revoked' %}"></i>
                                     {% elif st.standing == None and st.pendingRequest == False %}
-                                        <i class="fas fa-exclamation-triangle text-warning" title="{% trans 'No Standing' %}"></i>
+                                        <i class="fas fa-exclamation-triangle text-warning" title="{% translate 'No Standing' %}"></i>
                                     {% else %}
                                         {% include 'standingsrequests/partials/_standing.html' with standing=st.standing %}
                                     {% endif %}
@@ -68,7 +68,7 @@
                                                 &nbsp;Apply&nbsp;
                                             </a>
                                         {% else %}
-                                            <i class="fas fa-info-circle text-info" title="{% trans 'More keys required to request standings' %}"></i>
+                                            <i class="fas fa-info-circle text-info" title="{% translate 'More keys required to request standings' %}"></i>
                                         {% endif %}
                                     {% else %}
                                         <a
