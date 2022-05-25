@@ -33,11 +33,8 @@
                 {% endif %}
 
                 {% if perms.standingsrequests.view %}
-                <li class="{% navactive request 'standingsrequests:view_pilots' %}">
-                    <a href="{% url 'standingsrequests:view_pilots' %}">{% trans "Character Standings" %}</a>
-                </li>
-                <li class="{% navactive request 'standingsrequests:view_groups' %}">
-                    <a href="{% url 'standingsrequests:view_groups' %}">{% trans "Group Standings" %}</a>
+                <li class="{% navactive request 'standingsrequests:standings' %}">
+                    <a href="{% url 'standingsrequests:standings' %}">{% trans "Standings" %}</a>
                 </li>
                 {% endif %}
             </ul>

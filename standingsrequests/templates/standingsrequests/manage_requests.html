@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
 {% endblock extra_css %}
 
-{% block page_content %}
+{% block details %}
     <div>
         <!-- Requests -->
 
@@ -41,7 +41,7 @@
         </div>
 
     </div>
-{% endblock page_content %}
+{% endblock details %}
 
 {% block extra_javascript %}
     {% include "standingsrequests/bundles/htmx.html" %}

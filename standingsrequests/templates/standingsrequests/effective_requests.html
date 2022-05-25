@@ -3,7 +3,7 @@
 {% load static %}
 {% load i18n %}
 
-{% block page_content %}
+{% block details %}
     <h2 style="margin-top:0;">
         {% trans "Effective Requests" %} ({{requests_count|default:"-"}})
     </h2>
@@ -11,7 +11,7 @@
         All effective standing requests for <strong>{{organization.name}}</strong>
     </p>
     {% include "standingsrequests/partials/tab_effective_requests.html" %}
-{% endblock page_content %}
+{% endblock details %}
 
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}

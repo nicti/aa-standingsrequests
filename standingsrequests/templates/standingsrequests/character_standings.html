@@ -3,7 +3,7 @@
 {% load static %}
 {% load i18n %}
 
-{% block page_content %}
+{% block details %}
 
     <h2 class="page-header">
         {% trans "Characters" %} ({{pilots_count|default:"-"}})
@@ -18,7 +18,7 @@
 
     {% include "standingsrequests/partials/tab_character_standings.html" %}
     {% include "standingsrequests/partials/standings_legend.html" %}
-{% endblock page_content %}
+{% endblock details %}
 
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
