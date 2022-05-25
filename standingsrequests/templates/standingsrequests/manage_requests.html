@@ -3,11 +3,6 @@
 {% load static %}
 {% load i18n %}
 
-{% block extra_css %}
-    {{ block.super }}
-    <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
-{% endblock extra_css %}
-
 {% block details %}
     <h2>{% translate "Manage Requests" %}</h2>
     <div>
@@ -41,6 +36,11 @@
 
     </div>
 {% endblock details %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/manage.css' %}" type="text/css" media="screen">
+{% endblock extra_css %}
 
 {% block extra_javascript %}
     {% include "standingsrequests/bundles/htmx.html" %}

@@ -1,5 +1,4 @@
 {% extends "standingsrequests/_base.html" %}
-{% load bootstrap %}
 {% load static %}
 {% load i18n %}
 
@@ -38,8 +37,35 @@
     {% include 'bundles/datatables-js.html' %}
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
     <script type="application/javascript">
+        function renderStanding ( data, type, row ) {
+            if ( type === "sort" || type === 'type' ) {
+                return data;
+            }
+            else {
+                let symbol;
+                let style;
+
+                if (data < -5) {
+                    symbol = "fas fa-minus-square fa-fw fa-lg";
+                    style = "color:#930404;";
+                } else if (data < 0) {
+                    symbol = "fas fa-minus-square fa-fw fa-lg";
+                    style = "color:#c34704;";
+                } else if (data === 0) {
+                    symbol = "fas fa-equals fa-fw fa-lg";
+                    style = "background:#878787; color:white; font-size:75%";
+                } else if (data <= 5) {
+                    symbol = "fas fa-plus-square fa-fw fa-lg";
+                    style = "color:#2a64c3;";
+                } else {
+                    symbol = "fas fa-plus-square fa-fw fa-lg";
+                    style = "color:#042177;";
+                }
+                return `<i class="${symbol}" style="${style};" title="${data}"></i>`
+            }
+        }
         $(document).ready(function () {
-            $('#tab-character-standings').DataTable({
+            $('#tbl-character-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:view_pilots_json' %}",
                     dataSrc: '',
@@ -56,7 +82,10 @@
                     { data: 'corporation_name' },
                     { data: 'alliance_name' },
                     { data: 'faction_name' },
-                    { data: 'standing' },
+                    {
+                        data: 'standing',
+                        render: renderStanding
+                    },
                     { data: 'labels_str' },
                     {
                         data: 'main_character_html',
@@ -101,7 +130,7 @@
                     bootstrap: true
                 },
             });
-            $('#tab-corporation-standings').DataTable({
+            $('#tbl-corporation-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:view_corporation_standings_json' %}",
                     dataSrc: '',
@@ -117,7 +146,10 @@
                     },
                     { data: 'alliance_name' },
                     { data: 'faction_name' },
-                    { data: 'standing' },
+                    {
+                        data: 'standing',
+                        render: renderStanding
+                    },
                     { data: 'labels_str' },
                     { data: 'main_character_name' },
                     { data: 'state' },
@@ -156,7 +188,7 @@
                     bootstrap: true
                 },
             });
-            $('#tab-alliance-standings').DataTable({
+            $('#tbl-alliance-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:view_alliance_standings_json' %}",
                     dataSrc: '',
@@ -170,7 +202,10 @@
                             sort: 'sort'
                         }
                     },
-                    { data: 'standing' },
+                    {
+                        data: 'standing',
+                        render: renderStanding
+                    },
                     { data: 'labels_str' },
                 ],
                 order: [[0, "asc"]],
