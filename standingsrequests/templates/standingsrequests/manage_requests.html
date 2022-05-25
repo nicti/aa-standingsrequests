@@ -9,10 +9,11 @@
 {% endblock extra_css %}
 
 {% block details %}
+    <h2>{% trans "Manage Requests" %}</h2>
     <div>
         <!-- Requests -->
 
-        <h2 style="margin-top:0;">{% trans "Pending Requests" %} ({{requests_count|default:"-"}})</h2>
+        <h3>{% trans "Pending Requests" %} ({{requests_count|default:"-"}})</h3>
         <p>Standing requests with pending action for <strong>{{organization.name}}</strong></p>
         <div class="container-fluid">
             <div
@@ -26,9 +27,7 @@
 
         <!-- Revocations -->
 
-        <h2 style="margin-top:0;">
-            {% trans "Pending Revocations" %} ({{revocations_count|default:"-"}})
-        </h2>
+        <h3>{% trans "Pending Revocations" %} ({{revocations_count|default:"-"}})</h3>
         <p>Standing revocations with pending action for <strong>{{organization.name}}</strong></p>
         <div class="container-fluid">
             <div

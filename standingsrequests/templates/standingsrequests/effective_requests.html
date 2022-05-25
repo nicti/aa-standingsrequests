@@ -4,13 +4,9 @@
 {% load i18n %}
 
 {% block details %}
-    <h2 style="margin-top:0;">
-        {% trans "Effective Requests" %} ({{requests_count|default:"-"}})
-    </h2>
-    <p>
-        All effective standing requests for <strong>{{organization.name}}</strong>
-    </p>
-    {% include "standingsrequests/partials/tab_effective_requests.html" %}
+    <h2>{% trans "Effective Requests" %} ({{requests_count|default:"-"}})</h2>
+    {% include "standingsrequests/partials/tbl_effective_requests.html" %}
+    <p class="text-muted">All effective standing requests for <strong>{{organization.name}}</strong></p>
 {% endblock details %}
 
 {% block extra_javascript %}

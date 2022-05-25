@@ -2,11 +2,10 @@ from django.urls import path
 
 from .views import (
     admin,
-    character_standings,
     create_requests,
     effective_requests,
-    group_standings,
     manage_requests,
+    standings,
 )
 
 app_name = "standingsrequests"
@@ -58,18 +57,6 @@ urlpatterns = [
         create_requests.view_requester_add_scopes,
         name="view_requester_add_scopes",
     ),
-    # character standings
-    path("view/pilots/", character_standings.view_pilots_standings, name="view_pilots"),
-    path(
-        "view/pilots/json/",
-        character_standings.view_pilots_standings_json,
-        name="view_pilots_json",
-    ),
-    path(
-        "view/pilots/download/",
-        character_standings.download_pilot_standings,
-        name="download_pilots",
-    ),
     # effective requests
     path(
         "view/requests/",
@@ -80,18 +67,6 @@ urlpatterns = [
         "view/requests/data/",
         effective_requests.effective_requests_data,
         name="effective_requests_data",
-    ),
-    # group standings
-    path("view/groups/", group_standings.view_groups_standings, name="view_groups"),
-    path(
-        "view/groups/corporations_json",
-        group_standings.view_corporation_standings_json,
-        name="view_corporation_standings_json",
-    ),
-    path(
-        "view/groups/alliances_json",
-        group_standings.view_alliance_standings_json,
-        name="view_alliance_standings_json",
     ),
     # manage requests
     path("manage/", manage_requests.manage_standings, name="manage"),
@@ -114,5 +89,27 @@ urlpatterns = [
         "manage/revocations/<int:contact_id>/",
         manage_requests.manage_revocations_write,
         name="manage_revocations_write",
+    ),
+    # Standings
+    path("standings", standings.standings, name="standings"),
+    path(
+        "standings/characters/data",
+        standings.view_pilots_standings_json,
+        name="view_pilots_json",
+    ),
+    path(
+        "standings/characters/download",
+        standings.download_pilot_standings,
+        name="download_pilots",
+    ),
+    path(
+        "standings/corporations/data",
+        standings.view_corporation_standings_json,
+        name="view_corporation_standings_json",
+    ),
+    path(
+        "standings/alliances/data",
+        standings.view_alliance_standings_json,
+        name="view_alliance_standings_json",
     ),
 ]

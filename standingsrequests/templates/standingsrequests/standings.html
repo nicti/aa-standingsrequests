@@ -1,14 +1,37 @@
 {% extends "standingsrequests/_base.html" %}
-{% load static i18n %}
+{% load bootstrap %}
+{% load static %}
+{% load i18n %}
 
 {% block details %}
-    <h2 class="page-header">
-        {% trans "Groups" %} ({{groups_count|default:"-"}})
-    </h2>
 
-    {% include "standingsrequests/partials/tab_groups_corporations.html" %}
-    {% include "standingsrequests/partials/tab_groups_alliances.html" %}
-    {% include "standingsrequests/partials/standings_legend.html" %}
+    <h2>{% trans "Standings" %}</h2>
+
+    <ul id="myTabs" class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+            <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">Characters</a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">Corporations</a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-alliances" aria-controls="tab-alliances" role="tab" data-toggle="tab">Alliances</a>
+        </li>
+    </ul>
+
+    <div class="panel panel-default panel-tabs">
+        <div class="panel-body">
+            <div class="tab-content">
+                {% include "standingsrequests/partials/tab_character_standings.html" %}
+                {% include "standingsrequests/partials/tab_corporation_standings.html" %}
+                {% include "standingsrequests/partials/tab_alliance_standings.html" %}
+            </div>
+        </div>
+    </div>
+    <p class="text-muted">
+        Current in-game contacts with standings from <strong>{{ organization.name }}</strong> •
+        This data was last updated {{ lastUpdate|timesince }} ago
+    </p>
 {% endblock details %}
 
 {% block extra_javascript %}
@@ -16,6 +39,68 @@
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
     <script type="application/javascript">
         $(document).ready(function () {
+            $('#tab-character-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:view_pilots_json' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'character_name_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'corporation_name' },
+                    { data: 'alliance_name' },
+                    { data: 'faction_name' },
+                    { data: 'standing' },
+                    { data: 'labels_str' },
+                    {
+                        data: 'main_character_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'state' },
+                    /* invisible columns */
+                    { data: 'main_character_name' },
+                ],
+                order: [[0, "asc"]],
+                columnDefs: [
+                    { "visible": false, "targets": [8] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 1,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 2,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 3,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 4,
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 8,
+                            title: "{% translate 'Main' %}",
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
             $('#tab-corporation-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:view_corporation_standings_json' %}",
