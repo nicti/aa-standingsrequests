@@ -66,7 +66,6 @@ def character_standings_data(request):
     )
     characters_data = list()
     for contact in character_contacts_qs:
-        character_icon_url = contact.eve_entity.icon_url(DEFAULT_ICON_SIZE)
         character_name_html = label_with_icon(
             contact.eve_entity.icon_url(),
             contact.eve_entity.name,
@@ -94,47 +93,33 @@ def character_standings_data(request):
         try:
             assoc = contact.eve_entity.character_affiliation
         except (AttributeError, ObjectDoesNotExist):
-            corporation_id = None
             corporation_name = "?"
-            alliance_id = None
             alliance_name = "?"
-            faction_id = None
             faction_name = "?"
         else:
-            corporation_id = assoc.corporation.id
             corporation_name = assoc.corporation.name
-            alliance_id = assoc.alliance.id if assoc.alliance else None
             alliance_name = assoc.alliance.name if assoc.alliance else ""
-            faction_id = assoc.faction.id if assoc.faction else None
             faction_name = assoc.faction.name if assoc.faction else ""
 
         labels = contact.labels_sorted
         characters_data.append(
             {
                 "character_id": contact.eve_entity_id,
-                "character_name": contact.eve_entity.name,
-                "character_icon_url": character_icon_url,
                 "character_name_html": {
                     "display": character_name_html,
                     "sort": contact.eve_entity.name,
                 },
-                "corporation_id": corporation_id,
                 "corporation_name": corporation_name,
-                "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
-                "faction_id": faction_id,
                 "faction_name": faction_name,
-                "state": state,
+                "standing": contact.standing if contact.standing else "",
+                "labels_str": ", ".join(labels),
                 "main_character_name": main_character_name,
-                "main_character_ticker": main_character_ticker,
-                "main_character_icon_url": main_character_icon_url,
                 "main_character_html": {
                     "display": main_character_html,
                     "sort": main_character_name,
                 },
-                "standing": contact.standing if contact.standing else "",
-                "labels": labels,
-                "labels_str": ", ".join(labels),
+                "state": state,
             }
         )
     return JsonResponse(characters_data, safe=False)
@@ -247,24 +232,18 @@ def corporation_standings_data(request):
         try:
             corporation_details = contact.eve_entity.corporation_details
         except (ObjectDoesNotExist, AttributeError):
-            alliance_id = None
             alliance_name = "?"
-            faction_id = None
             faction_name = "?"
         else:
             alliance = corporation_details.alliance
             if alliance:
-                alliance_id = alliance.id
                 alliance_name = alliance.name
             else:
-                alliance_id = None
                 alliance_name = ""
             faction = corporation_details.faction
             if faction:
-                faction_id = faction.id
                 faction_name = faction.name
             else:
-                faction_id = None
                 faction_name = ""
         try:
             standing_request = standings_requests[contact.eve_entity_id]
@@ -300,9 +279,7 @@ def corporation_standings_data(request):
                     "display": corporation_html,
                     "sort": contact.eve_entity.name,
                 },
-                "alliance_id": alliance_id,
                 "alliance_name": alliance_name,
-                "faction_id": faction_id,
                 "faction_name": faction_name,
                 "standing": contact.standing,
                 "labels_str": labels_str,

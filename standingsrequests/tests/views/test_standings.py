@@ -23,7 +23,7 @@ from ..utils import NoSocketsTestCasePlus
 TEST_SCOPE = "publicData"
 
 
-class TestViewPilotStandingsJson(NoSocketsTestCasePlus):
+class TestCharacterStandingsData(NoSocketsTestCasePlus):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -72,45 +72,31 @@ class TestViewPilotStandingsJson(NoSocketsTestCasePlus):
         data_character_1002 = data[1002]
         expected = {
             "character_id": 1002,
-            "character_name": "Peter Parker",
-            "character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
-            "corporation_id": 2001,
             "corporation_name": "Wayne Technologies",
-            "alliance_id": 3001,
             "alliance_name": "Wayne Enterprises",
-            "faction_id": None,
             "faction_name": "",
-            "state": "Member",
-            "main_character_ticker": "WYE",
             "standing": 10.0,
-            "labels": ["blue", "green"],
+            "labels_str": "blue, green",
             "main_character_name": "Peter Parker",
-            "main_character_icon_url": "https://images.evetech.net/characters/1002/portrait?size=32",
+            "state": "Member",
         }
         self.assertPartialDictEqual(data_character_1002, expected)
 
         data_character_1009 = data[1009]
         expected = {
             "character_id": 1009,
-            "character_name": "Lex Luthor",
-            "character_icon_url": "https://images.evetech.net/characters/1009/portrait?size=32",
-            "corporation_id": 2102,
             "corporation_name": "Lexcorp",
-            "alliance_id": None,
             "alliance_name": "",
-            "faction_id": None,
             "faction_name": "",
-            "state": "",
-            "main_character_ticker": "",
             "standing": -10.0,
-            "labels": ["red"],
+            "labels_str": "red",
             "main_character_name": "",
-            "main_character_icon_url": "",
+            "state": "",
         }
         self.assertPartialDictEqual(data_character_1009, expected)
 
 
-class TestGroupStandingsJson(NoSocketsTestCasePlus):
+class TestGroupStandingsData(NoSocketsTestCasePlus):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -157,9 +143,7 @@ class TestGroupStandingsJson(NoSocketsTestCasePlus):
         obj = corporations[2001]
         expected = {
             "corporation_id": 2001,
-            "alliance_id": 3001,
             "alliance_name": "Wayne Enterprises",
-            "faction_id": None,
             "faction_name": "",
             "standing": 10.0,
             "state": "",
@@ -171,9 +155,7 @@ class TestGroupStandingsJson(NoSocketsTestCasePlus):
             obj,
             {
                 "corporation_id": 2003,
-                "alliance_id": None,
                 "alliance_name": "",
-                "faction_id": None,
                 "faction_name": "",
                 "standing": 5.0,
                 "state": "",
