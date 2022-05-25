@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Technical: Replaced all angularjs code, which is no longer supported
 - Technical: Converted `trans` template tags to `translate`
 
+## Fixed
+
+- Providing no STR_CORP_IDS or no STR_ALLIANCE_IDS results in an internal server error
+
 ## [1.1.1] - 2022-03-02
 
 ## Changed

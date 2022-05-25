@@ -46,7 +46,7 @@ SR_STANDING_TIMEOUT_HOURS = clean_setting("SR_STANDING_TIMEOUT_HOURS", 24)
 STANDINGS_API_CHARID = clean_setting("STANDINGS_API_CHARID", None, required_type=int)
 
 # charaters belonging to these alliances are considered to be "in organization"
-STR_ALLIANCE_IDS = clean_setting("STR_ALLIANCE_IDS", None, required_type=list)
+STR_ALLIANCE_IDS = clean_setting("STR_ALLIANCE_IDS", [], required_type=list)
 
 # charaters belonging to these corporations are considered to be "in organization"
-STR_CORP_IDS = clean_setting("STR_CORP_IDS", None, required_type=list)
+STR_CORP_IDS = clean_setting("STR_CORP_IDS", [], required_type=list)
