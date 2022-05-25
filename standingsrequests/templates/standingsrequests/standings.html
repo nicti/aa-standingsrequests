@@ -67,7 +67,7 @@
         $(document).ready(function () {
             $('#tbl-character-standings').DataTable({
                 ajax: {
-                    url: "{% url 'standingsrequests:view_pilots_json' %}",
+                    url: "{% url 'standingsrequests:character_standings_data' %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -132,7 +132,7 @@
             });
             $('#tbl-corporation-standings').DataTable({
                 ajax: {
-                    url: "{% url 'standingsrequests:view_corporation_standings_json' %}",
+                    url: "{% url 'standingsrequests:corporation_standings_data' %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -190,7 +190,7 @@
             });
             $('#tbl-alliance-standings').DataTable({
                 ajax: {
-                    url: "{% url 'standingsrequests:view_alliance_standings_json' %}",
+                    url: "{% url 'standingsrequests:alliance_standings_data' %}",
                     dataSrc: '',
                     cache: false
                 },

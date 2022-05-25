@@ -56,9 +56,11 @@ class TestViewPilotStandingsJson(NoSocketsTestCasePlus):
     def test_normal(self):
         # given
         self.maxDiff = None
-        request = self.factory.get(reverse("standingsrequests:view_pilots_json"))
+        request = self.factory.get(
+            reverse("standingsrequests:character_standings_data")
+        )
         request.user = self.user
-        my_view_without_cache = standings.view_pilots_standings_json.__wrapped__
+        my_view_without_cache = standings.character_standings_data.__wrapped__
         # when
         response = my_view_without_cache(request)
         # then
@@ -141,10 +143,10 @@ class TestGroupStandingsJson(NoSocketsTestCasePlus):
         # given
         self.maxDiff = None
         request = self.factory.get(
-            reverse("standingsrequests:view_corporation_standings_json")
+            reverse("standingsrequests:corporation_standings_data")
         )
         request.user = self.user
-        my_view_without_cache = standings.view_corporation_standings_json.__wrapped__
+        my_view_without_cache = standings.corporation_standings_data.__wrapped__
         # when
         response = my_view_without_cache(request)
         # then
@@ -182,11 +184,9 @@ class TestGroupStandingsJson(NoSocketsTestCasePlus):
     def test_alliances_data(self):
         # given
         self.maxDiff = None
-        request = self.factory.get(
-            reverse("standingsrequests:view_alliance_standings_json")
-        )
+        request = self.factory.get(reverse("standingsrequests:alliance_standings_data"))
         request.user = self.user
-        my_view_without_cache = standings.view_alliance_standings_json.__wrapped__
+        my_view_without_cache = standings.alliance_standings_data.__wrapped__
         # when
         response = my_view_without_cache(request)
         # then

@@ -43,7 +43,7 @@ def standings(request):
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
-def view_pilots_standings_json(request):
+def character_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -214,7 +214,7 @@ def download_pilot_standings(request):
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
-def view_corporation_standings_json(request):
+def corporation_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
@@ -320,7 +320,7 @@ def view_corporation_standings_json(request):
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.view")
-def view_alliance_standings_json(request):
+def alliance_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:

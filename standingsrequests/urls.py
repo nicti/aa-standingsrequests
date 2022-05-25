@@ -94,8 +94,8 @@ urlpatterns = [
     path("standings", standings.standings, name="standings"),
     path(
         "standings/characters/data",
-        standings.view_pilots_standings_json,
-        name="view_pilots_json",
+        standings.character_standings_data,
+        name="character_standings_data",
     ),
     path(
         "standings/characters/download",
@@ -104,12 +104,12 @@ urlpatterns = [
     ),
     path(
         "standings/corporations/data",
-        standings.view_corporation_standings_json,
-        name="view_corporation_standings_json",
+        standings.corporation_standings_data,
+        name="corporation_standings_data",
     ),
     path(
         "standings/alliances/data",
-        standings.view_alliance_standings_json,
-        name="view_alliance_standings_json",
+        standings.alliance_standings_data,
+        name="alliance_standings_data",
     ),
 ]
