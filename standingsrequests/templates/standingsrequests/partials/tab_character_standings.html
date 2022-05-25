@@ -11,8 +11,10 @@
                     <th>{% translate "Faction" %}</th>
                     <th>{% translate "Standing" %}</th>
                     <th>{% translate "Labels" %}</th>
-                    <th>{% translate "Main Character" %}</th>
-                    <th>{% translate "State" %}</th>
+                    {% if show_mains %}
+                        <th>{% translate "Main Character" %}</th>
+                        <th>{% translate "State" %}</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>

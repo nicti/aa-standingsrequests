@@ -31,8 +31,11 @@ def standings(request):
     finally:
         organization = BaseConfig.standings_source_entity()
         last_update = contact_set.date if contact_set else None
-
-    context = {"lastUpdate": last_update, "organization": organization}
+    context = {
+        "lastUpdate": last_update,
+        "organization": organization,
+        "show_mains": request.user.has_perm("standingsrequests.view"),
+    }
     return render(
         request,
         "standingsrequests/standings.html",

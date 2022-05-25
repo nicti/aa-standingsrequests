@@ -10,8 +10,10 @@
                     <th class="col-md-2">{% translate "Faction" %}</th>
                     <th class="col-md-1">{% translate "Standing" %}</th>
                     <th class="col-md-2">{% translate "Labels" %}</th>
-                    <th class="col-md-2">{% translate "Main Character" %}</th>
-                    <th class="col-md-1">{% translate "State" %}</th>
+                    {% if show_mains %}
+                        <th class="col-md-2">{% translate "Main Character" %}</th>
+                        <th class="col-md-1">{% translate "State" %}</th>
+                    {% endif %}
                 </tr>
             </thead>
             <tbody>

@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Changed
 
-- The standings page is now visible to everyone who has basic access to the app. Except for the information which main a standing was requested by, which is requires an additional permission. (#3)
+- The standings page is now visible to everyone who has basic access to the app. Except the related mains are onlny shown if the user has an additional permission. (#3)
 - Character and group standings have been consolidated into one page
-- Technical: Replaced all angularjs code, which is no longer supported
+- Technical: Replaced all angularjs legacy code, since it is no longer supported by Google
 - Technical: Converted `trans` template tags to `translate`
 
 ## Fixed

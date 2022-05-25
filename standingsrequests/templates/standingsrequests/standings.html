@@ -31,12 +31,16 @@
         Current in-game contacts with standings from <strong>{{ organization.name }}</strong> •
         This data was last updated {{ lastUpdate|timesince }} ago
     </p>
+    <!-- transfer data to javascript -->
+    {{ show_mains|json_script:"show-mains-data" }}
 {% endblock details %}
 
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
     <script type="application/javascript">
+
+        /* renders standing columns for datatables */
         function renderStanding ( data, type, row ) {
             if ( type !== "display" ) {
                 return data;
@@ -64,29 +68,47 @@
                 return `<i class="${symbol}" style="${style};" title="${data}"></i>`
             }
         }
+
         $(document).ready(function () {
-            $('#tbl-character-standings').DataTable({
-                ajax: {
-                    url: "{% url 'standingsrequests:character_standings_data' %}",
-                    dataSrc: '',
-                    cache: false
+            const showMains = JSON.parse(document.getElementById('show-mains-data').textContent);
+            let columns = [
+                {
+                    data: 'character_name_html',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
                 },
-                columns: [
-                    {
-                        data: 'character_name_html',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    { data: 'corporation_name' },
-                    { data: 'alliance_name' },
-                    { data: 'faction_name' },
-                    {
-                        data: 'standing',
-                        render: renderStanding
-                    },
-                    { data: 'labels_str' },
+                { data: 'corporation_name' },
+                { data: 'alliance_name' },
+                { data: 'faction_name' },
+                {
+                    data: 'standing',
+                    render: renderStanding
+                },
+                { data: 'labels_str' },
+            ];
+            let columnDefs = null;
+            let filterDropDownColumns = [
+                {
+                    idx: 1,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 2,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 3,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 4,
+                    maxWidth: "15rem"
+                }
+            ];
+            if (showMains) {
+                columns.push(
                     {
                         data: 'main_character_html',
                         render: {
@@ -97,93 +119,108 @@
                     { data: 'state' },
                     /* invisible columns */
                     { data: 'main_character_name' },
-                ],
-                order: [[0, "asc"]],
-                columnDefs: [
+                );
+                columnDefs = [
                     { "visible": false, "targets": [8] }
-                ],
+                ]
+                filterDropDownColumns.push(
+                    {
+                        idx: 8,
+                        title: "{% translate 'Main' %}",
+                        maxWidth: "15rem"
+                    },
+                    {
+                        idx: 7,
+                        maxWidth: "15rem"
+                    }
+                )
+            }
+            $('#tbl-character-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:character_standings_data' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: columns,
+                order: [[0, "asc"]],
+                columnDefs: columnDefs,
                 filterDropDown: {
-                    columns: [
-                        {
-                            idx: 1,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 2,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 3,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 4,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 8,
-                            title: "{% translate 'Main' %}",
-                            maxWidth: "15rem"
-                        }
-                    ],
+                    columns: filterDropDownColumns,
                     autoSize: false,
                     bootstrap: true
                 },
             });
+
+            columns = [
+                {
+                    data: 'corporation_html',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                { data: 'alliance_name' },
+                { data: 'faction_name' },
+                {
+                    data: 'standing',
+                    render: renderStanding
+                },
+                { data: 'labels_str' },
+            ];
+            columnDefs = null;
+            filterDropDownColumns = [
+                {
+                    idx: 1,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 2,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 3,
+                    maxWidth: "15rem"
+                }
+            ];
+            if (showMains) {
+                columns.push(
+                    {
+                        data: 'main_character_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'state' },
+                    /* invisible columns */
+                    { data: 'main_character_name' },
+                );
+                columnDefs = [
+                    { "visible": false, "targets": [7] }
+                ]
+                filterDropDownColumns.push(
+                    {
+                        idx: 7,
+                        title: "{% translate 'Main' %}",
+                        maxWidth: "15rem"
+                    },
+                    {
+                        idx: 6,
+                        maxWidth: "15rem"
+                    }
+                )
+            }
             $('#tbl-corporation-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:corporation_standings_data' %}",
                     dataSrc: '',
                     cache: false
                 },
-                columns: [
-                    {
-                        data: 'corporation_html',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    { data: 'alliance_name' },
-                    { data: 'faction_name' },
-                    {
-                        data: 'standing',
-                        render: renderStanding
-                    },
-                    { data: 'labels_str' },
-                    { data: 'main_character_name' },
-                    { data: 'state' },
-                     /* invisible columns */
-                    { data: 'main_character_name' },
-                ],
+                columns: columns,
                 order: [[0, "asc"]],
-                columnDefs: [
-                    { "visible": false, "targets": [7] }
-                ],
+                columnDefs: columnDefs,
                 filterDropDown: {
-                    columns: [
-                        {
-                            idx: 1,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 2,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 3,
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 7,
-                            title: "{% translate 'Main' %}",
-                            maxWidth: "15rem"
-                        },
-                        {
-                            idx: 6,
-                            maxWidth: "15rem"
-                        }
-                    ],
+                    columns: filterDropDownColumns,
                     autoSize: false,
                     bootstrap: true
                 },
