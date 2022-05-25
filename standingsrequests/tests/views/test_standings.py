@@ -1,5 +1,8 @@
+import datetime as dt
+
 from django.test import RequestFactory
 from django.urls import reverse
+from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
@@ -9,7 +12,7 @@ from app_utils.testing import (
     json_response_to_python,
 )
 
-from standingsrequests.models import CharacterAffiliation
+from standingsrequests.models import CharacterAffiliation, ContactType, StandingRequest
 from standingsrequests.views import standings
 
 from ..my_test_data import (
@@ -36,7 +39,9 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
         cls.user = AuthUtils.create_member("John Doe")
-        AuthUtils.add_permission_to_user_by_name("standingsrequests.view", cls.user)
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", cls.user
+        )
         EveCharacter.objects.get(character_id=1009).delete()
         cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
         cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
@@ -53,8 +58,11 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
             scopes=[TEST_SCOPE],
         )
 
-    def test_normal(self):
+    def test_normal_with_full_permissions(self):
         # given
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.view", self.user
+        )
         self.maxDiff = None
         request = self.factory.get(
             reverse("standingsrequests:character_standings_data")
@@ -95,8 +103,37 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
         }
         self.assertPartialDictEqual(data_character_1009, expected)
 
+    def test_normal_with_basic_permission(self):
+        # given
+        self.maxDiff = None
+        request = self.factory.get(
+            reverse("standingsrequests:character_standings_data")
+        )
+        request.user = self.user
+        my_view_without_cache = standings.character_standings_data.__wrapped__
+        # when
+        response = my_view_without_cache(request)
+        # then
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_dict(response, "character_id")
+        expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010, 1110}
+        self.assertSetEqual(set(data.keys()), expected)
 
-class TestGroupStandingsData(NoSocketsTestCasePlus):
+        data_character_1002 = data[1002]
+        expected = {
+            "character_id": 1002,
+            "corporation_name": "Wayne Technologies",
+            "alliance_name": "Wayne Enterprises",
+            "faction_name": "",
+            "standing": 10.0,
+            "labels_str": "blue, green",
+            "main_character_name": "",
+            "state": "",
+        }
+        self.assertPartialDictEqual(data_character_1002, expected)
+
+
+class TestCorporationStandingsData(NoSocketsTestCasePlus):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -107,31 +144,45 @@ class TestGroupStandingsData(NoSocketsTestCasePlus):
         load_corporation_details()
         member_state = AuthUtils.get_member_state()
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
-        cls.user = AuthUtils.create_member("John Doe")
-        AuthUtils.add_permission_to_user_by_name("standingsrequests.view", cls.user)
+        cls.user_1 = AuthUtils.create_member("John Doe")
+        cls.user_1 = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", cls.user_1
+        )
         EveCharacter.objects.get(character_id=1009).delete()
         cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
-        cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
+        cls.user_2 = AuthUtils.create_member(cls.main_character_1.character_name)
         add_character_to_user(
-            cls.user_1,
+            cls.user_2,
             cls.main_character_1,
             is_main=True,
             scopes=[TEST_SCOPE],
         )
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_1,
+            cls.user_2,
             cls.alt_character_1,
             scopes=[TEST_SCOPE],
         )
+        StandingRequest.objects.create(
+            user=cls.user_2,
+            contact_id=2102,
+            contact_type_id=ContactType.corporation_id,
+            action_by=cls.user_1,
+            action_date=now() - dt.timedelta(days=1, hours=1),
+            is_effective=True,
+            effective_date=now() - dt.timedelta(days=1),
+        )
 
-    def test_corporations_data(self):
+    def test_with_full_permissions(self):
         # given
+        self.user_1 = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.view", self.user_1
+        )
         self.maxDiff = None
         request = self.factory.get(
             reverse("standingsrequests:corporation_standings_data")
         )
-        request.user = self.user
+        request.user = self.user_1
         my_view_without_cache = standings.corporation_standings_data.__wrapped__
         # when
         response = my_view_without_cache(request)
@@ -150,20 +201,79 @@ class TestGroupStandingsData(NoSocketsTestCasePlus):
             "main_character_name": "",
         }
         self.assertPartialDictEqual(obj, expected)
-        obj = corporations[2003]
+        obj = corporations[2102]
         self.assertPartialDictEqual(
             obj,
             {
-                "corporation_id": 2003,
+                "corporation_id": 2102,
                 "alliance_name": "",
                 "faction_name": "",
-                "standing": 5.0,
+                "standing": -10.0,
+                "state": "Member",
+                "main_character_name": "Peter Parker",
+            },
+        )
+
+    def test_with_basic_permissions(self):
+        # given
+        self.maxDiff = None
+        request = self.factory.get(
+            reverse("standingsrequests:corporation_standings_data")
+        )
+        request.user = self.user_1
+        my_view_without_cache = standings.corporation_standings_data.__wrapped__
+        # when
+        response = my_view_without_cache(request)
+        # then
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        corporations = {obj["corporation_id"]: obj for obj in data}
+        obj = corporations[2102]
+        self.assertPartialDictEqual(
+            obj,
+            {
+                "corporation_id": 2102,
+                "alliance_name": "",
+                "faction_name": "",
+                "standing": -10.0,
                 "state": "",
                 "main_character_name": "",
             },
         )
 
-    def test_alliances_data(self):
+
+class TestAllianceStandingsData(NoSocketsTestCasePlus):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        cls.contact_set = create_contacts_set()
+        load_eve_entities()
+        create_eve_objects()
+        load_corporation_details()
+        member_state = AuthUtils.get_member_state()
+        member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+        cls.user = AuthUtils.create_member("John Doe")
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", cls.user
+        )
+        EveCharacter.objects.get(character_id=1009).delete()
+        cls.main_character_1 = EveCharacter.objects.get(character_id=1002)
+        cls.user_1 = AuthUtils.create_member(cls.main_character_1.character_name)
+        add_character_to_user(
+            cls.user_1,
+            cls.main_character_1,
+            is_main=True,
+            scopes=[TEST_SCOPE],
+        )
+        cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
+        add_character_to_user(
+            cls.user_1,
+            cls.alt_character_1,
+            scopes=[TEST_SCOPE],
+        )
+
+    def test_normal(self):
         # given
         self.maxDiff = None
         request = self.factory.get(reverse("standingsrequests:alliance_standings_data"))

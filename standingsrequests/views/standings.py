@@ -22,7 +22,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @login_required
-@permission_required("standingsrequests.view")
+@permission_required("standingsrequests.request_standings")
 def standings(request):
     try:
         contact_set = ContactSet.objects.latest()
@@ -42,7 +42,7 @@ def standings(request):
 
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.view")
+@permission_required("standingsrequests.request_standings")
 def character_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
@@ -67,40 +67,19 @@ def character_standings_data(request):
     characters_data = list()
     for contact in character_contacts_qs:
         character_name_html = label_with_icon(
-            contact.eve_entity.icon_url(),
-            contact.eve_entity.name,
+            contact.eve_entity.icon_url(), contact.eve_entity.name
         )
-        try:
-            character = contact.eve_entity.character_affiliation.eve_character
-            user = character.character_ownership.user
-        except (AttributeError, ObjectDoesNotExist):
-            main = None
-            state = ""
-            main_character_name = ""
-            main_character_ticker = ""
-            main_character_icon_url = ""
-            main_character_html = ""
+        if request.user.has_perm("standingsrequests.view"):
+            (
+                state,
+                main_character_name,
+                main_character_html,
+            ) = _identify_main_for_character(contact)
         else:
-            main = user.profile.main_character
-            state = user.profile.state.name if user.profile.state else ""
-            main_character_name = main.character_name
-            main_character_ticker = main.corporation_ticker
-            main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
-            main_character_html = label_with_icon(
-                main_character_icon_url,
-                f"[{main_character_ticker}] {main_character_name}",
-            )
-        try:
-            assoc = contact.eve_entity.character_affiliation
-        except (AttributeError, ObjectDoesNotExist):
-            corporation_name = "?"
-            alliance_name = "?"
-            faction_name = "?"
-        else:
-            corporation_name = assoc.corporation.name
-            alliance_name = assoc.alliance.name if assoc.alliance else ""
-            faction_name = assoc.faction.name if assoc.faction else ""
-
+            state = main_character_name = main_character_html = ""
+        corporation_name, alliance_name, faction_name = _identify_character_assoc(
+            contact
+        )
         labels = contact.labels_sorted
         characters_data.append(
             {
@@ -123,6 +102,40 @@ def character_standings_data(request):
             }
         )
     return JsonResponse(characters_data, safe=False)
+
+
+def _identify_main_for_character(contact):
+    try:
+        character = contact.eve_entity.character_affiliation.eve_character
+        user = character.character_ownership.user
+    except (AttributeError, ObjectDoesNotExist):
+        state = main_character_name = main_character_html = ""
+    else:
+        main = user.profile.main_character
+        state = user.profile.state.name if user.profile.state else ""
+        main_character_name = main.character_name
+        main_character_ticker = main.corporation_ticker
+        main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+        main_character_html = label_with_icon(
+            main_character_icon_url,
+            f"[{main_character_ticker}] {main_character_name}",
+        )
+
+    return state, main_character_name, main_character_html
+
+
+def _identify_character_assoc(contact):
+    try:
+        assoc = contact.eve_entity.character_affiliation
+    except (AttributeError, ObjectDoesNotExist):
+        corporation_name = "?"
+        alliance_name = "?"
+        faction_name = "?"
+    else:
+        corporation_name = assoc.corporation.name
+        alliance_name = assoc.alliance.name if assoc.alliance else ""
+        faction_name = assoc.faction.name if assoc.faction else ""
+    return corporation_name, alliance_name, faction_name
 
 
 @login_required
@@ -198,7 +211,7 @@ def download_pilot_standings(request):
 
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.view")
+@permission_required("standingsrequests.request_standings")
 def corporation_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
@@ -229,45 +242,15 @@ def corporation_standings_data(request):
         )
     }
     for contact in corporations_qs:
-        try:
-            corporation_details = contact.eve_entity.corporation_details
-        except (ObjectDoesNotExist, AttributeError):
-            alliance_name = "?"
-            faction_name = "?"
+        alliance_name, faction_name = _identify_corporation_organizations(contact)
+        if request.user.has_perm("standingsrequests.view"):
+            (
+                main_character_name,
+                main_character_html,
+                state_name,
+            ) = _identify_corporation_main(standings_requests, contact)
         else:
-            alliance = corporation_details.alliance
-            if alliance:
-                alliance_name = alliance.name
-            else:
-                alliance_name = ""
-            faction = corporation_details.faction
-            if faction:
-                faction_name = faction.name
-            else:
-                faction_name = ""
-        try:
-            standing_request = standings_requests[contact.eve_entity_id]
-            user = standing_request.user
-            main = user.profile.main_character
-        except (KeyError, AttributeError, ObjectDoesNotExist):
-            main_character_name = ""
-            state_name = ""
-            main_character_html = ""
-        else:
-            main_character_name = main.character_name if main else ""
-            main_character_ticker = main.corporation_ticker if main else ""
-            main_character_icon_url = (
-                main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
-            )
-            if main_character_name:
-                main_character_html = label_with_icon(
-                    main_character_icon_url,
-                    f"[{main_character_ticker}] {main_character_name}",
-                )
-            else:
-                main_character_html = ""
-            state_name = user.profile.state.name
-
+            main_character_name = main_character_html = state_name = ""
         labels_str = ", ".join(contact.labels_sorted)
         corporation_html = label_with_icon(
             contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), contact.eve_entity.name
@@ -294,9 +277,51 @@ def corporation_standings_data(request):
     return JsonResponse(corporations_data, safe=False)
 
 
+def _identify_corporation_organizations(contact):
+    try:
+        corporation_details = contact.eve_entity.corporation_details
+    except (ObjectDoesNotExist, AttributeError):
+        alliance_name = "?"
+        faction_name = "?"
+    else:
+        alliance = corporation_details.alliance
+        if alliance:
+            alliance_name = alliance.name
+        else:
+            alliance_name = ""
+        faction = corporation_details.faction
+        if faction:
+            faction_name = faction.name
+        else:
+            faction_name = ""
+    return alliance_name, faction_name
+
+
+def _identify_corporation_main(standings_requests, contact):
+    try:
+        standing_request = standings_requests[contact.eve_entity_id]
+        user = standing_request.user
+        main = user.profile.main_character
+    except (KeyError, AttributeError, ObjectDoesNotExist):
+        main_character_name = state_name = main_character_html = ""
+    else:
+        main_character_name = main.character_name if main else ""
+        main_character_ticker = main.corporation_ticker if main else ""
+        main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
+        if main_character_name:
+            main_character_html = label_with_icon(
+                main_character_icon_url,
+                f"[{main_character_ticker}] {main_character_name}",
+            )
+        else:
+            main_character_html = ""
+        state_name = user.profile.state.name
+    return main_character_name, main_character_html, state_name
+
+
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.view")
+@permission_required("standingsrequests.request_standings")
 def alliance_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
