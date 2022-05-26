@@ -5,36 +5,57 @@
 
 {% block details %}
     <h2>{% translate "Manage Requests" %}</h2>
-    <div>
-        <!-- Requests -->
 
-        <h3>{% translate "Pending Requests" %} ({{requests_count|default:"-"}})</h3>
-        <div class="container-fluid">
-            <div
-                id="div_requests"
-                class="row"
-                hx-get="{% url 'manage_requests_list' %}"
-                hx-trigger="load">
-                {% include "standingsrequests/partials/spinner.html" %}
+    <ul id="myTabs" class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+            <a href="#tab-requests" aria-controls="tab-requests" role="tab" data-toggle="tab">
+                Requests
+                {% if requests_count > 0 %}
+                    &nbsp;<span class="badge badge-nav alert-info">
+                        {{ requests_count }}
+                    </span>
+                {% endif %}
+            </a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-revocations" aria-controls="tab-revocations" role="tab" data-toggle="tab">
+                Revocations
+                {% if revocations_count > 0 %}
+                    &nbsp;<span class="badge badge-nav alert-info">
+                        {{ revocations_count }}
+                    </span>
+                {% endif %}
+            </a>
+        </li>
+    </ul>
+
+    <div class="panel panel-default panel-tabs">
+        <div class="panel-body">
+            <div class="tab-content">
+
+                <div role="tabpanel" class="tab-pane active" id="tab-requests">
+                    <div
+                        hx-get="{% url 'manage_requests_list' %}"
+                        hx-trigger="load">
+                        {% include "standingsrequests/partials/spinner.html" %}
+                    </div>
+                </div>
+
+                <div role="tabpanel" class="tab-pane" id="tab-revocations">
+                    <div
+                        hx-get="{% url 'manage_revocations_list' %}"
+                        hx-trigger="load">
+                        {% include "standingsrequests/partials/spinner.html" %}
+                    </div>
+                </div>
+
             </div>
+
+            <p class="text-muted">
+                Standing requests & standing revocations with pending action for <strong>{{organization.name}}</strong>
+            </p>
+
         </div>
-
-        <!-- Revocations -->
-
-        <h3>{% translate "Pending Revocations" %} ({{revocations_count|default:"-"}})</h3>
-        <div class="container-fluid">
-            <div
-                id="div_requests"
-                class="row"
-                hx-get="{% url 'manage_revocations_list' %}"
-                hx-trigger="load">
-                {% include "standingsrequests/partials/spinner.html" %}
-            </div>
-        </div>
-        <p class="text-muted">
-            Standing requests & standing revocations with pending action for <strong>{{organization.name}}</strong>
-        </p>
-
     </div>
 {% endblock details %}
 
