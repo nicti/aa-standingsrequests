@@ -17,7 +17,7 @@
             $('#tab-effective-requests').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:effective_requests_data' %}",
-                    dataSrc: '',
+                    dataSrc: 'data',
                     cache: true
                 },
                 columns: [

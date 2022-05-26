@@ -75,7 +75,7 @@ def effective_requests_data(request):
         del req["is_character"]
         del req["is_corporation"]
         del req["actioned"]
-    return JsonResponse(requests_data, safe=False)
+    return JsonResponse({"data": requests_data})
 
 
 def _standing_requests_to_view() -> models.QuerySet:

@@ -2,8 +2,6 @@ from unittest.mock import patch
 
 from django.urls import reverse
 
-from app_utils.testing import json_response_to_dict
-
 from standingsrequests.views.effective_requests import effective_requests_data
 
 from ..my_test_data import (
@@ -11,6 +9,7 @@ from ..my_test_data import (
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
 )
+from ..utils import json_response_to_dict_2
 
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
@@ -31,7 +30,7 @@ class TestEffectiveRequestsData(TestViewPagesBase):
 
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = json_response_to_dict_2(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None
@@ -72,7 +71,7 @@ class TestEffectiveRequestsData(TestViewPagesBase):
 
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "contact_id")
+        data = json_response_to_dict_2(response, "contact_id")
         expected = {alt_id}
         self.assertSetEqual(set(data.keys()), expected)
         self.maxDiff = None

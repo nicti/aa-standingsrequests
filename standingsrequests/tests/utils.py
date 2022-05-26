@@ -1,4 +1,8 @@
-from app_utils.testing import NoSocketsTestCase
+import json
+
+from django.http import JsonResponse
+
+from app_utils.testing import NoSocketsTestCase, response_text
 
 
 class PartialDictEqualMixin:
@@ -10,3 +14,14 @@ class PartialDictEqualMixin:
 
 class NoSocketsTestCasePlus(PartialDictEqualMixin, NoSocketsTestCase):
     pass
+
+
+def json_response_to_python_2(response: JsonResponse, data_key="data") -> object:
+    """Convert JSON response into Python object."""
+    data = json.loads(response_text(response))
+    return data[data_key]
+
+
+def json_response_to_dict_2(response: JsonResponse, key="id", data_key="data") -> dict:
+    """Convert JSON response into dict by given key."""
+    return {x[key]: x for x in json_response_to_python_2(response, data_key)}
