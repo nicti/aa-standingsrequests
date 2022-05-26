@@ -104,7 +104,7 @@ def character_standings_data(request):
                 "state": state,
             }
         )
-    return JsonResponse(characters_data, safe=False)
+    return JsonResponse({"data": characters_data})
 
 
 def _identify_main_for_character(contact):
@@ -277,7 +277,7 @@ def corporation_standings_data(request):
                 },
             }
         )
-    return JsonResponse(corporations_data, safe=False)
+    return JsonResponse({"data": corporations_data})
 
 
 def _identify_corporation_organizations(contact):
@@ -351,4 +351,4 @@ def alliance_standings_data(request):
                 "labels_str": ", ".join(contact.labels_sorted),
             }
         )
-    return JsonResponse(alliances_data, safe=False)
+    return JsonResponse({"data": alliances_data})

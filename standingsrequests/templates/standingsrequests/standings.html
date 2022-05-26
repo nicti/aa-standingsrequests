@@ -138,7 +138,7 @@
             $('#tbl-character-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:character_standings_data' %}",
-                    dataSrc: '',
+                    dataSrc: 'data',
                     cache: true
                 },
                 columns: columns,
@@ -213,7 +213,7 @@
             $('#tbl-corporation-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:corporation_standings_data' %}",
-                    dataSrc: '',
+                    dataSrc: 'data',
                     cache: true
                 },
                 columns: columns,
@@ -228,7 +228,7 @@
             $('#tbl-alliance-standings').DataTable({
                 ajax: {
                     url: "{% url 'standingsrequests:alliance_standings_data' %}",
-                    dataSrc: '',
+                    dataSrc: 'data',
                     cache: true
                 },
                 columns: [

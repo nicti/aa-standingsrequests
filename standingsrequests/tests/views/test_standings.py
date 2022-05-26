@@ -6,11 +6,7 @@ from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import (
-    add_character_to_user,
-    json_response_to_dict,
-    json_response_to_python,
-)
+from app_utils.testing import add_character_to_user
 
 from standingsrequests.models import CharacterAffiliation, ContactType, StandingRequest
 from standingsrequests.views import standings
@@ -21,7 +17,7 @@ from ..my_test_data import (
     load_corporation_details,
     load_eve_entities,
 )
-from ..utils import NoSocketsTestCasePlus
+from ..utils import NoSocketsTestCasePlus, json_response_to_dict_2
 
 TEST_SCOPE = "publicData"
 
@@ -73,7 +69,7 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "character_id")
+        data = json_response_to_dict_2(response, "character_id")
         expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010, 1110}
         self.assertSetEqual(set(data.keys()), expected)
 
@@ -115,7 +111,7 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_dict(response, "character_id")
+        data = json_response_to_dict_2(response, "character_id")
         expected = {1001, 1002, 1003, 1004, 1005, 1006, 1008, 1009, 1010, 1110}
         self.assertSetEqual(set(data.keys()), expected)
 
@@ -188,10 +184,9 @@ class TestCorporationStandingsData(NoSocketsTestCasePlus):
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        corporations = {obj["corporation_id"]: obj for obj in data}
-        self.assertSetEqual(set(corporations.keys()), {2001, 2003, 2102})
-        obj = corporations[2001]
+        data = json_response_to_dict_2(response, "corporation_id")
+        self.assertSetEqual(set(data.keys()), {2001, 2003, 2102})
+        obj = data[2001]
         expected = {
             "corporation_id": 2001,
             "alliance_name": "Wayne Enterprises",
@@ -201,7 +196,7 @@ class TestCorporationStandingsData(NoSocketsTestCasePlus):
             "main_character_name": "-",
         }
         self.assertPartialDictEqual(obj, expected)
-        obj = corporations[2102]
+        obj = data[2102]
         self.assertPartialDictEqual(
             obj,
             {
@@ -226,9 +221,8 @@ class TestCorporationStandingsData(NoSocketsTestCasePlus):
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        corporations = {obj["corporation_id"]: obj for obj in data}
-        obj = corporations[2102]
+        data = json_response_to_dict_2(response, "corporation_id")
+        obj = data[2102]
         self.assertPartialDictEqual(
             obj,
             {
@@ -283,9 +277,7 @@ class TestAllianceStandingsData(NoSocketsTestCasePlus):
         response = my_view_without_cache(request)
         # then
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-
-        alliances = {obj["alliance_id"]: obj for obj in data}
-        self.assertSetEqual(set(alliances.keys()), {3010})
-        obj = alliances[3010]
+        data = json_response_to_dict_2(response, "alliance_id")
+        self.assertSetEqual(set(data.keys()), {3010})
+        obj = data[3010]
         self.assertPartialDictEqual(obj, {"alliance_id": 3010, "standing": -10.0})
