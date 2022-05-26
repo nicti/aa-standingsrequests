@@ -3,22 +3,46 @@
 {% load i18n %}
 
 {% block details %}
-    <h2>{% translate "Create Requests" %}</h2>
-    <p>
+    <h2>{% translate "My Requests" %}</h2>
+    <p class="text-muted">
         On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
     </p>
 
-    <h3>{% translate "Your Characters" %}</h3>
-    <div hx-get="{% url 'standingsrequests:request_characters' %}" hx-trigger="load">
-        {% include "standingsrequests/partials/spinner.html" %}
-    </div>
+    <ul id="myTabs" class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+            <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">
+                My Characters
+            </a>
+        </li>
+        {% if corporations_enabled %}
+            <li role="presentation">
+                <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">
+                    My Corporations
+                </a>
+            </li>
+        {% endif %}
+    </ul>
 
-    {% if corporations_enabled %}
-        <h3>{% translate "Your Corporations" %}</h3>
-        <div hx-get="{% url 'standingsrequests:request_corporations' %}" hx-trigger="load">
-            {% include "standingsrequests/partials/spinner.html" %}
+    <div class="panel panel-default panel-tabs">
+        <div class="panel-body">
+            <div class="tab-content">
+
+                <div role="tabpanel" class="tab-pane active" id="tab-characters">
+                    <div hx-get="{% url 'standingsrequests:request_characters' %}" hx-trigger="load">
+                        {% include "standingsrequests/partials/spinner.html" %}
+                    </div>
+                </div>
+
+                {% if corporations_enabled %}
+                    <div role="tabpanel" class="tab-pane" id="tab-corporations">
+                        <div hx-get="{% url 'standingsrequests:request_corporations' %}" hx-trigger="load">
+                            {% include "standingsrequests/partials/spinner.html" %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    {% endif %}
+    </div>
 
     <br>
     <div class="panel panel-default">
@@ -77,6 +101,11 @@
         </div>
     </div>
 {% endblock %}
+
+{% block extra_css %}
+    {{ block.super }}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/create_requests.css' %}" type="text/css" media="screen">
+{% endblock extra_css %}
 
 {% block extra_javascript %}
     {% include "standingsrequests/bundles/htmx.html" %}

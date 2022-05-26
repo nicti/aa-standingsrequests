@@ -15,7 +15,7 @@
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
                 <li class="{% navactive request 'standingsrequests:create_requests' %}">
-                    <a href="{% url 'standingsrequests:create_requests' %}">{% translate "Create Requests" %}</a>
+                    <a href="{% url 'standingsrequests:create_requests' %}">{% translate "My Requests" %}</a>
                 </li>
 
                  {% if perms.standingsrequests.affect_standings %}
@@ -27,13 +27,12 @@
                         {% endif %}
                     </a>
                 </li>
-                <li class="{% navactive request 'standingsrequests:effective_requests' %}">
-                    <a href="{% url 'standingsrequests:effective_requests' %}">{% translate "Effective Requests" %}</a>
-                </li>
                 {% endif %}
 
                 <li class="{% navactive request 'standingsrequests:standings' %}">
-                    <a href="{% url 'standingsrequests:standings' %}">{% translate "Standings" %}</a>
+                    <a href="{% url 'standingsrequests:standings' %}">
+                        {{ operation_mode|capfirst }} {% translate "Standings" %}
+                    </a>
                 </li>
 
             </ul>

@@ -1,0 +1,11 @@
+{% if standing < -5.0 %}
+    <i class="fas fa-minus-square fa-lg fa-fw" style="color:#930404;" title="{{ standing }}"></i>
+{% elif standing < 0.0 %}
+    <i class="fas fa-minus-square fa-lg fa-fw" style="color:#c34704;" title="{{ standing }}"></i>
+{% elif standing == 0.0 %}
+    &nbsp;<i class="fas fa-equals fa-lg fa-fw" style="background:#878787; color:white; font-size:75%" title="{{ standing }}"></i>
+{% elif standing <= 5.0 %}
+    <i class="fas fa-plus-square fa-lg fa-fw" style="color:#2a64c3;" title="{{ standing }}"></i>
+{% elif standing <= 10.0 %}
+    <i class="fas fa-plus-square fa-lg fa-fw" style="color:#042177;" title="{{ standing }}"></i>
+{% endif %}

@@ -4,7 +4,7 @@
 
 {% block details %}
 
-    <h2>{% translate "Standings" %}</h2>
+    <h2>{{ operation_mode|capfirst }} {% translate "Standings" %}</h2>
 
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
         <li role="presentation" class="active">
@@ -28,7 +28,7 @@
         </div>
     </div>
     <p class="text-muted">
-        Current in-game contacts with standings from <strong>{{ organization.name }}</strong> •
+        Current in-game contacts with standings for <strong>{{ organization.name }}</strong> •
         This data was last updated {{ lastUpdate|timesince }} ago and is cached
     </p>
     <!-- transfer data to javascript -->
