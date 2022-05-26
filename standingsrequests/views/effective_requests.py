@@ -3,11 +3,13 @@ from django.db import models
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils.html import format_html
+from django.views.decorators.cache import cache_page
 
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
+from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
 from standingsrequests.constants import DATETIME_FORMAT_PY
 from standingsrequests.core import BaseConfig
 from standingsrequests.models import StandingRequest
@@ -31,6 +33,7 @@ def effective_requests(request):
     )
 
 
+@cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
 @permission_required("standingsrequests.affect_standings")
 def effective_requests_data(request):

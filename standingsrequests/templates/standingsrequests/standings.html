@@ -139,7 +139,7 @@
                 ajax: {
                     url: "{% url 'standingsrequests:character_standings_data' %}",
                     dataSrc: '',
-                    cache: false
+                    cache: true
                 },
                 columns: columns,
                 order: [[0, "asc"]],
@@ -214,7 +214,7 @@
                 ajax: {
                     url: "{% url 'standingsrequests:corporation_standings_data' %}",
                     dataSrc: '',
-                    cache: false
+                    cache: true
                 },
                 columns: columns,
                 order: [[0, "asc"]],
@@ -229,7 +229,7 @@
                 ajax: {
                     url: "{% url 'standingsrequests:alliance_standings_data' %}",
                     dataSrc: '',
-                    cache: false
+                    cache: true
                 },
                 columns: [
                     {

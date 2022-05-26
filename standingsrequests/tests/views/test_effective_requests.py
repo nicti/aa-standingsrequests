@@ -4,6 +4,8 @@ from django.urls import reverse
 
 from app_utils.testing import json_response_to_dict
 
+from standingsrequests.views.effective_requests import effective_requests_data
+
 from ..my_test_data import (
     TestViewPagesBase,
     esi_get_corporations_corporation_id,
@@ -15,15 +17,17 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
 @patch(HELPERS_EVECORPORATION_PATH + ".cache")
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-class TestViewActiveRequestsJson(TestViewPagesBase):
+class TestEffectiveRequestsData(TestViewPagesBase):
     def test_request_character(self, mock_esi, mock_cache):
         # given
         alt_id = self.alt_character_1.character_id
         self._create_standing_for_alt(self.alt_character_1)
-        self.client.force_login(self.user_manager)
+        request = self.factory.get(reverse("standingsrequests:effective_requests_data"))
+        request.user = self.user_manager
+        my_view_without_cache = effective_requests_data.__wrapped__
 
         # when
-        response = self.client.get(reverse("standingsrequests:effective_requests_data"))
+        response = my_view_without_cache(request)
 
         # then
         self.assertEqual(response.status_code, 200)
@@ -59,10 +63,12 @@ class TestViewActiveRequestsJson(TestViewPagesBase):
         mock_cache.get.return_value = None
         alt_id = self.alt_corporation.corporation_id
         self._create_standing_for_alt(self.alt_corporation)
-        self.client.force_login(self.user_manager)
+        request = self.factory.get(reverse("standingsrequests:effective_requests_data"))
+        request.user = self.user_manager
+        my_view_without_cache = effective_requests_data.__wrapped__
 
         # when
-        response = self.client.get(reverse("standingsrequests:effective_requests_data"))
+        response = my_view_without_cache(request)
 
         # then
         self.assertEqual(response.status_code, 200)
