@@ -4,7 +4,7 @@
 {% load i18n %}
 
 {% block details %}
-    <h2>{% translate "Effective Requests" %} ({{requests_count|default:"-"}})</h2>
+    <h2>{% translate "Effective Requests" %}</h2>
     {% include "standingsrequests/partials/tbl_effective_requests.html" %}
     <p class="text-muted">All effective standing requests for <strong>{{organization.name}}</strong></p>
 {% endblock details %}
@@ -75,7 +75,7 @@
                         },
                         {
                             idx: 11,
-                            title: "{% translate 'Approver' %}",
+                            title: "{% translate 'Accepted By' %}",
                             maxWidth: "15rem"
                         }
                     ],
