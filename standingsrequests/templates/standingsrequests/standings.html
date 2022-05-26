@@ -29,7 +29,7 @@
     </div>
     <p class="text-muted">
         Current in-game contacts with standings from <strong>{{ organization.name }}</strong> •
-        This data was last updated {{ lastUpdate|timesince }} ago
+        This data was last updated {{ lastUpdate|timesince }} ago and is cached
     </p>
     <!-- transfer data to javascript -->
     {{ show_mains|json_script:"show-mains-data" }}
