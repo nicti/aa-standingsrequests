@@ -98,7 +98,7 @@ def compose_standing_requests_data(
         else:
             contact_name_html = ""
         if corporation_name:
-            organization_html = f"{corporation_ticker} {corporation_name}"
+            organization_html = f"[{corporation_ticker}] {corporation_name}"
             if alliance_name:
                 organization_html = format_html(
                     "{}<br>{}", organization_html, alliance_name

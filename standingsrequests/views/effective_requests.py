@@ -56,9 +56,22 @@ def effective_requests_data(request):
             if req["is_effective"]
             else '<i class="fas fa-times fa-fw text-danger" title="Standing not effective"></i>'
         )
-        req["scopes_state_html"] = format_html(
+        req["effective_html"] = format_html(
             "{} {}", format_html(effective_html), req["action_by"]
         )
+        # remove columns that are not needed to reduce data volume
+        del req["request_date"]
+        del req["reason"]
+        del req["main_character_ticker"]
+        del req["main_character_icon_url"]
+        del req["contact_icon_url"]
+        del req["corporation_id"]
+        del req["alliance_id"]
+        del req["labels"]
+        del req["is_effective"]
+        del req["is_character"]
+        del req["is_corporation"]
+        del req["actioned"]
     return JsonResponse(requests_data, safe=False)
 
 
