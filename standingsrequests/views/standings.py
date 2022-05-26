@@ -112,10 +112,10 @@ def _identify_main_for_character(contact):
         character = contact.eve_entity.character_affiliation.eve_character
         user = character.character_ownership.user
     except (AttributeError, ObjectDoesNotExist):
-        state = main_character_name = main_character_html = ""
+        state = main_character_name = main_character_html = "-"
     else:
         main = user.profile.main_character
-        state = user.profile.state.name if user.profile.state else ""
+        state = user.profile.state.name if user.profile.state else "-"
         main_character_name = main.character_name
         main_character_ticker = main.corporation_ticker
         main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
@@ -306,11 +306,11 @@ def _identify_corporation_main(standings_requests, contact):
         user = standing_request.user
         main = user.profile.main_character
     except (KeyError, AttributeError, ObjectDoesNotExist):
-        main_character_name = state_name = main_character_html = ""
+        main_character_name = state_name = main_character_html = "-"
     else:
-        main_character_name = main.character_name if main else ""
+        main_character_name = main.character_name if main else "-"
         main_character_ticker = main.corporation_ticker if main else ""
-        main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE) if main else ""
+        main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE) if main else "-"
         if main_character_name:
             main_character_html = label_with_icon(
                 main_character_icon_url,

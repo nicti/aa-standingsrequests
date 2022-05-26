@@ -71,84 +71,27 @@ def compose_standing_requests_data(
             )
         )
     }
-    try:
-        contact_set = ContactSet.objects.latest()
-    except ContactSet.DoesNotExist:
-        contacts = dict()
-    else:
-        all_contact_ids = set(eve_characters.keys()) | set(eve_corporations.keys())
-        contacts = {
-            obj.eve_entity_id: obj
-            for obj in contact_set.contacts.prefetch_related("labels").filter(
-                eve_entity_id__in=all_contact_ids
-            )
-        }
+    contacts = _identify_contacts(eve_characters, eve_corporations)
     requests_data = list()
     for req in requests_qs:
-        main_character_name = ""
-        main_character_ticker = ""
-        main_character_icon_url = ""
-        main_character_html = ""
-        if req.user:
-            state_name = req.user.profile.state.name
-            main = req.user.profile.main_character
-            if main:
-                main_character_name = main.character_name
-                main_character_ticker = main.corporation_ticker
-                main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
-                main_character_html = label_with_icon(
-                    main_character_icon_url,
-                    f"[{main_character_ticker}] {main_character_name}",
-                )
-        else:
-            state_name = "(no user)"
+        (
+            main_character_name,
+            main_character_ticker,
+            main_character_icon_url,
+            main_character_html,
+            state_name,
+        ) = _identify_main(req)
 
-        if req.is_character:
-            if req.contact_id in eve_characters:
-                character = eve_characters[req.contact_id]
-            else:
-                # TODO: remove EveCharacterHelper usage
-                character = EveCharacterHelper(req.contact_id)
-
-            contact_name = character.character_name
-            contact_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
-            corporation_id = character.corporation_id
-            corporation_name = (
-                character.corporation_name if character.corporation_name else ""
-            )
-            corporation_ticker = (
-                character.corporation_ticker if character.corporation_ticker else ""
-            )
-            alliance_id = character.alliance_id
-            alliance_name = character.alliance_name if character.alliance_name else ""
-            has_scopes = StandingRequest.has_required_scopes_for_request(
-                character=character, user=req.user, quick_check=quick_check
-            )
-
-        elif req.is_corporation and req.contact_id in eve_corporations:
-            corporation = eve_corporations[req.contact_id]
-            contact_icon_url = corporation.logo_url(DEFAULT_ICON_SIZE)
-            contact_name = corporation.corporation_name
-            corporation_id = corporation.corporation_id
-            corporation_name = corporation.corporation_name
-            corporation_ticker = corporation.ticker
-            alliance_id = None
-            alliance_name = ""
-            has_scopes = (
-                not corporation.is_npc
-                and corporation.user_has_all_member_tokens(
-                    user=req.user, quick_check=quick_check
-                )
-            )
-        else:
-            contact_name = ""
-            contact_icon_url = ""
-            corporation_id = None
-            corporation_name = ""
-            corporation_ticker = ""
-            alliance_id = None
-            alliance_name = ""
-            has_scopes = False
+        (
+            contact_name,
+            contact_icon_url,
+            corporation_id,
+            corporation_name,
+            corporation_ticker,
+            alliance_id,
+            alliance_name,
+            has_scopes,
+        ) = _identify_organization(quick_check, eve_characters, eve_corporations, req)
 
         if contact_name:
             contact_name_html = label_with_icon(contact_icon_url, contact_name)
@@ -163,16 +106,8 @@ def compose_standing_requests_data(
         else:
             organization_html = ""
 
-        if req.is_standing_revocation:
-            reason = req.get_reason_display()
-        else:
-            reason = None
-        try:
-            my_contact = contacts[req.contact_id]
-        except KeyError:
-            labels = []
-        else:
-            labels = my_contact.labels_sorted
+        reason = req.get_reason_display() if req.is_standing_revocation else None
+        labels = _fetch_labels(contacts, req)
         requests_data.append(
             {
                 "contact_id": req.contact_id,
@@ -206,3 +141,110 @@ def compose_standing_requests_data(
             }
         )
     return requests_data
+
+
+def _identify_contacts(eve_characters, eve_corporations):
+    try:
+        contact_set = ContactSet.objects.latest()
+    except ContactSet.DoesNotExist:
+        contacts = dict()
+    else:
+        all_contact_ids = set(eve_characters.keys()) | set(eve_corporations.keys())
+        contacts = {
+            obj.eve_entity_id: obj
+            for obj in contact_set.contacts.prefetch_related("labels").filter(
+                eve_entity_id__in=all_contact_ids
+            )
+        }
+    return contacts
+
+
+def _identify_main(req):
+    main_character_name = main_character_ticker = main_character_icon_url = "-"
+    main_character_html = "-"
+    if req.user:
+        state_name = req.user.profile.state.name
+        main = req.user.profile.main_character
+        if main:
+            main_character_name = main.character_name
+            main_character_ticker = main.corporation_ticker
+            main_character_icon_url = main.portrait_url(DEFAULT_ICON_SIZE)
+            main_character_html = label_with_icon(
+                main_character_icon_url,
+                f"[{main_character_ticker}] {main_character_name}",
+            )
+    else:
+        state_name = "-"
+    return (
+        main_character_name,
+        main_character_ticker,
+        main_character_icon_url,
+        main_character_html,
+        state_name,
+    )
+
+
+def _identify_organization(quick_check, eve_characters, eve_corporations, req):
+    if req.is_character:
+        if req.contact_id in eve_characters:
+            character = eve_characters[req.contact_id]
+        else:
+            # TODO: remove EveCharacterHelper usage
+            character = EveCharacterHelper(req.contact_id)
+
+        contact_name = character.character_name
+        contact_icon_url = character.portrait_url(DEFAULT_ICON_SIZE)
+        corporation_id = character.corporation_id
+        corporation_name = (
+            character.corporation_name if character.corporation_name else ""
+        )
+        corporation_ticker = (
+            character.corporation_ticker if character.corporation_ticker else ""
+        )
+        alliance_id = character.alliance_id
+        alliance_name = character.alliance_name if character.alliance_name else ""
+        has_scopes = StandingRequest.has_required_scopes_for_request(
+            character=character, user=req.user, quick_check=quick_check
+        )
+
+    elif req.is_corporation and req.contact_id in eve_corporations:
+        corporation = eve_corporations[req.contact_id]
+        contact_icon_url = corporation.logo_url(DEFAULT_ICON_SIZE)
+        contact_name = corporation.corporation_name
+        corporation_id = corporation.corporation_id
+        corporation_name = corporation.corporation_name
+        corporation_ticker = corporation.ticker
+        alliance_id = None
+        alliance_name = ""
+        has_scopes = not corporation.is_npc and corporation.user_has_all_member_tokens(
+            user=req.user, quick_check=quick_check
+        )
+    else:
+        contact_name = ""
+        contact_icon_url = ""
+        corporation_id = None
+        corporation_name = ""
+        corporation_ticker = ""
+        alliance_id = None
+        alliance_name = ""
+        has_scopes = False
+    return (
+        contact_name,
+        contact_icon_url,
+        corporation_id,
+        corporation_name,
+        corporation_ticker,
+        alliance_id,
+        alliance_name,
+        has_scopes,
+    )
+
+
+def _fetch_labels(contacts, req):
+    try:
+        my_contact = contacts[req.contact_id]
+    except KeyError:
+        labels = []
+    else:
+        labels = my_contact.labels_sorted
+    return labels

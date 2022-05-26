@@ -98,8 +98,8 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
             "faction_name": "",
             "standing": -10.0,
             "labels_str": "red",
-            "main_character_name": "",
-            "state": "",
+            "main_character_name": "-",
+            "state": "-",
         }
         self.assertPartialDictEqual(data_character_1009, expected)
 
@@ -197,8 +197,8 @@ class TestCorporationStandingsData(NoSocketsTestCasePlus):
             "alliance_name": "Wayne Enterprises",
             "faction_name": "",
             "standing": 10.0,
-            "state": "",
-            "main_character_name": "",
+            "state": "-",
+            "main_character_name": "-",
         }
         self.assertPartialDictEqual(obj, expected)
         obj = corporations[2102]
