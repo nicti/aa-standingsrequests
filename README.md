@@ -150,12 +150,12 @@ Name | Description | Default
 
 These are all relevant permissions:
 
-Codename | Description
+Name | Description
 -- | --
-`standingsrequests.request_standings` | This is the permission required to have basic access to this app and be able to request and maintain blue standings without them being revoked. IMPORTANT: When a user no longer has this permission all of their standings will be revoked.
-`standingsrequests.view` | See which mains the character and corporation standing have been requested by. Typically you'll probably only want standings managers to have this.
-`standingsrequests.affect_standings` | User can see standings requests and process/approve/reject them.
-`standingsrequests.download` | User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
+*abstract standings request - User can request standings* | This is the permission required to have basic access to this app and be able to request and maintain blue standings without them being revoked. IMPORTANT: When a user no longer has this permission all of their standings will be revoked.
+*contact set - User can view standings* | See which mains the character and corporation standing have been requested by. Typically you'll probably only want standings managers to have this.
+*abstract standings request - User can process standings requests* | User can see standings requests and process/approve/reject them.
+*contact set - User can export standing requests* | User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
 
 ## Standings Requirements
 

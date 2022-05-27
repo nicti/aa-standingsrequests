@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.2.0] - tbd
+## [1.2.0] - 2022-05-27
+
+## Added
+
+- The standings page is now visible to everyone who has basic access to the app. Except the related mains are onlny shown if the user has an additional permission. (#3)
 
 ## Changed
 
-- The standings page is now visible to everyone who has basic access to the app. Except the related mains are onlny shown if the user has an additional permission. (#3)
+- Big UI overhaul
 - Character and group standings have been consolidated into one page
-- Modernized UI
-- Technical: Replaced all angularjs legacy code, since it is no longer supported by Google
+- Improved decription of permissions
+- Technical: Replaced all angularjs legacy code with HTMX and JQuery datatables, since it is no longer supported by Google
 - Technical: Converted `trans` template tags to `translate`
 
 ## Fixed
