@@ -7,7 +7,7 @@
     <h2>{% translate "Manage Requests" %}</h2>
 
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
-        <li role="presentation" class="active">
+        <li role="presentation">
             <a href="#tab-requests" aria-controls="tab-requests" role="tab" data-toggle="tab">
                 Open Requests
                 {% if requests_count > 0 %}
@@ -38,7 +38,7 @@
         <div class="panel-body">
             <div class="tab-content">
 
-                <div role="tabpanel" class="tab-pane active" id="tab-requests">
+                <div role="tabpanel" class="tab-pane" id="tab-requests">
                     <div
                         hx-get="{% url 'manage_requests_list' %}"
                         hx-trigger="load">
@@ -81,6 +81,7 @@
     {% include "standingsrequests/bundles/htmx.html" %}
     {% include 'bundles/datatables-js.html' %}
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    {% include "standingsrequests/bundles/helper-js.html" %}
     <script type="application/javascript">
         $(document).ready(function () {
             $('#tbl-effective-requests').DataTable({
@@ -152,6 +153,7 @@
                     bootstrap: true
                 },
             });
+            rememberLastTab('standingsrequests', 'manage-requests', '#tab-requests');
         });
     </script>
 {% endblock %}

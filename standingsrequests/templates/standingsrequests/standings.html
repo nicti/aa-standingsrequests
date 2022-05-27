@@ -38,6 +38,7 @@
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    {% include "standingsrequests/bundles/helper-js.html" %}
     <script type="application/javascript">
 
         /* renders standing columns for datatables */
@@ -257,6 +258,7 @@
                     bootstrap: true
                 },
             });
+            rememberLastTab('standingsrequests', 'standings', '#tab-characters');
         });
     </script>
 

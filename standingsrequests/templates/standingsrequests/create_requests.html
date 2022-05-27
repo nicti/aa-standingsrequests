@@ -109,4 +109,10 @@
 
 {% block extra_javascript %}
     {% include "standingsrequests/bundles/htmx.html" %}
+    {% include "standingsrequests/bundles/helper-js.html" %}
+    <script type="application/javascript">
+        $(document).ready(function () {
+            rememberLastTab('standingsrequests', 'create-requests', '#tab-characters')
+        });
+    </script>
 {% endblock %}

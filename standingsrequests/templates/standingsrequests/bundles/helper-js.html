@@ -1,0 +1,35 @@
+<!--
+Helper functions
+-->
+<script type="application/javascript">
+    /**
+    * Remember last activated tab when returning back to this page
+    * @param {string} appID - ID of the app that can be used as key.
+    * @param {string} pageID - ID of the page that can be used as key.
+    * @param {string} defaultTab - Name of the default tab to use.
+    * @param {string} tabID - Name of the default tab to use.
+    * @throws {TypeError} If one of the parameters is missing or not a string
+    */
+    function rememberLastTab(appID, pageID, defaultTab, tabID = "#myTabs"){
+        if (
+            typeof appID !== "string" ||
+            typeof pageID !== "string" ||
+            typeof defaultTab !== "string" ||
+            typeof tabID !== "string"
+        ) {
+            throw new TypeError("All parameters must be strings.");
+        }
+        const keyLastTab = `${appID}-${pageID}-rememberLastTab`;
+
+        /* remember last activated tab */
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+            const lastTab = e.target.attributes.href.value;
+            localStorage.setItem(keyLastTab, lastTab);
+        })
+
+        /* activate last tabs or default */
+        const lastTab = localStorage.getItem(keyLastTab);
+        const activateTab = lastTab ? lastTab : defaultTab;
+        $(`${tabID} a[href="${activateTab}"]`).tab('show');
+    }
+</script>
