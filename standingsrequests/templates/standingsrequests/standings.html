@@ -1,0 +1,270 @@
+{% extends "standingsrequests/_base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block details %}
+
+    <h2>{{ operation_mode|capfirst }} {% translate "Standings" %}</h2>
+
+    <ul id="myTabs" class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+            <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">Characters</a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">Corporations</a>
+        </li>
+        <li role="presentation">
+            <a href="#tab-alliances" aria-controls="tab-alliances" role="tab" data-toggle="tab">Alliances</a>
+        </li>
+    </ul>
+
+    <div class="panel panel-default panel-tabs">
+        <div class="panel-body">
+            <div class="tab-content">
+                {% include "standingsrequests/partials/tab_character_standings.html" %}
+                {% include "standingsrequests/partials/tab_corporation_standings.html" %}
+                {% include "standingsrequests/partials/tab_alliance_standings.html" %}
+            </div>
+        </div>
+    </div>
+    <p class="text-muted">
+        Current in-game contacts with standings for <strong>{{ organization.name }}</strong> •
+        This data was last updated {{ lastUpdate|timesince }} ago and is cached
+    </p>
+    <!-- transfer data to javascript -->
+    {{ show_mains|json_script:"show-mains-data" }}
+{% endblock details %}
+
+{% block extra_javascript %}
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    {% include "standingsrequests/bundles/helper-js.html" %}
+    <script type="application/javascript">
+
+        /* renders standing columns for datatables */
+        function renderStanding ( data, type, row ) {
+            if ( type !== "display" ) {
+                return data;
+            }
+            else {
+                let symbol;
+                let style;
+
+                if (data < -5) {
+                    symbol = "fas fa-minus-square fa-fw fa-lg";
+                    style = "color:#930404;";
+                } else if (data < 0) {
+                    symbol = "fas fa-minus-square fa-fw fa-lg";
+                    style = "color:#c34704;";
+                } else if (data === 0) {
+                    symbol = "fas fa-equals fa-fw fa-lg";
+                    style = "background:#878787; color:white; font-size:75%";
+                } else if (data <= 5) {
+                    symbol = "fas fa-plus-square fa-fw fa-lg";
+                    style = "color:#2a64c3;";
+                } else {
+                    symbol = "fas fa-plus-square fa-fw fa-lg";
+                    style = "color:#042177;";
+                }
+                return `<i class="${symbol}" style="${style};" title="${data}"></i>`
+            }
+        }
+
+        $(document).ready(function () {
+            const showMains = JSON.parse(document.getElementById('show-mains-data').textContent);
+            let columns = [
+                {
+                    data: 'character_name_html',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                { data: 'corporation_name' },
+                { data: 'alliance_name' },
+                { data: 'faction_name' },
+                {
+                    data: 'standing',
+                    render: renderStanding
+                },
+                { data: 'labels_str' },
+            ];
+            let columnDefs = null;
+            let filterDropDownColumns = [
+                {
+                    idx: 1,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 2,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 3,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 4,
+                    maxWidth: "15rem"
+                }
+            ];
+            if (showMains) {
+                columns.push(
+                    {
+                        data: 'main_character_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'state' },
+                    /* invisible columns */
+                    { data: 'main_character_name' },
+                );
+                columnDefs = [
+                    { "visible": false, "targets": [8] }
+                ]
+                filterDropDownColumns.push(
+                    {
+                        idx: 8,
+                        title: "{% translate 'Main' %}",
+                        maxWidth: "15rem"
+                    },
+                    {
+                        idx: 7,
+                        maxWidth: "15rem"
+                    }
+                )
+            }
+            $('#tbl-character-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:character_standings_data' %}",
+                    dataSrc: 'data',
+                    cache: true
+                },
+                columns: columns,
+                order: [[0, "asc"]],
+                columnDefs: columnDefs,
+                filterDropDown: {
+                    columns: filterDropDownColumns,
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+
+            columns = [
+                {
+                    data: 'corporation_html',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                { data: 'alliance_name' },
+                { data: 'faction_name' },
+                {
+                    data: 'standing',
+                    render: renderStanding
+                },
+                { data: 'labels_str' },
+            ];
+            columnDefs = null;
+            filterDropDownColumns = [
+                {
+                    idx: 1,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 2,
+                    maxWidth: "15rem"
+                },
+                {
+                    idx: 3,
+                    maxWidth: "15rem"
+                }
+            ];
+            if (showMains) {
+                columns.push(
+                    {
+                        data: 'main_character_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'state' },
+                    /* invisible columns */
+                    { data: 'main_character_name' },
+                );
+                columnDefs = [
+                    { "visible": false, "targets": [7] }
+                ]
+                filterDropDownColumns.push(
+                    {
+                        idx: 7,
+                        title: "{% translate 'Main' %}",
+                        maxWidth: "15rem"
+                    },
+                    {
+                        idx: 6,
+                        maxWidth: "15rem"
+                    }
+                )
+            }
+            $('#tbl-corporation-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:corporation_standings_data' %}",
+                    dataSrc: 'data',
+                    cache: true
+                },
+                columns: columns,
+                order: [[0, "asc"]],
+                columnDefs: columnDefs,
+                filterDropDown: {
+                    columns: filterDropDownColumns,
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+            $('#tbl-alliance-standings').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:alliance_standings_data' %}",
+                    dataSrc: 'data',
+                    cache: true
+                },
+                columns: [
+                    {
+                        data: 'alliance_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    {
+                        data: 'standing',
+                        render: renderStanding
+                    },
+                    { data: 'labels_str' },
+                ],
+                order: [[0, "asc"]],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 1,
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+            rememberLastTab('standingsrequests', 'standings', '#tab-characters');
+        });
+    </script>
+
+{% endblock extra_javascript %}
+
+{% block extra_css %}
+    {{ block.super }}
+    {% include 'bundles/datatables-css.html' %}
+{% endblock extra_css %}

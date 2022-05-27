@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.2.0] - tbd
+
+## Changed
+
+- The standings page is now visible to everyone who has basic access to the app. Except the related mains are onlny shown if the user has an additional permission. (#3)
+- Character and group standings have been consolidated into one page
+- Modernized UI
+- Technical: Replaced all angularjs legacy code, since it is no longer supported by Google
+- Technical: Converted `trans` template tags to `translate`
+
+## Fixed
+
+- Providing no STR_CORP_IDS or no STR_ALLIANCE_IDS results in an internal server error
+
 ## [1.1.1] - 2022-03-02
 
 ## Changed

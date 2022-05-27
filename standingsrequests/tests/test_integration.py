@@ -29,6 +29,8 @@ from .my_test_data import (
     create_eve_objects,
     create_standings_char,
     esi_get_corporations_corporation_id,
+    esi_post_characters_affiliation,
+    esi_post_universe_names,
     load_eve_entities,
 )
 
@@ -40,7 +42,7 @@ TEST_REQUIRED_SCOPE = "publicData"
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
@@ -169,13 +171,21 @@ class TestMainUseCases(WebTest):
 
         self.contact_set.refresh_from_db()
 
-    def _parse_json_response(self, response):
-        return {row["contact_id"]: row for row in response.json}
+    def _parse_contacts_data(self, response, key: str):
+        return {row["contact_id"]: row for row in response.context.dicts[3][key]}
 
-    def _setup_mocks(self, mock_esi):
-        mock_Corporation = mock_esi.client.Corporation
-        mock_Corporation.get_corporations_corporation_id.side_effect = (
+    def _setup_mocks(self, mock_esi, mock_esi_manager):
+        mock_esi.client.Corporation.get_corporations_corporation_id.side_effect = (
             esi_get_corporations_corporation_id
+        )
+        mock_esi_manager.client.Corporation.get_corporations_corporation_id.side_effect = (
+            esi_get_corporations_corporation_id
+        )
+        mock_esi_manager.client.Character.post_characters_affiliation.side_effect = (
+            esi_post_characters_affiliation
+        )
+        mock_esi.client.Universe.post_universe_names.side_effect = (
+            esi_post_universe_names
         )
 
     def setUp(self) -> None:
@@ -191,15 +201,18 @@ class TestMainUseCases(WebTest):
             StandingRequest.REQUEST_PERMISSION_NAME, self.user_requestor
         )
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_standing_for_his_alt_character(self, mock_esi):
+    def test_user_requests_standing_for_his_alt_character(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user has permission and user's alt has no standing
         when user requests standing and request is actioned by manager
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
@@ -211,8 +224,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_character_standing",
-            args=[alt_id],
+            "standingsrequests:request_character_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -228,24 +240,19 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_request.refresh_from_db()
@@ -272,15 +279,18 @@ class TestMainUseCases(WebTest):
         self.assertIsNotNone(my_request.effective_date)
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_revocation_for_his_alt_character(self, mock_esi):
+    def test_user_requests_revocation_for_his_alt_character(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
         my_request = self._create_standing_for_alt(self.alt_character_1)
@@ -312,23 +322,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -355,8 +362,11 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_standing_for_his_alt_corporation(self, mock_esi):
+    def test_user_requests_standing_for_his_alt_corporation(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user has permission and user's alt has no standing
         and all corporation members have tokens
@@ -364,7 +374,7 @@ class TestMainUseCases(WebTest):
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_corporation.corporation_id
 
         # user opens create requests page
@@ -376,8 +386,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing",
-            args=[alt_id],
+            "standingsrequests:request_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -393,24 +402,19 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # set standing in game and mark as actioned
         self._set_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_request.refresh_from_db()
@@ -437,15 +441,18 @@ class TestMainUseCases(WebTest):
         self.assertIsNotNone(my_request.effective_date)
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_revocation_for_his_alt_corporation(self, mock_esi):
+    def test_user_requests_revocation_for_his_alt_corporation(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_corporation.corporation_id
         self._set_standing_for_alt_in_game(self.alt_corporation)
         my_request = self._create_standing_for_alt(self.alt_corporation)
@@ -459,8 +466,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:remove_corp_standing",
-            args=[alt_id],
+            "standingsrequests:remove_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -477,23 +483,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_corporation)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -519,15 +522,18 @@ class TestMainUseCases(WebTest):
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
         self.assertTrue(Notification.objects.filter(user=self.user_requestor).exists())
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_standing_for_his_alt_character_but_refused(self, mock_esi):
+    def test_user_requests_standing_for_his_alt_character_but_refused(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user has permission and user's alt has no standing
         when user requests standing and request is refused by manager
         then request is reset, alt has no standing and user gets notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_character_1.character_id
 
         # user opens create requests page
@@ -539,8 +545,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_character_standing",
-            args=[alt_id],
+            "standingsrequests:request_character_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -556,23 +561,18 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
-            reverse(
-                "standingsrequests:manage_requests_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -588,8 +588,11 @@ class TestMainUseCases(WebTest):
             1,
         )
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_standing_for_his_alt_corporation_but_refused(self, mock_esi):
+    def test_user_requests_standing_for_his_alt_corporation_but_refused(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user has permission and user's alt has no standing
         and all corporation members have tokens
@@ -597,7 +600,7 @@ class TestMainUseCases(WebTest):
         then alt has standing and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_corporation.corporation_id
 
         # user opens create requests page
@@ -609,8 +612,7 @@ class TestMainUseCases(WebTest):
 
         # user requests standing for alt
         request_standing_url = reverse(
-            "standingsrequests:request_corp_standing",
-            args=[alt_id],
+            "standingsrequests:request_corp_standing", args=[alt_id]
         )
         response = create_page_2.click(href=request_standing_url)
         self.assertEqual(response.status_code, 302)
@@ -626,20 +628,18 @@ class TestMainUseCases(WebTest):
         self.app.set_user(self.user_manager)
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
-        manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_requests_json")
-        )
+        manage_page_2 = self.app.get(reverse("standingsrequests:manage_requests_list"))
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "requests")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
             reverse("standingsrequests:manage_requests_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRequest.objects.filter(contact_id=alt_id).exists())
@@ -655,15 +655,18 @@ class TestMainUseCases(WebTest):
             1,
         )
 
+    @patch(MANAGERS_PATH + ".esi")
     @patch(HELPERS_EVECORPORATION_PATH + ".esi")
-    def test_user_requests_revocation_for_his_alt_character_but_refused(self, mock_esi):
+    def test_user_requests_revocation_for_his_alt_character_but_refused(
+        self, mock_esi, mock_esi_manager
+    ):
         """
         given user's alt has standing and user has permission
         when user requests revocation and request is actioned by manager
         then alt's standing is removed and user gets change notification
         """
         # setup
-        self._setup_mocks(mock_esi)
+        self._setup_mocks(mock_esi, mock_esi_manager)
         alt_id = self.alt_character_1.character_id
         self._set_standing_for_alt_in_game(self.alt_character_1)
         my_request = self._create_standing_for_alt(self.alt_character_1)
@@ -695,19 +698,19 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # Manage refused request
         response = self.app.delete(
             reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate final state
         self.assertFalse(StandingRevocation.objects.filter(contact_id=alt_id).exists())
@@ -783,23 +786,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, "revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()
@@ -888,23 +888,20 @@ class TestMainUseCases(WebTest):
         manage_page_1 = self.app.get(reverse("standingsrequests:manage"))
         self.assertEqual(manage_page_1.status_code, 200)
         manage_page_2 = self.app.get(
-            reverse("standingsrequests:manage_get_revocations_json")
+            reverse("standingsrequests:manage_revocations_list")
         )
         self.assertEqual(manage_page_2.status_code, 200)
 
         # make sure standing request is visible to manager
-        data = self._parse_json_response(manage_page_2)
+        data = self._parse_contacts_data(manage_page_2, key="revocations")
         self.assertSetEqual(set(data.keys()), {alt_id})
 
         # remove standing for alt in game and mark as actioned
         self._remove_standing_for_alt_in_game(self.alt_character_1)
         response = self.app.put(
-            reverse(
-                "standingsrequests:manage_revocations_write",
-                args=[alt_id],
-            )
+            reverse("standingsrequests:manage_revocations_write", args=[alt_id])
         )
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
 
         # validate new state
         my_revocation.refresh_from_db()

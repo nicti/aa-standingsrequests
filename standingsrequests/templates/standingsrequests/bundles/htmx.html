@@ -1,0 +1,27 @@
+<!--
+This component loads the HTMX library and initializes HTMX for Django
+-->
+{% load static %}
+
+<script src="{% static 'standingsrequests/js/vendor/htmx/htmx.min.js' %}" defer></script>
+<script>
+    /* make sure Django's CSRF token is included in requests */
+    document.body.addEventListener('htmx:configRequest', (event) => {
+        event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+    });
+    /* error handling for all AJAX requests */
+    document.body.addEventListener('htmx:beforeSwap', function(evt) {
+        if (evt.detail.xhr.status >= 400) {
+            evt.detail.shouldSwap = false;
+            evt.detail.target.innerHTML = (
+                `<p class="text-danger">
+                An error occured. Please reload this page to try again or contact support.
+                - Error:
+                ${evt.detail.xhr.status}
+                ${evt.detail.xhr.statusText}
+                </p>`
+            )
+        }
+    });
+
+</script>

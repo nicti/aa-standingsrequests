@@ -152,8 +152,8 @@ These are all relevant permissions:
 
 Codename | Description
 -- | --
-`standingsrequests.request_standings` | This is the permission required to request and maintain blue standings without them being revoked. When the user no longer has this permission all of their standings will be revoked.
-`standingsrequests.view` | This includes seeing if the user has API keys for that character (but not the API keys themselves) and who the character belongs to. Typically you'll probably only want standings managers to have this.
+`standingsrequests.request_standings` | This is the permission required to have basic access to this app and be able to request and maintain blue standings without them being revoked. IMPORTANT: When a user no longer has this permission all of their standings will be revoked.
+`standingsrequests.view` | See which mains the character and corporation standing have been requested by. Typically you'll probably only want standings managers to have this.
 `standingsrequests.affect_standings` | User can see standings requests and process/approve/reject them.
 `standingsrequests.download` | User can download all of the standings data, including main character associations, as a CSV file. Useful if you want to do some extra fancy processing in a spreadsheet or something.
 

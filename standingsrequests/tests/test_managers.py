@@ -568,7 +568,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.corporation_id, 2001)
         self.assertEqual(obj.alliance_id, 3001)
-        self.assertEqual(obj.ceo_id, 2987)
+        self.assertEqual(obj.ceo_id, 1003)
         self.assertEqual(obj.member_count, 3)
         self.assertEqual(obj.ticker, "WYT")
         self.assertIsNone(obj.faction)
@@ -587,7 +587,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertIsNone(obj.ceo_id)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 class TestRequestLogEntryManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -655,7 +655,7 @@ class TestFrozenAuthUserManager(NoSocketsTestCase):
         #         "corporation_name": "Wayne Technologies",
         #         "corporation_ticker": "WYT",
         #         "member_count": 3,
-        #         "ceo_id": 2987,
+        #         "ceo_id": 1003,
         #     },
         # )
         cls.member_state = AuthUtils.get_member_state()

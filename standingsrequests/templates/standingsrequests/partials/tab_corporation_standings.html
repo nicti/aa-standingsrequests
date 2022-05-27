@@ -1,0 +1,23 @@
+{% load i18n %}
+
+<div role="tabpanel" class="tab-pane" id="tab-corporations">
+    <div class="table-responsive">
+        <table id="tbl-corporation-standings" class="table table-striped table-width-fix">
+            <thead>
+                <tr>
+                    <th class="col-md-2">{% translate "Name" %}</th>
+                    <th class="col-md-2">{% translate "Alliance" %}</th>
+                    <th class="col-md-2">{% translate "Faction" %}</th>
+                    <th class="col-md-1">{% translate "Standing" %}</th>
+                    <th class="col-md-2">{% translate "Labels" %}</th>
+                    {% if show_mains %}
+                        <th class="col-md-2">{% translate "Main Character" %}</th>
+                        <th class="col-md-1">{% translate "State" %}</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>

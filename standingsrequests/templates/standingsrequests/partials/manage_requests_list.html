@@ -1,0 +1,78 @@
+{% load static %}
+{% load i18n %}
+
+<div class="table-responsive">
+    <table id="tab_requests" class="table table-condensed table-hover table-striped">
+        <thead>
+            <tr>
+                <th class="col-md-1">{% translate "Date" %}</th>
+                <th class="col-md-2">{% translate "Contact Name" %}</th>
+                <th class="col-md-2">{% translate "Organization" %}</th>
+                <th class="col-md-2">{% translate "Main Character" %}</th>
+                <th class="col-md-3">{% translate "Scopes / State" %}</th>
+                <th class="col-md-2">{% translate "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for contact in requests %}
+                <tr hx-target="this" hx-swap="delete">
+                    <td>
+                        {{ contact.request_date|date:DATETIME_FORMAT_HTML }}
+                    </td>
+                    <td>
+                        <img src="{{ contact.contact_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                        <span class="copy_to_clipboard" data-text="{{ contact.contact_name }}">
+                            {{ contact.contact_name }}&nbsp;<i class="far fa-copy"></i>
+                        </span>
+                    </td>
+                    <td>
+                        [{{ contact.corporation_ticker }}] {{ contact.corporation_name }}
+                        <br>
+                        {{ contact.alliance_name }}
+                    </td>
+                    <td>
+                        <img src="{{ contact.main_character_icon_url }}" class="img-circle"/>&nbsp;&nbsp;
+                        [{{ contact.main_character_ticker }}] {{ contact.main_character_name }}
+                    </td>
+                    <td>
+                        {% if contact.has_scopes %}
+                            <i class="fas fa-check fa-fw text-success" title="Has required scopes"></i>
+                        {% else %}
+                            <i class="fas fa-times fa-fw text-danger" title="Does not have required scopes"></i>
+                        {% endif %}
+                        {{contact.state}}
+                    </td>
+                    <td>
+                        <button class="btn btn-success"
+                                hx-put="{% url 'manage_requests_write' contact.contact_id %}"
+                                title="{% translate 'Confirm the standing was ADDED in game' %}">
+                            Confirm
+                        </button>
+                        &nbsp;&nbsp;&nbsp;&nbsp;
+                        <button class="btn btn-danger"
+                                hx-confirm="{% translate 'Are you sure?' %}"
+                                hx-delete="{% url 'manage_requests_write' contact.contact_id %}"
+                                title="{% translate 'Reject this standing request' %}">
+                            Reject
+                        </button>
+                    </td>
+                </tr>
+            {% empty %}
+                {% include "standingsrequests/partials/manage_empty_row.html" %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script type="text/javascript">
+    $(document).ready(function () {
+        $(".copy_to_clipboard").click(function(){
+            const text = event.currentTarget.getAttribute("data-text");
+            navigator.clipboard.writeText(text).then(function() {
+                /* clipboard successfully set */
+            }, function() {
+                console.error("Failed to copy to clipboard");
+            });
+        });
+    });
+</script>

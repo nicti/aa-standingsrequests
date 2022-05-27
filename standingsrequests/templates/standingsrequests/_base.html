@@ -1,0 +1,15 @@
+{% extends 'allianceauth/base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block page_title %}{% translate app_title %}{% endblock %}
+
+{% block content %}
+    <br>
+    {% include 'standingsrequests/partials/menu.html' %}
+    {% block details %}{% endblock %}
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'standingsrequests/css/global.css' %}" type="text/css" media="screen">
+{% endblock extra_css %}

@@ -1,0 +1,7 @@
+#tbl-characters thead th, #tbl-characters tbody td {
+    vertical-align: middle;
+}
+
+#tbl-corporations thead th, #tbl-corporations tbody td {
+    vertical-align: middle;
+}

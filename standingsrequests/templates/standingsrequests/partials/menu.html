@@ -1,0 +1,52 @@
+{% load i18n %}
+{% load navactive %}
+
+<nav class="navbar navbar-default">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+                <span class="sr-only">{% translate "Toggle navigation" %}</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="{% url 'standingsrequests:index' %}">{% translate app_title %}</a>
+        </div>
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav">
+                <li class="{% navactive request 'standingsrequests:create_requests' %}">
+                    <a href="{% url 'standingsrequests:create_requests' %}">{% translate "My Requests" %}</a>
+                </li>
+
+                 {% if perms.standingsrequests.affect_standings %}
+                <li class="{% navactive request 'standingsrequests:manage' %}">
+                    <a href="{% url 'standingsrequests:manage' %}">
+                        {% translate "Manage Requests" %}
+                        {% if pending_total_count > 0 %}
+                            &nbsp;<span class="badge badge-nav">{{ pending_total_count }}</span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="{% navactive request 'standingsrequests:standings' %}">
+                    <a href="{% url 'standingsrequests:standings' %}">
+                        {{ operation_mode|capfirst }} {% translate "Standings" %}
+                    </a>
+                </li>
+
+            </ul>
+             <ul class="nav navbar-nav navbar-right">
+                {% if perms.standingsrequests.affect_standings %}
+                    <a class="btn btn-default navbar-btn" href="{% url 'standingsrequests:view_auth_page' %}">
+                        {% if operation_mode == "corporation" %}
+                            {% translate "Setup Corporation Token" %}
+                        {% else %}
+                            {% translate "Setup Alliance Token" %}
+                        {% endif %}
+                    </a>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

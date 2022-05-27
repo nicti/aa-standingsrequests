@@ -1,0 +1,93 @@
+{% extends "standingsrequests/_base.html" %}
+{% load bootstrap %}
+{% load static %}
+{% load i18n %}
+
+{% block details %}
+    <h2>{% translate "Effective Requests" %}</h2>
+    {% include "standingsrequests/partials/tbl_effective_requests.html" %}
+    <p class="text-muted">All effective standing requests for <strong>{{organization.name}}</strong> • This data is cached</p>
+{% endblock details %}
+
+{% block extra_javascript %}
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    <script type="application/javascript">
+        $(document).ready(function () {
+            $('#tab-effective-requests').DataTable({
+                ajax: {
+                    url: "{% url 'standingsrequests:effective_requests_data' %}",
+                    dataSrc: 'data',
+                    cache: true
+                },
+                columns: [
+                    {
+                        data: 'request_date_str',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    {
+                        data: 'contact_name_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'organization_html' },
+                    { data: 'main_character_html' },
+                    { data: 'scopes_state_html' },
+                    { data: 'effective_html' },
+                    { data: 'labels_str' },
+                    /* invisible columns */
+                    { data: 'corporation_name' },
+                    { data: 'alliance_name' },
+                    { data: 'main_character_name' },
+                    { data: 'state' },
+                    { data: 'action_by' },
+                ],
+                order: [[0, "asc"]],
+                columnDefs: [
+                    { "visible": false, "targets": [ 7, 8, 9, 10, 11 ] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 7,
+                            title: "{% translate 'Corporation' %}",
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 8,
+                            title: "{% translate 'Alliance' %}",
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 9,
+                            title: "{% translate 'Main' %}",
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 10,
+                            title: "{% translate 'State' %}",
+                            maxWidth: "15rem"
+                        },
+                        {
+                            idx: 11,
+                            title: "{% translate 'Accepted By' %}",
+                            maxWidth: "15rem"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+            });
+        });
+    </script>
+{% endblock extra_javascript %}
+
+{% block extra_css %}
+    {{ block.super }}
+    {% include 'bundles/datatables-css.html' %}
+{% endblock extra_css %}

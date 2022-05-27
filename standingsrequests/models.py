@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -182,6 +183,10 @@ class Contact(models.Model):
     @property
     def is_standing_satisfied(self) -> str:
         return StandingRequest.is_standing_satisfied(self.standing)
+
+    @cached_property
+    def labels_sorted(self) -> List[str]:
+        return sorted([label.name for label in self.labels.all()])
 
 
 class AbstractStandingsRequest(models.Model):

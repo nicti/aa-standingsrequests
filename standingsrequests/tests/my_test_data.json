@@ -42,7 +42,8 @@
             "contact_id": 1002,
             "contact_type": "character",
             "label_ids": [
-                1, 2
+                1,
+                2
             ],
             "standing": 10
         },
@@ -106,7 +107,8 @@
             "contact_id": 1110,
             "contact_type": "character",
             "label_ids": [
-                3, 4
+                3,
+                4
             ],
             "standing": 5
         },
@@ -208,7 +210,7 @@
             "corporation_ticker": "WYT",
             "member_count": 3,
             "alliance_id": 3001,
-            "ceo_id": 2987
+            "ceo_id": 1003
         },
         "2002": {
             "corporation_id": 2002,

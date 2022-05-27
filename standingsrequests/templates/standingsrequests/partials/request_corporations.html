@@ -1,0 +1,83 @@
+{% load static %}
+{% load i18n %}
+{% load evelinks %}
+
+
+<div class="table-responsive">
+    <table class="table table-hover table-striped table-width-fix" id="tbl-corporations">
+        <thead>
+            <tr>
+                <th>{% translate "Corporation" %}</th>
+                <th>{% translate "Alliance" %}</th>
+                <th>{% translate "Keys/Req" %}</th>
+                <th>{% translate "Standing" %}</th>
+                <th>{% translate "Actions" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for st in corps %}
+                <tr>
+                    <td>
+                        <img src="{{ st.corp.corporation_id|corporation_logo_url:32 }}" class="img-circle">
+                        &nbsp;&nbsp;&nbsp;
+                        {{ st.corp.corporation_name }}
+                    </td>
+                    <td>
+                        {{ st.corp.alliance_name|default_if_none:"" }}
+                    </td>
+                    <td>
+                        {{ st.token_count }}/{{ st.corp.member_count }}
+                    </td>
+                    <td>
+                        {% if st.inOrganisation == True %}
+                            <i class="fas fa-star fa-lg fa-fw text-primary" title="{% translate 'In Organisation' %}"></i>
+                        {% elif st.requestActioned == True %}
+                            <i class="fas fa-hourglass-half fa-lg fa-fw text-success" title="{% translate 'Accepted, pending update in game.' %}"></i>
+                        {% elif st.pendingRequest == True %}
+                            <i class="fas fa-hourglass-start fa-lg fa-fw" title="{% translate 'Standing Pending' %}"></i>
+                        {% elif st.pendingRevocation == True %}
+                            <i class="fas fa-reply-all fa-lg fa-fw text-danger" title="{% translate 'Standing is being revoked' %}"></i>
+                        {% elif st.standing == None and st.pendingRequest == False %}
+                            <i class="fas fa-exclamation-triangle fa-lg text-warning" title="{% translate 'No Standing' %}"></i>
+                        {% else %}
+                            {% include 'standingsrequests/partials/standing_symbol.html' with standing=st.standing %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if st.pendingRequest == True or st.requestActioned == True %}
+                            <a
+                                class="btn btn-warning"
+                                role="button"
+                                href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                title="Cancel Request">
+                                Cancel
+                            </a>
+                        {% elif st.pendingRevocation == True %}
+                            <!-- Revoked, No actions -->
+                        {% elif not st.hasStanding %}
+                            {% if st.token_count >= st.corp.member_count %}
+                                <a
+                                    class="btn btn-primary"
+                                    role="button"
+                                    href="{% url 'standingsrequests:request_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                    title="Request to get standing for this corporation">
+                                    &nbsp;Apply&nbsp;
+                                </a>
+                            {% else %}
+                                <i class="fas fa-info-circle fa-lg fa-fw text-info" title="{% translate 'More keys required to request standings' %}"></i>
+                            {% endif %}
+                        {% else %}
+                            <a
+                                class="btn btn-danger"
+                                role="button"
+                                href="{% url 'standingsrequests:remove_corp_standing' corporation_id=st.corp.corporation_id %}"
+                                title="Request to revoke standing for this corporation">
+                                Revoke
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
