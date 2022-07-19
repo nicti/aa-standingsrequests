@@ -1,5 +1,5 @@
 from datetime import timedelta
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from bravado.exception import HTTPError
 
@@ -9,6 +9,7 @@ from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase, add_character_to_user, create_fake_user
 
 from ..core import BaseConfig
@@ -518,7 +519,7 @@ class TestCharacterAffiliationsManager(NoSocketsTestCase):
     def test_should_handle_exception_from_api(self, mock_esi):
         # given
         mock_esi.client.Character.post_characters_affiliation.side_effect = HTTPError(
-            Mock()
+            BravadoResponseStub(500, reason="Test exception")
         )
         create_contacts_set(include_assoc=False)
         # when

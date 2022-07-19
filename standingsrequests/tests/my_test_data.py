@@ -3,7 +3,6 @@ import json
 import os
 from copy import deepcopy
 from datetime import timedelta
-from unittest.mock import Mock
 
 from bravado.exception import HTTPNotFound
 
@@ -18,7 +17,7 @@ from allianceauth.eveonline.models import (
     EveCorporationInfo,
 )
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.esi_testing import BravadoOperationStub
+from app_utils.esi_testing import BravadoOperationStub, BravadoResponseStub
 from app_utils.testing import add_character_to_user
 
 from standingsrequests.core import ContactType
@@ -149,7 +148,7 @@ def esi_get_corporations_corporation_id(corporation_id, *args, **kwargs) -> obje
     result = []
     corporation_id = str(corporation_id)
     if corporation_id not in _my_test_data["EveCorporationInfo"]:
-        raise HTTPNotFound(Mock(), message="Test Exception")
+        raise HTTPNotFound(BravadoResponseStub(404, reason="Test Exception"))
 
     row = _my_test_data["EveCorporationInfo"][corporation_id]
     result = {
