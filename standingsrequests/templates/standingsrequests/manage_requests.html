@@ -80,7 +80,7 @@
 {% block extra_javascript %}
     {% include "standingsrequests/bundles/htmx.html" %}
     {% include 'bundles/datatables-js.html' %}
-    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    {% include 'bundles/filterdropdown-js.html' %}
     {% include "standingsrequests/bundles/helper-js.html" %}
     <script type="application/javascript">
         $(document).ready(function () {
