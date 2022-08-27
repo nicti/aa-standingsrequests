@@ -2,7 +2,15 @@
 
 App for managing character standing requests, made for [Alliance Auth](https://gitlab.com/allianceauth/allianceauth).
 
-![release](https://img.shields.io/pypi/v/aa-standingsrequests?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-standingsrequests) ![django](https://img.shields.io/pypi/djversions/aa-standingsrequests?label=django) ![pipeline](https://gitlab.com/ErikKalkoken/aa-standingsrequests/badges/master/pipeline.svg) ![coverage](https://gitlab.com/ErikKalkoken/aa-standingsrequests/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-GPLv3-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+[![release](https://img.shields.io/pypi/v/aa-standingsrequests?label=release)](https://pypi.org/project/aa-standingsrequests/)
+[![python](https://img.shields.io/pypi/pyversions/aa-standingsrequests)](https://pypi.org/project/aa-standingsrequests/)
+[![django](https://img.shields.io/pypi/djversions/aa-standingsrequests?label=django)](https://pypi.org/project/aa-standingsrequests/)
+[![pipeline](https://gitlab.com/ErikKalkoken/aa-standingsrequests/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/pipelines)
+[![codecov](https://codecov.io/gl/ErikKalkoken/aa-standingsrequests/branch/master/graph/badge.svg?token=gf23N35S3S)](https://codecov.io/gl/ErikKalkoken/aa-standingsrequests)
+[![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/blob/master/LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![chat](https://img.shields.io/discord/790364535294132234)](https://discord.gg/zmh52wnfvM)
 
 ## Contents
 
