@@ -42,7 +42,7 @@ compilemessages:
 		-l zh_Hans
 
 coverage:
-	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast -v 2 && coverage html && coverage report
+	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast -v 2 && coverage html && coverage report -m
 
 pylint:
 	pylint --load-plugins pylint_django $(package)

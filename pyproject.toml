@@ -28,12 +28,16 @@ classifiers = [
 ]
 dependencies = [
     "allianceauth-app-utils>=1.12",
-    "allianceauth>=2.15.1",
+    "allianceauth>=3",
     "django-eveuniverse>=0.14",
 ]
 
 [project.urls]
 Homepage = "https://gitlab.com/ErikKalkoken/aa-standingsrequests"
+Source = "https://gitlab.com/ErikKalkoken/aa-standingsrequests"
+Changelog = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/blob/master/CHANGELOG.md"
+Tracker = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/issues"
+
 
 [tool.hatch.version]
 path = "standingsrequests/__init__.py"

@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     "allianceauth.groupmanagement",
     "allianceauth.notifications",
     "allianceauth.thirdparty.navhelper",
+    "allianceauth.analytics",
 ]
 
 SECRET_KEY = "wow I'm a really bad default secret key"
@@ -65,12 +66,14 @@ BASE_DIR = os.path.dirname(PROJECT_DIR)
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "allianceauth.authentication.middleware.UserSettingsMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django.middleware.locale.LocaleMiddleware",
+    "allianceauth.analytics.middleware.AnalyticsMiddleware",
 ]
 
 ROOT_URLCONF = "allianceauth.urls"
@@ -79,9 +82,15 @@ LOCALE_PATHS = (os.path.join(BASE_DIR, "locale/"),)
 
 ugettext = lambda s: s
 LANGUAGES = (
-    ("en", ugettext("English")),
-    ("de", ugettext("German")),
-    ("es", ugettext("Spanish")),
+    ("en", "English"),
+    ("de", "German"),
+    ("es", "Spanish"),
+    ("zh-hans", "Chinese Simplified"),
+    ("ru", "Russian"),
+    ("ko", "Korean"),
+    ("fr", "French"),
+    ("ja", "Japanese"),
+    ("it", "Italian"),
 )
 
 TEMPLATES = [
@@ -135,6 +144,8 @@ AUTHENTICATION_BACKENDS = [
 
 LANGUAGE_CODE = "en-us"
 
+LANGUAGE_COOKIE_AGE = 1209600
+
 TIME_ZONE = "UTC"
 
 USE_I18N = True
@@ -156,11 +167,8 @@ MESSAGE_TAGS = {messages.ERROR: "danger"}
 
 CACHES = {
     "default": {
-        "BACKEND": "redis_cache.RedisCache",
-        "LOCATION": "localhost:6379",
-        "OPTIONS": {
-            "DB": 1,
-        },
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
     }
 }
 
@@ -258,6 +266,7 @@ STATIC_ROOT = "/var/www/testauth/static/"
 # Change this to change the name of the auth site displayed
 # in page titles and the site header.
 SITE_NAME = "testauth"
+SITE_URL = "http://127.0.0.1:8000"
 
 # Change this to enable/disable debug mode, which displays
 # useful error messages but can leak sensitive data.
@@ -318,3 +327,6 @@ SR_REQUIRED_SCOPES = {
     "Blue": ["publicData"],
     "": [],  # no state
 }
+
+
+STATICFILES_DIRS = []  # needed to suppress a warning

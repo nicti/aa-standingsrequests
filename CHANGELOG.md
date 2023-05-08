@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Changed
 
 - Migrated build process to PEP 621
+- Drop support for AA 2
+- Add support for AA 3
 
 ## [1.2.2] - 2022-07-19
 
