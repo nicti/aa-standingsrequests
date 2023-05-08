@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -181,7 +181,7 @@ class Contact(models.Model):
         return self.eve_entity.name
 
     @property
-    def is_standing_satisfied(self) -> str:
+    def is_standing_satisfied(self) -> bool:
         return StandingRequest.is_standing_satisfied(self.standing)
 
     @cached_property
@@ -402,7 +402,11 @@ class AbstractStandingsRequest(models.Model):
             return None
 
         # Reset request that has not become effective after timeout expired
-        if self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS) < latest.date:
+        if (
+            self.action_date
+            and self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
+            < latest.date
+        ):
             logger.info(
                 "Standing actioned timed out, resetting actioned for contact_id %d",
                 self.contact_id,
@@ -514,7 +518,9 @@ class StandingRequest(AbstractStandingsRequest):
         )
         return True
 
-    def delete(self, using=None, keep_parents=False, reason=None):
+    def delete(
+        self, using=None, keep_parents: bool = False, reason: Optional[str] = None
+    ):
         """
         Add a revocation before deleting if the standing has been
         actioned (pending) or is effective and
@@ -672,7 +678,7 @@ class CharacterAffiliation(models.Model):
         return self.character.name
 
     @cached_property
-    def character_name(self) -> str:
+    def character_name(self) -> Optional[str]:
         """Return character name for main."""
         return self.character.name if self.character.name else None
 
@@ -826,7 +832,7 @@ class FrozenAuthUser(FrozenModelMixin, models.Model):
 
 
 class FrozenAlt(FrozenModelMixin, models.Model):
-    """Alt with alignmants. Objects are frozen at creation and can not be changed."""
+    """Alt with alignments. Objects are frozen at creation and can not be changed."""
 
     class Category(models.TextChoices):
         CHARACTER = "CH", "character"
@@ -849,7 +855,7 @@ class FrozenAlt(FrozenModelMixin, models.Model):
     objects = FrozenAltManager()
 
     def __str__(self) -> str:
-        return str(self.character) if self.character else (self.corporation)
+        return str(self.character) if self.character else str(self.corporation)
 
     @property
     def is_character(self) -> bool:
