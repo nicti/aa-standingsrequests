@@ -87,11 +87,14 @@ def manage_requests_write(request, contact_id):
         standing_request.delete()
         if SR_NOTIFICATIONS_ENABLED:
             entity_name = EveEntity.objects.resolve_name(contact_id)
-            title = _("Standing request for %s rejected" % entity_name)
+            title = _("Standing request for %s rejected") % entity_name
             message = _(
-                "Your standing request for '%s' has been rejected by %s."
-                % (entity_name, request.user)
-            )
+                "Your standing request for %(character)s has been rejected by %(user)s."
+            ) % {
+                "character": entity_name,
+                "user": request.user,
+            }
+
             notify(user=standing_request.user, title=title, message=message)
         return HttpResponse("")
     return HttpResponseNotFound()
@@ -130,11 +133,12 @@ def manage_revocations_write(request, contact_id):
         standing_revocations_qs.delete()
         if SR_NOTIFICATIONS_ENABLED and standing_revocation.user:
             entity_name = EveEntity.objects.resolve_name(contact_id)
-            title = _("Standing revocation for %s rejected" % entity_name)
+            title = _("Standing revocation for %s rejected") % entity_name
             message = _(
-                "Your standing revocation for '%s' "
-                "has been rejected by %s." % (entity_name, request.user)
-            )
+                "Your standing revocation for %(character)s "
+                "has been rejected by %(user)s."
+            ) % {"character": entity_name, "user": request.user}
+
             notify(user=standing_revocation.user, title=title, message=message)
         return HttpResponse("")
     return HttpResponseNotFound()

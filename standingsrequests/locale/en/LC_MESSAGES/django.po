@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-08 20:55+0200\n"
+"POT-Creation-Date: 2023-05-08 22:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,12 +18,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: managers.py:240
+#: managers.py:239
 #, python-format
 msgid "%s: Standing with %s now in effect"
 msgstr ""
 
-#: managers.py:244
+#: managers.py:242
 #, python-format
 msgid ""
 "'%(organization_name)s' now has blue standing with your alt "
@@ -31,7 +31,7 @@ msgid ""
 "your %(contact_category)s accordingly."
 msgstr ""
 
-#: managers.py:262
+#: managers.py:260
 #, python-format
 msgid ""
 "'%(organization_name)s' no longer has standing with your "
@@ -39,12 +39,12 @@ msgid ""
 "your %(contact_category)s accordingly."
 msgstr ""
 
-#: managers.py:310
+#: managers.py:308
 #, python-format
 msgid "Standing Request for %s reset"
 msgstr ""
 
-#: managers.py:312
+#: managers.py:311
 #, python-format
 msgid ""
 "The standing request for %(contact_category)s '%(contact_name)s' from "
@@ -84,19 +84,19 @@ msgstr ""
 msgid "Already has standing in game"
 msgstr ""
 
-#: models.py:742
+#: models.py:752
 msgid "confirmed"
 msgstr ""
 
-#: models.py:743
+#: models.py:753
 msgid "rejected"
 msgstr ""
 
-#: models.py:746
+#: models.py:756
 msgid "request"
 msgstr ""
 
-#: models.py:747
+#: models.py:757
 msgid "revocation"
 msgstr ""
 
@@ -105,7 +105,7 @@ msgstr ""
 msgid "%s: Standings loaded"
 msgstr ""
 
-#: tasks.py:57
+#: tasks.py:56
 #, python-format
 msgid "Standings have been successfully loaded for %s"
 msgstr ""
@@ -545,9 +545,9 @@ msgstr ""
 #: views/create_requests.py:366
 #, python-format
 msgid ""
-"The configured character <strong>%s</strong> does not belong to an alliance "
-"and can therefore not be used to setup alliance standings. Please configure "
-"a character that has an alliance."
+"The configured character %s does not belong to an alliance and can therefore "
+"not be used to setup alliance standings. Please configure a character that "
+"has an alliance."
 msgstr ""
 
 #: views/create_requests.py:380
@@ -577,15 +577,16 @@ msgstr ""
 
 #: views/manage_requests.py:92
 #, python-format
-msgid "Your standing request for '%s' has been rejected by %s."
+msgid "Your standing request for %(character)s has been rejected by %(user)s."
 msgstr ""
 
-#: views/manage_requests.py:133
+#: views/manage_requests.py:136
 #, python-format
 msgid "Standing revocation for %s rejected"
 msgstr ""
 
-#: views/manage_requests.py:135
+#: views/manage_requests.py:138
 #, python-format
-msgid "Your standing revocation for '%s' has been rejected by %s."
+msgid ""
+"Your standing revocation for %(character)s has been rejected by %(user)s."
 msgstr ""

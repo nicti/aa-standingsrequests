@@ -236,10 +236,8 @@ class AbstractStandingsRequestManager(models.Manager):
                     if standing_request.is_standing_request:
                         notify(
                             user=standing_request.user,
-                            title=_(
-                                "%s: Standing with %s now in effect"
-                                % (__title__, contact.name)
-                            ),
+                            title=_("%s: Standing with %s now in effect")
+                            % (__title__, contact.name),
                             message=_(
                                 "'%(organization_name)s' now has blue standing with "
                                 "your alt %(contact_category)s '%(contact_name)s'. "

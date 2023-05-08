@@ -52,11 +52,9 @@ def report_result_to_user(user_pk: int = None):
             source_entity = BaseConfig.standings_source_entity()
             notify(
                 user,
-                _("%s: Standings loaded" % __title__),
-                _(
-                    "Standings have been successfully loaded for %s"
-                    % source_entity.name
-                ),
+                _("%s: Standings loaded") % __title__,
+                _("Standings have been successfully loaded for %s")
+                % source_entity.name,
                 level="success",
             )
 

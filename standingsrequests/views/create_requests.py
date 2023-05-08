@@ -363,7 +363,7 @@ def view_auth_page(request, token):
             request,
             format_html(
                 _(
-                    "The configured character <strong>%s</strong> does not belong "
+                    "The configured character %s does not belong "
                     "to an alliance and can therefore not be used "
                     "to setup alliance standings. "
                     "Please configure a character that has an alliance."
