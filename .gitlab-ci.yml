@@ -22,11 +22,6 @@ pre-commit-check:
     - pip install pre-commit
     - pre-commit run --all-files
 
-.test-py37:
-  needs: []
-  stage: test
-  image: python:3.7-bullseye
-
 .test-py38:
   needs: []
   stage: test
@@ -36,12 +31,6 @@ pre-commit-check:
   needs: []
   stage: test
   image: python:3.9-bullseye
-
-test-37-django32:
-  extends: .test-py37
-  script:
-  - tox -e py37-django32
-  - bash <(curl -s https://codecov.io/bash)
 
 test-38-django32:
   extends: .test-py38
@@ -60,10 +49,10 @@ deploy-pypi:
   image: python:3.8-bullseye
 
   before_script:
-    - pip install twine
+    - pip install build twine
 
   script:
-    - python setup.py sdist bdist_wheel
+    - python -m build
     - twine upload dist/*
 
   only:

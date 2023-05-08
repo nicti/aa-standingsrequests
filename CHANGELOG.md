@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## Changed
+
+- Migrated build process to PEP 621
+
 ## [1.2.2] - 2022-07-19
 
 ## Changed
