@@ -126,7 +126,7 @@ class ContactSet(models.Model):
         """returns the required ESI scopes for syncing"""
         if BaseConfig.operation_mode is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
-        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
+        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
             return "esi-corporations.read_contacts.v1"
         else:
             raise NotImplementedError()

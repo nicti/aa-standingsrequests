@@ -146,7 +146,7 @@ class _ContactsWrapper:
                 token=token.valid_access_token(),
             ).results()
 
-        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
+        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
             labels = (
                 esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
                     corporation_id=owner_character.corporation_id,

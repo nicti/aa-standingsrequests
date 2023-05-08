@@ -8,7 +8,7 @@ DATETIME_FORMAT_PY = "%Y-%m-%d %H:%M"
 
 class OperationMode(TextChoices):
     ALLIANCE = "alliance"
-    CORPORATON = "corporation"
+    CORPORATION = "corporation"
 
 
 class CreateCharacterRequestError(IntEnum):
