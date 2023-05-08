@@ -8,13 +8,19 @@
 
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
         <li role="presentation" class="active">
-            <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">Characters</a>
+            <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">
+                {% translate "Characters" %}
+            </a>
         </li>
         <li role="presentation">
-            <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">Corporations</a>
+            <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">
+                {% translate "Corporations" %}
+            </a>
         </li>
         <li role="presentation">
-            <a href="#tab-alliances" aria-controls="tab-alliances" role="tab" data-toggle="tab">Alliances</a>
+            <a href="#tab-alliances" aria-controls="tab-alliances" role="tab" data-toggle="tab">
+                {% translate "Alliances" %}
+            </a>
         </li>
     </ul>
 
@@ -28,8 +34,10 @@
         </div>
     </div>
     <p class="text-muted">
-        Current in-game contacts with standings for <strong>{{ organization.name }}</strong> •
-        This data was last updated {{ lastUpdate|timesince }} ago and is cached
+        {% blocktranslate with organization_name=organization.name last_update=lastUpdate|timesince %}
+            Current in-game contacts with standings for {{ organization_name }} •
+            This data was last updated {{ last_update }} ago and is cached
+        {% endblocktranslate %}
     </p>
     <!-- transfer data to javascript -->
     {{ show_mains|json_script:"show-mains-data" }}
