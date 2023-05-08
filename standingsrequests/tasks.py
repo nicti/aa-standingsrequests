@@ -67,7 +67,7 @@ def standings_update():
     logger.info("Standings API update started")
     contact_set = ContactSet.objects.create_new_from_api()
     if not contact_set:
-        logger.warn(
+        logger.warning(
             "Standings API update returned None (API error probably),"
             "aborting standings update"
         )
@@ -154,7 +154,7 @@ def purge_stale_standings_data():
             logger.debug("No ContactSets to delete")
 
     except ContactSet.DoesNotExist:
-        logger.warn("No ContactSets available, nothing to delete")
+        logger.warning("No ContactSets available, nothing to delete")
 
 
 @shared_task

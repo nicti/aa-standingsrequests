@@ -175,7 +175,7 @@ class EveCorporation:
             return []
 
         # make sure client is loaded before starting threads
-        esi.client
+        esi.client.Status.get_status().results()
         logger.info(
             "Starting to fetch the %d corporations from ESI with up to %d workers",
             len(corporation_ids),

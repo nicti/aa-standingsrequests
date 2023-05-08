@@ -254,6 +254,10 @@ class AbstractStandingsRequest(models.Model):
             ("request_standings", "User can request standings."),
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # self.reason = ""
+
     def __repr__(self) -> str:
         try:
             user_str = f", user='{self.user}'"
