@@ -1,4 +1,5 @@
 import datetime as dt
+from unittest.mock import patch
 
 from django.test import RequestFactory
 from django.urls import reverse
@@ -20,6 +21,33 @@ from ..my_test_data import (
 from ..utils import NoSocketsTestCasePlus, json_response_to_dict_2
 
 TEST_SCOPE = "publicData"
+MODULE_PATH = "standingsrequests.views.standings"
+
+
+@patch("standingsrequests.core.STANDINGS_API_CHARID", 1001)
+class TestStandingsView(NoSocketsTestCasePlus):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_eve_entities()
+        create_eve_objects()
+        cls.contact_set = create_contacts_set()
+        CharacterAffiliation.objects.update_evecharacter_relations()
+
+        cls.user = AuthUtils.create_member("John Doe")
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "standingsrequests.request_standings", cls.user
+        )
+
+    def test_can_open_standings_page(self):
+        # given
+        request = self.factory.get(reverse("standingsrequests:standings"))
+        request.user = self.user
+        # when
+        response = standings.standings(request)
+        # then
+        self.assertEqual(response.status_code, 200)
 
 
 class TestCharacterStandingsData(NoSocketsTestCasePlus):

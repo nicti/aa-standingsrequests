@@ -71,7 +71,7 @@ class BaseConfig:
                 )
             else:
                 entity = None
-        elif cls.operation_mode is OperationMode.CORPORATON:
+        elif cls.operation_mode is OperationMode.CORPORATION:
             entity, _ = EveEntity.objects.get_or_create_esi(id=character.corporation_id)
         else:
             raise NotImplementedError()

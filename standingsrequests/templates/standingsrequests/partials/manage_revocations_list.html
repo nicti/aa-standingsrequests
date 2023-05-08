@@ -51,14 +51,14 @@
                         <button class="btn btn-success"
                                 hx-put="{% url 'manage_revocations_write' contact.contact_id %}"
                                 title="{% translate 'Confirm the standing was REMOVED in game' %}">
-                            Confirm
+                            {% translate "Confirm" %}
                         </button>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                         <button class="btn btn-danger"
                                 hx-confirm="{% translate 'Are you sure?' %}"
                                 hx-delete="{% url 'manage_revocations_write' contact.contact_id %}"
                                 title="{% translate 'Reject this revocation request' %}">
-                            Reject
+                            {% translate "Reject" %}
                         </button>
                     </td>
                 </tr>

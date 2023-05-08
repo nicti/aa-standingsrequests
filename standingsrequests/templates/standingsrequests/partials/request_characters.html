@@ -29,7 +29,9 @@
                         {% if std.hasRequiredScopes %}
                             <i class="fas fa-check fa-fw fa-lg text-success" title="Has required scopes"></i>
                         {% else %}
-                            <a title="{% translate 'Add required scopes' %}" class="btn btn-danger btn-sm" href="{% url 'standingsrequests:view_requester_add_scopes' %}">
+                            <a  title="{% translate 'Add required scopes' %}"
+                                class="btn btn-danger btn-sm"
+                                href="{% url 'standingsrequests:view_requester_add_scopes' %}">
                                 <i class="fas fa-plus fa-fw fa-lg"></i> {% translate "Required" %}
                             </a>
                         {% endif %}
@@ -57,8 +59,8 @@
                                 class="btn btn-warning"
                                 role="button"
                                 href="{% url 'standingsrequests:remove_character_standing' character_id=std.character.character_id %}"
-                                title="Cancel Request">
-                                Cancel
+                                title="{% translate 'Cancel Request' %}">
+                                {% translate "Cancel" %}
                             </a>
                         {% elif std.pendingRevocation == True %}
                             <!-- Revoked, No actions -->
@@ -68,13 +70,16 @@
                                     class="btn btn-primary"
                                     role="button"
                                     href="{% url 'standingsrequests:request_character_standing' character_id=std.character.character_id %}"
-                                    title="Request to get standing for this character"
+                                    title="{% translate 'Request to get standing for this character' %}"
                                     >
-                                    &nbsp;Apply&nbsp;
+                                    {% translate "Apply" %}
                                 </a>
                             {% else %}
-                                <button class="btn btn-primary" role="button" title="Missing scopes" disabled>
-                                    &nbsp;Apply&nbsp;
+                                <button
+                                    class="btn btn-primary"
+                                    role="button"
+                                    title="{% translate 'Missing scopes' %}" disabled>
+                                    {% translate "Apply" %}
                                 </button>
                             {% endif %}
                         {% else %}
@@ -82,8 +87,8 @@
                                 class="btn btn-danger"
                                 role="button"
                                 href="{% url 'standingsrequests:remove_character_standing' character_id=std.character.character_id %}"
-                                title="Request to revoke standing for this character">
-                                Revoke
+                                title="{% translate 'Request to revoke standing for this character' %}">
+                                {% translate "Revoke" %}
                             </a>
                         {% endif %}
                     </td>

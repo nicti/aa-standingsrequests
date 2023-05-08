@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.3.0] - 2023-05-08
+
+## Changed
+
+- Migrated build process to PEP 621
+- Drop support for AA 2
+- Add support for AA 3
+- Add localization support for FR, KO, JP, UK
+
 ## [1.2.2] - 2022-07-19
 
 ## Changed

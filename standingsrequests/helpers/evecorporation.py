@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from typing import List
 
 from bravado.exception import HTTPError
 
@@ -11,8 +12,8 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
-from .. import __title__
-from ..providers import esi
+from standingsrequests import __title__
+from standingsrequests.providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -24,7 +25,7 @@ class EveCorporation:
     CACHE_TIME = 60 * 60  # 60 minutes
 
     def __init__(self, **kwargs):
-        self.corporation_id = int(kwargs.get("corporation_id"))
+        self.corporation_id = int(kwargs.get("corporation_id", 0))
         self.corporation_name = kwargs.get("corporation_name")
         self.ticker = kwargs.get("ticker")
         self.member_count = kwargs.get("member_count")
@@ -164,29 +165,31 @@ class EveCorporation:
         return EveCorporation.get_by_id(corporation_id)
 
     @classmethod
-    def get_many_by_id(cls, corporation_ids: list) -> list:
+    def get_many_by_id(cls, corporation_ids: List[int]) -> list:
         """Returns multiple corporations by ID
 
         Fetches requested corporations from cache or API as needed.
         Uses threads to fetch them in parallel.
         """
-        corporation_ids = set(corporation_ids)
-        if not corporation_ids:
+        corporation_ids2 = set(corporation_ids)
+        if not corporation_ids2:
             return []
 
         # make sure client is loaded before starting threads
-        esi.client
+        esi.client.Status.get_status().results()
         logger.info(
             "Starting to fetch the %d corporations from ESI with up to %d workers",
-            len(corporation_ids),
+            len(corporation_ids2),
             MAX_WORKERS,
         )
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = [
                 executor.submit(cls.thread_fetch_corporation, corporation_id)
-                for corporation_id in corporation_ids
+                for corporation_id in corporation_ids2
             ]
             logger.info("Waiting for all threads fetching corporations to complete...")
 
-        logger.info("Completed fetching %d corporations from ESI", len(corporation_ids))
+        logger.info(
+            "Completed fetching %d corporations from ESI", len(corporation_ids2)
+        )
         return [f.result() for f in futures]

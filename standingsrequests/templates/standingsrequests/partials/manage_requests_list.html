@@ -46,14 +46,14 @@
                         <button class="btn btn-success"
                                 hx-put="{% url 'manage_requests_write' contact.contact_id %}"
                                 title="{% translate 'Confirm the standing was ADDED in game' %}">
-                            Confirm
+                            {% translate "Confirm" %}
                         </button>
                         &nbsp;&nbsp;&nbsp;&nbsp;
                         <button class="btn btn-danger"
                                 hx-confirm="{% translate 'Are you sure?' %}"
                                 hx-delete="{% url 'manage_requests_write' contact.contact_id %}"
                                 title="{% translate 'Reject this standing request' %}">
-                            Reject
+                            {% translate "Reject" %}
                         </button>
                     </td>
                 </tr>

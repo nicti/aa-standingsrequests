@@ -51,7 +51,6 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
-
     csrf_checks = False
 
     @classmethod

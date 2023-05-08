@@ -146,7 +146,7 @@ class _ContactsWrapper:
                 token=token.valid_access_token(),
             ).results()
 
-        elif BaseConfig.operation_mode is OperationMode.CORPORATON:
+        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
             labels = (
                 esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
                     corporation_id=owner_character.corporation_id,
@@ -307,18 +307,21 @@ class AbstractStandingsRequestManager(models.Manager):
                         "and will be reset" % standing_request.contact_id
                     )
                     if SR_NOTIFICATIONS_ENABLED:
-                        title = _("Standing Request for %s reset" % contact.name)
-                        message = _(
-                            "The standing request for %(contact_category)s "
-                            "'%(contact_name)s' from %(user_name)s "
-                            "has been reset as it did not appear in "
-                            "game before the timeout period expired."
+                        title = _("Standing Request for %s reset") % contact.name
+                        message = (
+                            _(
+                                "The standing request for %(contact_category)s "
+                                "'%(contact_name)s' from %(user_name)s "
+                                "has been reset as it did not appear in "
+                                "game before the timeout period expired."
+                            )
                             % {
                                 "contact_category": contact.category,
                                 "contact_name": contact.name,
                                 "user_name": standing_request.user.username,
                             },
                         )
+
                         # Notify standing manager
                         notify(user=actioned_timeout, title=title, message=message)
                         # Notify the user
@@ -481,7 +484,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
 class StandingRevocationManager(AbstractStandingsRequestManager):
     def add_revocation(
-        self, contact_id: int, contact_type: str, user: User = None, reason: str = None
+        self,
+        contact_id: int,
+        contact_type: str,
+        user: Optional[User] = None,
+        reason: Optional[str] = None,
     ) -> object:
         """Add a new standings revocation
 

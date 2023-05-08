@@ -28,9 +28,8 @@ def standings(request):
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contact_set = None
-    finally:
-        organization = BaseConfig.standings_source_entity()
-        last_update = contact_set.date if contact_set else None
+    organization = BaseConfig.standings_source_entity()
+    last_update = contact_set.date if contact_set else None
     context = {
         "lastUpdate": last_update,
         "organization": organization,

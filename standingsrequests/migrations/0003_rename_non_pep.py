@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("standingsrequests", "0002_contactlabel_labelid_bigintegerfield"),
     ]

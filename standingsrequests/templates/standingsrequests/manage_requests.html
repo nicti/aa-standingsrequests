@@ -9,7 +9,7 @@
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
         <li role="presentation">
             <a href="#tab-requests" aria-controls="tab-requests" role="tab" data-toggle="tab">
-                Open Requests
+                {% translate "Open Requests" %}
                 {% if requests_count > 0 %}
                     &nbsp;<span class="badge badge-nav alert-info">
                         {{ requests_count }}
@@ -19,7 +19,7 @@
         </li>
         <li role="presentation">
             <a href="#tab-revocations" aria-controls="tab-revocations" role="tab" data-toggle="tab">
-                Open Revocations
+                {% translate "Open Revocations" %}
                 {% if revocations_count > 0 %}
                     &nbsp;<span class="badge badge-nav alert-info">
                         {{ revocations_count }}
@@ -29,7 +29,7 @@
         </li>
         <li role="presentation">
             <a href="#tab-effective-requests" aria-controls="tab-effective-requests" role="tab" data-toggle="tab">
-                Effective Requests
+                {% translate "Effective Requests" %}
             </a>
         </li>
     </ul>
@@ -45,7 +45,9 @@
                         {% include "standingsrequests/partials/spinner.html" %}
                     </div>
                     <p class="text-muted">
-                        Standing requests with pending action for <strong>{{organization.name}}</strong>
+                        {% blocktranslate with organization_name=organization.name %}
+                            Standing requests with pending action for {{ organization_name }}
+                        {% endblocktranslate %}
                     </p>
                 </div>
 
@@ -56,13 +58,19 @@
                         {% include "standingsrequests/partials/spinner.html" %}
                     </div>
                     <p class="text-muted">
-                        Standing revocations with pending action for <strong>{{organization.name}}</strong>
+                        {% blocktranslate with organization_name=organization.name %}
+                            Standing revocations with pending action for {{ organization_name }}
+                        {% endblocktranslate %}
                     </p>
                 </div>
 
                 <div role="tabpanel" class="tab-pane" id="tab-effective-requests">
                     {% include "standingsrequests/partials/tbl_effective_requests.html" %}
-                    <p class="text-muted">Currently effective standing requests for <strong>{{organization.name}}</strong> • This data is cached</p>
+                    <p class="text-muted">
+                        {% blocktranslate with organization_name=organization.name %}
+                            Currently effective standing requests for {{ organization_name }} • This data is cached
+                        {% endblocktranslate %}
+                    </p>
                 </div>
 
 

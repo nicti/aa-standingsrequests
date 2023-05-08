@@ -251,20 +251,22 @@ def request_character_standing(request, character_id: int):
         if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
             messages.error(
                 request,
-                "You character %s is missing scopes."
+                _("You character %s is missing scopes.")
                 % EveEntity.objects.resolve_name(character_id),
             )
         elif error is CreateCharacterRequestError.USER_IS_NOT_OWNER:
             messages.error(
                 request,
-                "You are not the owner of character %s."
+                _("You are not the owner of character %s.")
                 % EveEntity.objects.resolve_name(character_id),
             )
         else:
             messages.error(
                 request,
-                "An unexpected error occurred when trying to process "
-                "your standing request for %s. Please try again."
+                _(
+                    "An unexpected error occurred when trying to process "
+                    "your standing request for %s. Please try again."
+                )
                 % EveEntity.objects.resolve_name(character_id),
             )
     else:
@@ -288,8 +290,10 @@ def remove_character_standing(request, character_id: int):
     if not success:
         messages.warning(
             request,
-            "An unexpected error occurred when trying to process "
-            "your request to revoke standing for %s. Please try again."
+            _(
+                "An unexpected error occurred when trying to process "
+                "your request to revoke standing for %s. Please try again."
+            )
             % EveEntity.objects.resolve_name(character_id),
         )
     return redirect("standingsrequests:create_requests")
@@ -310,8 +314,10 @@ def request_corp_standing(request, corporation_id):
     ):
         messages.warning(
             request,
-            "An unexpected error occurred when trying to process "
-            "your standing request for %s. Please try again."
+            _(
+                "An unexpected error occurred when trying to process "
+                "your standing request for %s. Please try again."
+            )
             % EveEntity.objects.resolve_name(corporation_id),
         )
     else:
@@ -337,8 +343,10 @@ def remove_corp_standing(request, corporation_id: int):
     if not success:
         messages.warning(
             request,
-            "An unexpected error occurred when trying to process "
-            "your request to revoke standing for %s. Please try again."
+            _(
+                "An unexpected error occurred when trying to process "
+                "your request to revoke standing for %s. Please try again."
+            )
             % EveEntity.objects.resolve_name(corporation_id),
         )
     return redirect("standingsrequests:create_requests")
@@ -369,11 +377,14 @@ def view_auth_page(request, token):
             request,
             format_html(
                 _(
-                    "Token for character <strong>%s</strong> has been setup "
+                    "Token for character %(user_character)s has been setup "
                     "successfully and the app has started pulling standings "
-                    "from <strong>%s</strong>."
+                    "from %(standings_character)s."
                 )
-                % (char_name, source_entity.name),
+                % {
+                    "user_character": char_name,
+                    "standings_character": source_entity.name,
+                },
             ),
         )
     else:

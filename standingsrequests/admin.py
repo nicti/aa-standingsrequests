@@ -135,6 +135,5 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     def has_add_permission(self, *args, **kwargs):
         return False
 
-    # TODO: enable for production
-    # def has_delete_permission(self, *args, **kwargs) -> bool:
-    #     return False
+    def has_delete_permission(self, *args, **kwargs) -> bool:
+        return False

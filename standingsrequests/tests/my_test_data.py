@@ -212,7 +212,6 @@ def get_test_contacts():
 
 
 def create_contacts_set(my_set: ContactSet = None, include_assoc=True) -> ContactSet:
-
     if not my_set:
         my_set = ContactSet.objects.create(name="Dummy Set")
 

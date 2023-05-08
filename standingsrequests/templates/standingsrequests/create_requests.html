@@ -5,19 +5,22 @@
 {% block details %}
     <h2>{% translate "My Requests" %}</h2>
     <p class="text-muted">
-        On this page you can create requests to <strong>get standing</strong> or <strong>revoke standing</strong> with <strong>{{ organization.name }}</strong> for your alts. If you are missing an alt, please add it first on the dashboard.
+        {% blocktranslate with organization_name=organization.name %}
+            On this page you can create requests to get standing or revoke standing with {{ organization_name }} for your alts.
+            If you are missing an alt, please add it first on the dashboard.
+        {% endblocktranslate %}
     </p>
 
     <ul id="myTabs" class="nav nav-tabs" role="tablist">
         <li role="presentation" class="active">
             <a href="#tab-characters" aria-controls="tab-characters" role="tab" data-toggle="tab">
-                My Characters
+                {% translate "My Characters" %}
             </a>
         </li>
         {% if corporations_enabled %}
             <li role="presentation">
                 <a href="#tab-corporations" aria-controls="tab-corporations" role="tab" data-toggle="tab">
-                    My Corporations
+                    {% translate "My Corporations" %}
                 </a>
             </li>
         {% endif %}
