@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-05-08 20:32+0200\n"
+"POT-Creation-Date: 2023-05-08 20:55+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -122,7 +122,7 @@ msgstr ""
 msgid ""
 "\n"
 "            On this page you can create requests to get standing or revoke "
-"standing with %(organization_name)s for your alts. \n"
+"standing with %(organization_name)s for your alts.\n"
 "            If you are missing an alt, please add it first on the "
 "dashboard.\n"
 "        "
@@ -520,7 +520,31 @@ msgid ""
 "when completed."
 msgstr ""
 
-#: views/create_requests.py:358
+#: views/create_requests.py:254
+#, python-format
+msgid "You character %s is missing scopes."
+msgstr ""
+
+#: views/create_requests.py:260
+#, python-format
+msgid "You are not the owner of character %s."
+msgstr ""
+
+#: views/create_requests.py:267 views/create_requests.py:318
+#, python-format
+msgid ""
+"An unexpected error occurred when trying to process your standing request "
+"for %s. Please try again."
+msgstr ""
+
+#: views/create_requests.py:294 views/create_requests.py:347
+#, python-format
+msgid ""
+"An unexpected error occurred when trying to process your request to revoke "
+"standing for %s. Please try again."
+msgstr ""
+
+#: views/create_requests.py:366
 #, python-format
 msgid ""
 "The configured character <strong>%s</strong> does not belong to an alliance "
@@ -528,14 +552,14 @@ msgid ""
 "a character that has an alliance."
 msgstr ""
 
-#: views/create_requests.py:372
+#: views/create_requests.py:380
 #, python-format
 msgid ""
-"Token for character <strong>%s</strong> has been setup successfully and the "
-"app has started pulling standings from <strong>%s</strong>."
+"Token for character %(user_character)s has been setup successfully and the "
+"app has started pulling standings from %(standings_character)s."
 msgstr ""
 
-#: views/create_requests.py:383
+#: views/create_requests.py:394
 #, python-format
 msgid ""
 "Failed to setup token for configured character %(char_name)s (id:"
@@ -543,7 +567,7 @@ msgid ""
 "%(token_char_name)s (id:%(token_char_id)s)"
 msgstr ""
 
-#: views/create_requests.py:404
+#: views/create_requests.py:415
 #, python-format
 msgid "Successfully added token with required scopes for %(char_name)s"
 msgstr ""
