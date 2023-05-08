@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("standingsrequests", "0007_big_performance_overhaul"),
     ]

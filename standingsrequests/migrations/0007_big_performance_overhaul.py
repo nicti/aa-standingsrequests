@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("eveuniverse", "0005_type_materials_and_sections"),
         ("eveonline", "0014_auto_20210105_1413"),

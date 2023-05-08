@@ -8,7 +8,6 @@ import standingsrequests.models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("authentication", "0019_merge_20211026_0919"),
