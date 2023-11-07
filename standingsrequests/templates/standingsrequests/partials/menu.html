@@ -29,11 +29,13 @@
                 </li>
                 {% endif %}
 
+                {% if perms.standingsrequests.affect_standings %}
                 <li class="{% navactive request 'standingsrequests:standings' %}">
                     <a href="{% url 'standingsrequests:standings' %}">
                         {{ operation_mode|capfirst }} {% translate "Standings" %}
                     </a>
                 </li>
+                {% endif %}
 
             </ul>
              <ul class="nav navbar-nav navbar-right">

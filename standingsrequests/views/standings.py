@@ -22,7 +22,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required("standingsrequests.affect_standings")
 def standings(request):
     try:
         contact_set = ContactSet.objects.latest()
@@ -44,7 +44,7 @@ def standings(request):
 
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required("standingsrequests.affect_standings")
 def character_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
@@ -213,7 +213,7 @@ def download_pilot_standings(request):
 
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required("standingsrequests.affect_standings")
 def corporation_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
@@ -323,7 +323,7 @@ def _identify_corporation_main(standings_requests, contact):
 
 @cache_page(SR_PAGE_CACHE_SECONDS)
 @login_required
-@permission_required("standingsrequests.request_standings")
+@permission_required("standingsrequests.affect_standings")
 def alliance_standings_data(request):
     try:
         contacts = ContactSet.objects.latest()
