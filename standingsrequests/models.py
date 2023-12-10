@@ -372,11 +372,14 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
+        if type(self) is AbstractStandingsRequest:
+            raise RuntimeError("Can not be called from abstract")
+
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
         self.action_date = date if date else now()
         if reason:
-            self.reason = reason
+            self.reason = reason  # pylint: disable = attribute-defined-outside-init
         self.save()
 
     def check_actioned_timeout(self):

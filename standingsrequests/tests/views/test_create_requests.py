@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.http import Http404
-from django.test import RequestFactory, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from esi.models import Token
 
@@ -240,7 +240,7 @@ class TestViewsBasics(TestViewPagesBase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-class TestRequestCharacterStanding(NoSocketsTestCase):
+class TestRequestCharacterStanding(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -456,7 +456,7 @@ class TestRemoveCharacterStanding(NoSocketsTestCase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
-class TestRequestCorporationStanding(NoSocketsTestCase):
+class TestRequestCorporationStanding(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
