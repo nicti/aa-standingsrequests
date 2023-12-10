@@ -13,15 +13,16 @@ from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
-from .. import tasks
-from ..core import ContactType
-from ..models import (
+from standingsrequests import tasks
+from standingsrequests.core import ContactType
+from standingsrequests.models import (
     Contact,
     ContactSet,
     RequestLogEntry,
     StandingRequest,
     StandingRevocation,
 )
+
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,

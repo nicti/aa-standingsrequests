@@ -1,6 +1,6 @@
 from allianceauth.eveonline.evelinks import eveimageserver
 
-from ..models import CharacterAffiliation
+from standingsrequests.models import CharacterAffiliation
 
 
 class EveCharacterHelper:

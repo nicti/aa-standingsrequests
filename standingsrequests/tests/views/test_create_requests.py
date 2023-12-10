@@ -21,9 +21,7 @@ from standingsrequests.models import (
     StandingRequest,
     StandingRevocation,
 )
-from standingsrequests.views import create_requests
-
-from ..my_test_data import (
+from standingsrequests.tests.my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
     TestViewPagesBase,
@@ -36,6 +34,7 @@ from ..my_test_data import (
     get_my_test_data,
     load_eve_entities,
 )
+from standingsrequests.views import create_requests
 
 CORE_PATH = "standingsrequests.core"
 MODELS_PATH = "standingsrequests.models"

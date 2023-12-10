@@ -4,8 +4,9 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
 
-from .. import tasks
-from ..models import ContactSet
+from standingsrequests import tasks
+from standingsrequests.models import ContactSet
+
 from .my_test_data import create_contacts_set
 
 MODULE_PATH = "standingsrequests.tasks"

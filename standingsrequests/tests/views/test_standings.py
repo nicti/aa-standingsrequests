@@ -10,15 +10,14 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
 from standingsrequests.models import CharacterAffiliation, ContactType, StandingRequest
-from standingsrequests.views import standings
-
-from ..my_test_data import (
+from standingsrequests.tests.my_test_data import (
     create_contacts_set,
     create_eve_objects,
     load_corporation_details,
     load_eve_entities,
 )
-from ..utils import PartialDictEqualMixin, json_response_to_dict_2
+from standingsrequests.tests.utils import PartialDictEqualMixin, json_response_to_dict_2
+from standingsrequests.views import standings
 
 TEST_SCOPE = "publicData"
 MODULE_PATH = "standingsrequests.views.standings"

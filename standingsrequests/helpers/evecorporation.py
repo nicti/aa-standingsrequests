@@ -71,7 +71,7 @@ class EveCorporation:
         - user: user owning the characters
         - quick: if True will not check if tokens are valid to save time
         """
-        from ..models import StandingRequest
+        from standingsrequests.models import StandingRequest
 
         return sum(
             [

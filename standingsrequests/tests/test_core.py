@@ -5,7 +5,8 @@ from django.test import TestCase
 from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
-from ..core import BaseConfig, ContactType
+from standingsrequests.core import BaseConfig, ContactType
+
 from .entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_ACHURA_TYPE_ID,

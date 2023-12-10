@@ -7,7 +7,8 @@ from esi.models import CallbackRedirect, Token
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import _generate_token, _store_as_Token, generate_invalid_pk
 
-from ..decorators import token_required_by_state
+from standingsrequests.decorators import token_required_by_state
+
 from .my_test_data import create_eve_objects
 
 MODULE_PATH = "standingsrequests.decorators"

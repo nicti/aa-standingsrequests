@@ -15,9 +15,9 @@ from app_utils.testing import (
     add_new_token,
 )
 
-from ..core import MainOrganizations
-from ..helpers.evecorporation import EveCorporation
-from ..models import (
+from standingsrequests.core import MainOrganizations
+from standingsrequests.helpers.evecorporation import EveCorporation
+from standingsrequests.models import (
     AbstractStandingsRequest,
     CharacterAffiliation,
     Contact,
@@ -26,6 +26,7 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
+
 from .entity_type_ids import CHARACTER_BRUTOR_TYPE_ID, CHARACTER_TYPE_ID
 from .my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,

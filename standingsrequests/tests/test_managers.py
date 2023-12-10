@@ -12,8 +12,8 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase, add_character_to_user, create_fake_user
 
-from ..core import BaseConfig
-from ..models import (
+from standingsrequests.core import BaseConfig
+from standingsrequests.models import (
     AbstractStandingsRequest,
     CharacterAffiliation,
     Contact,
@@ -25,6 +25,7 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
+
 from .entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
 from .my_test_data import (
     TEST_STANDINGS_API_CHARID,
