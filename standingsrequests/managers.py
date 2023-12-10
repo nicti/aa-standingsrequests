@@ -22,7 +22,7 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .constants import CreateCharacterRequestError, OperationMode
-from .core.config import BaseConfig
+from .core import app_config
 from .core.contact_types import ContactType
 from .providers import esi
 
@@ -36,7 +36,7 @@ class ContactSetManager(models.Manager):
 
         Returns new ContactSet on success, else None
         """
-        owner_character = BaseConfig.owner_character()
+        owner_character = app_config.owner_character()
         token = (
             Token.objects.filter(character_id=owner_character.character_id)
             .require_scopes(self.model.required_esi_scope())
@@ -134,7 +134,7 @@ class _ContactsWrapper:
         self.contacts = []
         self.labels = []
 
-        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
+        if app_config.operation_mode() is OperationMode.ALLIANCE:
             if not owner_character.alliance_id:
                 raise RuntimeError(
                     "{owner_character}: owner character is not a member of an alliance"
@@ -149,7 +149,7 @@ class _ContactsWrapper:
                 token=token.valid_access_token(),
             ).results()
 
-        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
+        elif app_config.operation_mode() is OperationMode.CORPORATION:
             labels = (
                 esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
                     corporation_id=owner_character.corporation_id,
@@ -225,7 +225,7 @@ class AbstractStandingsRequestManager(models.Manager):
         if self.model is AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
-        organization = BaseConfig.standings_source_entity()
+        organization = app_config.standings_source_entity()
         organization_name = organization.name if organization else ""
         for standing_request in self.all():
             contact, dummy = EveEntity.objects.get_or_create_esi(

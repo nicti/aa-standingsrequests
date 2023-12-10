@@ -11,7 +11,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_NOTIFICATIONS_ENABLED
 from standingsrequests.constants import DATETIME_FORMAT_HTML
-from standingsrequests.core.config import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.models import (
     RequestLogEntry,
     StandingRequest,
@@ -27,7 +27,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
     context = {
-        "organization": BaseConfig.standings_source_entity(),
+        "organization": app_config.standings_source_entity(),
         "requests_count": StandingRequest.objects.pending_requests().count(),
         "revocations_count": StandingRevocation.objects.pending_requests().count(),
     }

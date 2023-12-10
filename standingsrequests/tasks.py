@@ -13,7 +13,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
-from .core.config import BaseConfig
+from .core import app_config
 from .models import (
     CharacterAffiliation,
     Contact,
@@ -49,7 +49,7 @@ def report_result_to_user(user_pk: int = None):
             logger.warning("Can not find a user with pk %d", user_pk)
             return
 
-        source_entity = BaseConfig.standings_source_entity()
+        source_entity = app_config.standings_source_entity()
         notify(
             user,
             _("%s: Standings loaded") % __title__,

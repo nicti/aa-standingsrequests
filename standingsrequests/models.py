@@ -20,7 +20,7 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
 from .constants import OperationMode
-from .core.config import BaseConfig, MainOrganizations
+from .core import app_config
 from .core.contact_types import ContactType
 from .helpers.evecorporation import EveCorporation
 from .managers import (
@@ -89,7 +89,7 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not MainOrganizations.is_character_a_member(alt)
+                not app_config.MainOrganizations.is_character_a_member(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
@@ -125,10 +125,10 @@ class ContactSet(models.Model):
     @staticmethod
     def required_esi_scope() -> str:
         """returns the required ESI scopes for syncing"""
-        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
+        if app_config.operation_mode() is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
 
-        if BaseConfig.operation_mode is OperationMode.CORPORATION:
+        if app_config.operation_mode() is OperationMode.CORPORATION:
             return "esi-corporations.read_contacts.v1"
 
         raise NotImplementedError()
@@ -478,7 +478,7 @@ class StandingRequest(AbstractStandingsRequest):
             character = EveCharacter.objects.get(character_id=self.contact_id)
         except EveCharacter.DoesNotExist:
             return False
-        if MainOrganizations.is_character_a_member(character):
+        if app_config.MainOrganizations.is_character_a_member(character):
             logger.warning(
                 "%s: Character %s of user %s is in organization. Can not remove standing",
                 self,

@@ -25,7 +25,7 @@ TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(
-    "standingsrequests.core.config.STR_ALLIANCE_IDS",
+    "standingsrequests.core.app_config.STR_ALLIANCE_IDS",
     [str(TEST_STANDINGS_ALLIANCE_ID)],
 )
 @patch(

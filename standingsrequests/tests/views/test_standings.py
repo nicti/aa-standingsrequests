@@ -24,7 +24,7 @@ TEST_SCOPE = "publicData"
 MODULE_PATH = "standingsrequests.views.standings"
 
 
-@patch("standingsrequests.core.config.STANDINGS_API_CHARID", 1001)
+@patch("standingsrequests.core.app_config.STANDINGS_API_CHARID", 1001)
 class TestStandingsView(TestCase):
     @classmethod
     def setUpClass(cls):

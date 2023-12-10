@@ -13,7 +13,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_CORPORATIONS_ENABLED
 from standingsrequests.constants import CreateCharacterRequestError
-from standingsrequests.core.config import BaseConfig, MainOrganizations
+from standingsrequests.core import app_config
 from standingsrequests.decorators import token_required_by_state
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import ContactSet, StandingRequest, StandingRevocation
@@ -41,7 +41,7 @@ def index_view(request):
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 def create_requests(request):
-    organization = BaseConfig.standings_source_entity()
+    organization = app_config.standings_source_entity()
     try:
         main_char_id = request.user.profile.main_character.character_id
     except AttributeError:
@@ -127,7 +127,9 @@ def request_characters(request):
                 "pendingRequest": has_pending_request,
                 "pendingRevocation": has_pending_revocation,
                 "requestActioned": has_actioned_request,
-                "inOrganisation": MainOrganizations.is_character_a_member(character),
+                "inOrganisation": app_config.MainOrganizations.is_character_a_member(
+                    character
+                ),
                 "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
                     character, user=request.user, quick_check=True
                 ),
@@ -158,8 +160,10 @@ def request_corporations(request):
         character_ownership__user=request.user
     ).select_related("character_ownership__user")
     corporation_ids = set(
-        eve_characters_qs.exclude(corporation_id__in=MainOrganizations.corporation_ids)
-        .exclude(alliance_id__in=MainOrganizations.alliance_ids)
+        eve_characters_qs.exclude(
+            corporation_id__in=app_config.MainOrganizations.corporation_ids
+        )
+        .exclude(alliance_id__in=app_config.MainOrganizations.alliance_ids)
         .values_list("corporation_id", flat=True)
     )
     corporations_standing_requests = {
@@ -356,8 +360,9 @@ def remove_corp_standing(request, corporation_id: int):
 @permission_required("standingsrequests.affect_standings")
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
 def view_auth_page(request, token):
-    source_entity = BaseConfig.standings_source_entity()
-    char_name = EveEntity.objects.resolve_name(BaseConfig.owner_character_id)
+    source_entity = app_config.standings_source_entity()
+    owner_character_id = app_config.owner_character_id()
+    char_name = EveEntity.objects.resolve_name(owner_character_id)
     if not source_entity:
         messages.error(
             request,
@@ -371,7 +376,8 @@ def view_auth_page(request, token):
                 % char_name,
             ),
         )
-    elif token.character_id == BaseConfig.owner_character_id:
+
+    elif token.character_id == owner_character_id:
         update_all.delay(user_pk=request.user.pk)
         messages.success(
             request,
@@ -387,6 +393,7 @@ def view_auth_page(request, token):
                 },
             ),
         )
+
     else:
         messages.error(
             request,
@@ -398,7 +405,7 @@ def view_auth_page(request, token):
             )
             % {
                 "char_name": char_name,
-                "standings_api_char_id": BaseConfig.owner_character_id,
+                "standings_api_char_id": owner_character_id,
                 "token_char_name": EveEntity.objects.resolve_name(token.character_id),
                 "token_char_id": token.character_id,
             },

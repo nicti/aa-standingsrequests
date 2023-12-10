@@ -15,7 +15,7 @@ from app_utils.testing import (
     add_new_token,
 )
 
-from standingsrequests.core.config import MainOrganizations
+from standingsrequests.core.app_config import MainOrganizations
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import (
     AbstractStandingsRequest,
@@ -54,23 +54,23 @@ class TestContactSet(TestCase):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
 
-    @patch(CORE_PATH + ".config.STR_CORP_IDS", ["2001"])
-    @patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", ["2001"])
+    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [])
     def test_pilot_in_organization_matches_corp(self):
         self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(CORE_PATH + ".config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", ["3001"])
+    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", ["3001"])
     def test_pilot_in_organization_matches_alliance(self):
         self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(CORE_PATH + ".config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [3101])
+    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [3101])
     def test_pilot_in_organization_doest_not_exist(self):
         self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
-    @patch(CORE_PATH + ".config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [])
+    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
+    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [])
     def test_pilot_in_organization_matches_none(self):
         self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
@@ -113,7 +113,7 @@ class TestContactSetCreateStanding(TestCase):
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     @classmethod
     def setUpClass(cls):

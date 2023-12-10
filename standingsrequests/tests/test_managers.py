@@ -12,7 +12,7 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase, add_character_to_user, create_fake_user
 
-from standingsrequests.core.config import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.models import (
     AbstractStandingsRequest,
     CharacterAffiliation,
@@ -57,8 +57,8 @@ class TestContactSetManager(NoSocketsTestCase):
             cls.user, character, scopes=["esi-alliances.read_contacts.v1"]
         )
 
-    @patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    @patch(CORE_PATH + ".config.SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "alliance")
     @patch(MANAGERS_PATH + ".esi")
     def test_can_create_new_from_api(self, mock_esi):
         mock_Contacts = mock_esi.client.Contacts
@@ -97,12 +97,12 @@ class TestContactSetManager(NoSocketsTestCase):
         }
         self.assertSetEqual(all_contacts, expected)
 
-    @patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
         character = create_standings_char()
-        self.assertEqual(BaseConfig.owner_character(), character)
+        self.assertEqual(app_config.owner_character(), character)
 
-    @patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(MODELS_PATH + ".EveCharacter.objects.create_character")
     def test_standings_character_not_exists(self, mock_create_character):
         character, _ = EveCharacter.objects.get_or_create(
@@ -114,7 +114,7 @@ class TestContactSetManager(NoSocketsTestCase):
             },
         )
         mock_create_character.return_value = character
-        self.assertEqual(BaseConfig.owner_character(), character)
+        self.assertEqual(app_config.owner_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
@@ -157,7 +157,7 @@ class TestAbstractStandingsRequestManager(TestCase):
 
 
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODELS_PATH + ".SR_STANDING_TIMEOUT_HOURS", 24)
 @patch(MANAGERS_PATH + ".notify")
 class TestAbstractStandingsRequestProcessRequests(TestCase):

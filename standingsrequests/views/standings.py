@@ -12,7 +12,7 @@ from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
-from standingsrequests.core.config import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.core.contact_types import ContactType
 from standingsrequests.helpers.writers import UnicodeWriter
 from standingsrequests.models import ContactSet, StandingRequest
@@ -29,7 +29,7 @@ def standings(request):
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contact_set = None
-    organization = BaseConfig.standings_source_entity()
+    organization = app_config.standings_source_entity()
     last_update = contact_set.date if contact_set else None
     context = {
         "lastUpdate": last_update,

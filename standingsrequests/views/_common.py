@@ -5,7 +5,7 @@ from allianceauth.eveonline.models import EveCharacter
 
 from standingsrequests import __title__
 from standingsrequests.constants import DATETIME_FORMAT_HTML
-from standingsrequests.core.config import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.core.contact_types import ContactType
 from standingsrequests.helpers.evecharacter import EveCharacterHelper
 from standingsrequests.helpers.evecorporation import EveCorporation
@@ -31,7 +31,7 @@ def add_common_context(request, context: dict) -> dict:
     new_context = {
         **{
             "app_title": __title__,
-            "operation_mode": str(BaseConfig.operation_mode),
+            "operation_mode": str(app_config.operation_mode()),
             "pending_total_count": (
                 StandingRequest.objects.pending_requests().count()
                 + StandingRevocation.objects.pending_requests().count()

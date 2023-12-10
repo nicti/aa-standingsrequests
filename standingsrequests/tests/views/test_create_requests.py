@@ -43,7 +43,7 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 VIEWS_PATH = "standingsrequests.views.create_requests"
 
 
-@patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(VIEWS_PATH + ".update_all")
 @patch(VIEWS_PATH + ".messages")
 class TestViewAuthPage(NoSocketsTestCase):
@@ -65,7 +65,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         orig_view = create_requests.view_auth_page.__wrapped__.__wrapped__.__wrapped__
         return orig_view(request, token)
 
-    @patch(CORE_PATH + ".config.SR_OPERATION_MODE", "corporation")
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "corporation")
     def test_for_corp_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -81,7 +81,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(CORE_PATH + ".config.SR_OPERATION_MODE", "corporation")
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "corporation")
     def test_when_not_provided_standingschar_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -95,7 +95,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertTrue(mock_messages.error.called)
         self.assertFalse(mock_update_all.delay.called)
 
-    @patch(CORE_PATH + ".config.SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_return_success(
         self, mock_messages, mock_update_all
     ):
@@ -107,7 +107,7 @@ class TestViewAuthPage(NoSocketsTestCase):
         self.assertFalse(mock_messages.error.called)
         self.assertTrue(mock_update_all.delay.called)
 
-    @patch(CORE_PATH + ".config.SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "alliance")
     def test_for_alliance_when_provided_standingschar_not_in_alliance_return_error(
         self, mock_messages, mock_update_all
     ):
@@ -126,7 +126,7 @@ class TestViewAuthPage(NoSocketsTestCase):
     "allianceauth.notifications.templatetags.auth_notifications.Notification.objects.user_unread_count",
     lambda *args, **kwargs: 1,
 )
-@patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
 @patch(HELPERS_EVECORPORATION_PATH + ".esi")
 class TestViewsBasics(TestViewPagesBase):
@@ -368,8 +368,8 @@ class TestRequestCharacterStanding(TestCase):
         )
 
 
-@patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [3001])
-@patch(CORE_PATH + ".config.SR_OPERATION_MODE", "alliance")
+@patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [3001])
+@patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "alliance")
 class TestRemoveCharacterStanding(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
