@@ -21,7 +21,7 @@ from standingsrequests.models import (
     StandingRequest,
     StandingRevocation,
 )
-from standingsrequests.tests.my_test_data import (
+from standingsrequests.tests.testdata.my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
     TestViewPagesBase,

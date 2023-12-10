@@ -5,7 +5,7 @@ from django.urls import reverse
 from allianceauth.eveonline.models import EveCharacter
 
 from standingsrequests.models import StandingRequest, StandingRevocation
-from standingsrequests.tests.my_test_data import (
+from standingsrequests.tests.testdata.my_test_data import (
     TestViewPagesBase,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,

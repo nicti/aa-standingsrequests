@@ -30,8 +30,7 @@ from standingsrequests.models import (
     StandingRequest,
     StandingRevocation,
 )
-
-from .utils import PartialDictEqualMixin
+from standingsrequests.tests.utils import PartialDictEqualMixin
 
 TEST_STANDINGS_API_CHARID = 1001
 TEST_STANDINGS_API_CHARNAME = "Bruce Wayne"

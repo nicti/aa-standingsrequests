@@ -11,7 +11,7 @@ from app_utils.testing import add_character_to_user
 
 from standingsrequests.models import StandingRequest
 
-from .my_test_data import (
+from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     create_contacts_set,
     create_entity,

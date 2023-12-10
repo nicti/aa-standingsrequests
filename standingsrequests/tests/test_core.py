@@ -7,7 +7,7 @@ from app_utils.testing import NoSocketsTestCase
 
 from standingsrequests.core import BaseConfig, ContactType
 
-from .entity_type_ids import (
+from .testdata.entity_type_ids import (
     ALLIANCE_TYPE_ID,
     CHARACTER_ACHURA_TYPE_ID,
     CHARACTER_BRUTOR_TYPE_ID,
@@ -26,7 +26,7 @@ from .entity_type_ids import (
     CHARACTER_VHEROKIOR_TYPE_ID,
     CORPORATION_TYPE_ID,
 )
-from .my_test_data import create_entity, load_eve_entities
+from .testdata.my_test_data import create_entity, load_eve_entities
 
 MODULE_PATH = "standingsrequests.core"
 

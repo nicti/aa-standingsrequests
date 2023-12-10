@@ -7,7 +7,7 @@ from django.utils.timezone import now
 from standingsrequests import tasks
 from standingsrequests.models import ContactSet
 
-from .my_test_data import create_contacts_set
+from .testdata.my_test_data import create_contacts_set
 
 MODULE_PATH = "standingsrequests.tasks"
 

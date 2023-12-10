@@ -23,7 +23,7 @@ from standingsrequests.models import (
     StandingRevocation,
 )
 
-from .my_test_data import (
+from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,
     create_contacts_set,

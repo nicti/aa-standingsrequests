@@ -2,7 +2,7 @@ from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
 from standingsrequests.helpers.evecharacter import EveCharacterHelper
-from standingsrequests.tests.my_test_data import (
+from standingsrequests.tests.testdata.my_test_data import (
     create_contacts_set,
     create_entity,
     generate_eve_entities_from_allianceauth,

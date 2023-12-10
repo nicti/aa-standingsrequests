@@ -9,7 +9,7 @@ from app_utils.testing import _generate_token, _store_as_Token, generate_invalid
 
 from standingsrequests.decorators import token_required_by_state
 
-from .my_test_data import create_eve_objects
+from .testdata.my_test_data import create_eve_objects
 
 MODULE_PATH = "standingsrequests.decorators"
 PATH_MODELS = "standingsrequests.models"
