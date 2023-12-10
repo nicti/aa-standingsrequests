@@ -13,7 +13,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_CORPORATIONS_ENABLED
 from standingsrequests.constants import CreateCharacterRequestError
-from standingsrequests.core import BaseConfig, MainOrganizations
+from standingsrequests.core.config import BaseConfig, MainOrganizations
 from standingsrequests.decorators import token_required_by_state
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import ContactSet, StandingRequest, StandingRevocation

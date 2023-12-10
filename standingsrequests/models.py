@@ -20,7 +20,8 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
 from .constants import OperationMode
-from .core import BaseConfig, ContactType, MainOrganizations
+from .core.config import BaseConfig, MainOrganizations
+from .core.contact_types import ContactType
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
@@ -372,8 +373,9 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
-        # pylint: disable unidiomatic-typecheck
-        if type(self) is AbstractStandingsRequest:
+        if (
+            type(self) is AbstractStandingsRequest
+        ):  # pylint: disable unidiomatic-typecheck
             raise RuntimeError("Can not be called from abstract")
 
         logger.debug("Marking standing for %d as actioned", self.contact_id)

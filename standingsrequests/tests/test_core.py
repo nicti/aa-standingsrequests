@@ -5,7 +5,8 @@ from django.test import TestCase
 from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
-from standingsrequests.core import BaseConfig, ContactType
+from standingsrequests.core.config import BaseConfig
+from standingsrequests.core.contact_types import ContactType
 
 from .testdata.entity_type_ids import (
     ALLIANCE_TYPE_ID,
@@ -84,7 +85,7 @@ class TestContactType(TestCase):
         self.assertFalse(ContactType.is_alliance(0))
 
 
-@patch(MODULE_PATH + ".STANDINGS_API_CHARID", 1001)
+@patch(MODULE_PATH + ".config.STANDINGS_API_CHARID", 1001)
 class TestBaseConfig(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -99,7 +100,7 @@ class TestBaseConfig(NoSocketsTestCase):
         # then
         self.assertEqual(character, owner_character)
 
-    @patch(MODULE_PATH + ".EveCharacter.objects.create_character")
+    @patch(MODULE_PATH + ".config.EveCharacter.objects.create_character")
     def test_create_new_character_if_not_exists(self, mock_create_character):
         # given
         character = create_entity(EveCharacter, 1002)
@@ -109,7 +110,7 @@ class TestBaseConfig(NoSocketsTestCase):
         # then
         self.assertEqual(character, owner_character)
 
-    @patch(MODULE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(MODULE_PATH + ".config.SR_OPERATION_MODE", "alliance")
     def test_should_return_alliance(self):
         # given
         create_entity(EveCharacter, 1001)
@@ -118,7 +119,7 @@ class TestBaseConfig(NoSocketsTestCase):
         # then
         self.assertEqual(result.id, 3001)
 
-    @patch(MODULE_PATH + ".SR_OPERATION_MODE", "corporation")
+    @patch(MODULE_PATH + ".config.SR_OPERATION_MODE", "corporation")
     def test_should_return_corporation(self):
         # given
         create_entity(EveCharacter, 1001)

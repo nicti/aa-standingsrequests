@@ -9,7 +9,8 @@ from allianceauth.eveonline.models import EveAllianceInfo, EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
-from standingsrequests.models import CharacterAffiliation, ContactType, StandingRequest
+from standingsrequests.core.contact_types import ContactType
+from standingsrequests.models import CharacterAffiliation, StandingRequest
 from standingsrequests.tests.testdata.my_test_data import (
     create_contacts_set,
     create_eve_objects,
@@ -23,7 +24,7 @@ TEST_SCOPE = "publicData"
 MODULE_PATH = "standingsrequests.views.standings"
 
 
-@patch("standingsrequests.core.STANDINGS_API_CHARID", 1001)
+@patch("standingsrequests.core.config.STANDINGS_API_CHARID", 1001)
 class TestStandingsView(TestCase):
     @classmethod
     def setUpClass(cls):

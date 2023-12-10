@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.db.models import Count
 from eveuniverse.models import EveEntity
 
-from .core import ContactType
+from .core.contact_types import ContactType
 from .models import ContactSet, RequestLogEntry, StandingRequest, StandingRevocation
 
 

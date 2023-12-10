@@ -22,7 +22,8 @@ from app_utils.logging import LoggerAddTag
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .constants import CreateCharacterRequestError, OperationMode
-from .core import BaseConfig, ContactType
+from .core.config import BaseConfig
+from .core.contact_types import ContactType
 from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

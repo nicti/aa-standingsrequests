@@ -15,7 +15,7 @@ from allianceauth.eveonline.models import (
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user, response_text
 
-from standingsrequests.core import ContactType
+from standingsrequests.core.contact_types import ContactType
 from standingsrequests.models import Contact, StandingRequest
 from standingsrequests.tests.testdata.my_test_data import (
     TEST_SCOPE,

@@ -5,7 +5,8 @@ from allianceauth.eveonline.models import EveCharacter
 
 from standingsrequests import __title__
 from standingsrequests.constants import DATETIME_FORMAT_HTML
-from standingsrequests.core import BaseConfig, ContactType
+from standingsrequests.core.config import BaseConfig
+from standingsrequests.core.contact_types import ContactType
 from standingsrequests.helpers.evecharacter import EveCharacterHelper
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import ContactSet, StandingRequest, StandingRevocation

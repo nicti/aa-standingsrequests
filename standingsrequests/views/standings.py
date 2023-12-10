@@ -12,9 +12,10 @@ from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
-from standingsrequests.core import BaseConfig
+from standingsrequests.core.config import BaseConfig
+from standingsrequests.core.contact_types import ContactType
 from standingsrequests.helpers.writers import UnicodeWriter
-from standingsrequests.models import ContactSet, ContactType, StandingRequest
+from standingsrequests.models import ContactSet, StandingRequest
 
 from ._common import DEFAULT_ICON_SIZE, add_common_context, label_with_icon
 

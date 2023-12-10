@@ -11,7 +11,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
 from standingsrequests.constants import DATETIME_FORMAT_PY
-from standingsrequests.core import BaseConfig
+from standingsrequests.core.config import BaseConfig
 from standingsrequests.models import StandingRequest
 
 from ._common import add_common_context, compose_standing_requests_data

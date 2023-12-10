@@ -14,7 +14,7 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
 from standingsrequests import tasks
-from standingsrequests.core import ContactType
+from standingsrequests.core.contact_types import ContactType
 from standingsrequests.models import (
     Contact,
     RequestLogEntry,
@@ -46,9 +46,9 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".config.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
     csrf_checks = False
 

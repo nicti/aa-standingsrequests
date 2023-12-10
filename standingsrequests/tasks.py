@@ -13,7 +13,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
-from .core import BaseConfig
+from .core.config import BaseConfig
 from .models import (
     CharacterAffiliation,
     Contact,

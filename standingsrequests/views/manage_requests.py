@@ -11,7 +11,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_NOTIFICATIONS_ENABLED
 from standingsrequests.constants import DATETIME_FORMAT_HTML
-from standingsrequests.core import BaseConfig
+from standingsrequests.core.config import BaseConfig
 from standingsrequests.models import (
     RequestLogEntry,
     StandingRequest,
