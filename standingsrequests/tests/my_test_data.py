@@ -107,10 +107,10 @@ def get_entity_names(eve_entity_ids: list) -> dict:
 
 def get_entity_data(EntityClass: type, entity_id: int) -> object:
     if EntityClass not in [EveCharacter, EveCorporationInfo, EveAllianceInfo]:
-        raise TypeError("Invalid entity_class: {}".format(EntityClass.__name__))
+        raise TypeError(f"Invalid entity_class: {EntityClass.__name__}")
     if str(entity_id) not in _my_test_data[EntityClass.__name__]:
         raise ValueError(
-            "not entity found in test data for that entity_id = {}".format(entity_id)
+            f"not entity found in test data for that entity_id = {entity_id}"
         )
     return _my_test_data[EntityClass.__name__][str(entity_id)]
 

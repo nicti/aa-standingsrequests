@@ -1,3 +1,5 @@
+# pylint: disable = redefined-builtin
+
 from typing import Optional, Tuple
 
 from bravado.exception import HTTPError
@@ -254,8 +256,7 @@ class AbstractStandingsRequestManager(models.Manager):
                         if standing_request.user:
                             notify(
                                 user=standing_request.user,
-                                title="%s: Standing with %s revoked"
-                                % (__title__, contact.name),
+                                title=f"{__title__}: Standing with {contact.name} revoked",
                                 message=_(
                                     "'%(organization_name)s' no longer has "
                                     "standing with your "
@@ -289,7 +290,8 @@ class AbstractStandingsRequestManager(models.Manager):
                 # Effective standing no longer effective
                 logger.info(
                     "Standing for %d is marked as effective but is not "
-                    "satisfied in game. Deleting." % standing_request.contact_id
+                    "satisfied in game. Deleting.",
+                    standing_request.contact_id,
                 )
                 standing_request.delete(
                     reason=StandingRevocation.Reason.REVOKED_IN_GAME
@@ -302,7 +304,8 @@ class AbstractStandingsRequestManager(models.Manager):
                 if actioned_timeout is not None and actioned_timeout:
                     logger.info(
                         "Standing request for contact ID %d has timedout "
-                        "and will be reset" % standing_request.contact_id
+                        "and will be reset",
+                        standing_request.contact_id,
                     )
                     if SR_NOTIFICATIONS_ENABLED:
                         title = _("Standing Request for %s reset") % contact.name
@@ -530,9 +533,7 @@ class CharacterAffiliationManager(models.Manager):
             for obj in EveCharacter.objects.values("id", "character_id")
         }
         with transaction.atomic():
-            affiliations = [
-                obj for obj in self.filter(character_id__in=eve_character_id_map.keys())
-            ]
+            affiliations = self.filter(character_id__in=eve_character_id_map.keys())
             for affiliation in affiliations:
                 affiliation.eve_character_id = eve_character_id_map[
                     affiliation.character_id

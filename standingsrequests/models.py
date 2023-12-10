@@ -126,10 +126,11 @@ class ContactSet(models.Model):
         """returns the required ESI scopes for syncing"""
         if BaseConfig.operation_mode is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
-        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
+
+        if BaseConfig.operation_mode is OperationMode.CORPORATION:
             return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
+
+        raise NotImplementedError()
 
 
 class ContactLabel(models.Model):
@@ -299,17 +300,18 @@ class AbstractStandingsRequest(models.Model):
             return (
                 cls.EXPECT_STANDING_GTEQ <= float(standing) <= cls.EXPECT_STANDING_LTEQ
             )
-        else:
-            return False
+
+        return False
 
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
         if contact_type == cls.ContactType.CHARACTER:
             return ContactType.character_id
-        elif contact_type == cls.ContactType.CORPORATION:
+
+        if contact_type == cls.ContactType.CORPORATION:
             return ContactType.corporation_id
-        else:
-            raise ValueError("Invalid contact type")
+
+        raise ValueError("Invalid contact type")
 
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
@@ -437,9 +439,12 @@ class StandingRequest(AbstractStandingsRequest):
     OR a record representing that a character or corporation currently has standing
 
     Standing Requests (SR) can have one of 3 states:
-    - new: Newly created SRs represent a new request from a user. They are not actioned and not effective
-    - actionied: A standing manager marks a SR as actionied, once he has set the new standing in-game
-    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.
+    - new: Newly created SRs represent a new request from a user.
+        They are not actioned and not effective
+    - actionied: A standing manager marks a SR as actioned,
+        once he has set the new standing in-game
+    - effective: Once the new standing is returned from the API a SR is marked effective.
+        Effective SRs stay in database to represent that a user has standing.
     """
 
     EXPECT_STANDING_GTEQ = 0.01
@@ -601,6 +606,7 @@ class StandingRequest(AbstractStandingsRequest):
             state_name = user.profile.state.name
         except ObjectDoesNotExist:
             return False
+
         scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
         token_qs = Token.objects.filter(
             character_id=character.character_id

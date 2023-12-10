@@ -6,7 +6,7 @@ from . import __title__, __version__
 class StandingsRequestsConfig(AppConfig):
     name = "standingsrequests"
     label = "standingsrequests"
-    verbose_name = "%s v%s" % (__title__, __version__)
+    verbose_name = f"{__title__} v{__version__}"
 
     def ready(self):
         pass

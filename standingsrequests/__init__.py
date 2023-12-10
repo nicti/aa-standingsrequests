@@ -1,3 +1,5 @@
+# pylint: disable = invalid-name
+
 default_app_config = "standingsrequests.apps.StandingsRequestsConfig"
 
 __version__ = "1.3.0"
