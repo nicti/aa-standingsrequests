@@ -9,9 +9,7 @@ description = "App for managing character standing requests, made for Alliance A
 readme = "README.md"
 license = "GPL-3.0"
 requires-python = ">=3.8"
-authors = [
-    { name = "Erik Kalkoken", email = "kaloken87@gmail.com" },
-]
+authors = [{ name = "Erik Kalkoken", email = "kaloken87@gmail.com" }]
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
@@ -44,9 +42,7 @@ Tracker = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/issues"
 path = "standingsrequests/__init__.py"
 
 [tool.hatch.build]
-include = [
-    "/standingsrequests",
-]
+include = ["/standingsrequests"]
 
 
 [tool.isort]
@@ -59,19 +55,29 @@ sections = [
     "DJANGO",
     "ALLIANCEAUTH",
     "FIRSTPARTY",
-    "LOCALFOLDER"
+    "LOCALFOLDER",
 ]
 known_allianceauth = ["allianceauth", "app_utils"]
 known_django = ["django", "django_webtest", "esi", "eveuniverse"]
 
 [tool.pylint.'MASTER']
-ignore-patterns = ["test_.*.py,__init__.py", "generate_.*.py"]
+ignore-patterns = ["__init__.py", "auth_hooks.py", "apps.py"]
+ignore-paths = ["^.*/tests/.*$", "^.*/migrations/.*$"]
 
 [tool.pylint.'BASIC']
-good-names = ["i", "j", "k", "x", "f", "ex"]
+good-names = ["i", "j", "k", "ex"]
 
 [tool.pylint.'FORMAT']
-max-line-length = 100
+max-line-length = 120
 
 [tool.pylint.'MESSAGES CONTROL']
-disable = ["R", "C"]
+disable = [
+    # "too-few-public-methods",
+    # "import-outside-toplevel",
+    "imported-auth-user",
+    "fixme",
+    "cyclic-import",
+    "missing-class-docstring",    # temporary
+    "missing-module-docstring",   # temporary
+    "missing-function-docstring", # temporary
+]
