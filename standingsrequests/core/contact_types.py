@@ -1,6 +1,5 @@
 from enum import IntEnum
-
-from django.utils.functional import classproperty
+from typing import Set
 
 
 class ContactType(IntEnum):
@@ -19,15 +18,22 @@ class ContactType(IntEnum):
     CHARACTER_KHANID_TYPE_ID = 1385
     CHARACTER_VHEROKIOR_TYPE_ID = 1386
     CHARACTER_DRIFTER_TYPE_ID = 34574
-    ALLIANCE_TYPE_ID = 16159
     CORPORATION_TYPE_ID = 2
 
-    @classproperty
-    def character_id(cls):
+    @property
+    def is_character(self) -> bool:
+        return self.value in self.character_ids()
+
+    @property
+    def is_corporation(self) -> bool:
+        return self.value in self.corporation_ids()
+
+    @classmethod
+    def character_id(cls) -> int:
         return cls.CHARACTER_AMARR_TYPE_ID
 
-    @classproperty
-    def character_ids(cls):
+    @classmethod
+    def character_ids(cls) -> Set[int]:
         return {
             cls.CHARACTER_AMARR_TYPE_ID,
             cls.CHARACTER_NI_KUNNI_TYPE_ID,
@@ -46,30 +52,10 @@ class ContactType(IntEnum):
             cls.CHARACTER_DRIFTER_TYPE_ID,
         }
 
-    @classproperty
-    def corporation_ids(cls):
+    @classmethod
+    def corporation_ids(cls) -> Set[int]:
         return {cls.CORPORATION_TYPE_ID}
 
-    @classproperty
-    def corporation_id(cls):
+    @classmethod
+    def corporation_id(cls) -> int:
         return cls.CORPORATION_TYPE_ID
-
-    @classproperty
-    def alliance_ids(cls):
-        return {cls.ALLIANCE_TYPE_ID}
-
-    @classproperty
-    def alliance_id(cls):
-        return cls.ALLIANCE_TYPE_ID
-
-    @classmethod
-    def is_character(cls, type_id):
-        return type_id in cls.character_ids
-
-    @classmethod
-    def is_corporation(cls, type_id):
-        return type_id in cls.corporation_ids
-
-    @classmethod
-    def is_alliance(cls, type_id):
-        return type_id in cls.alliance_ids

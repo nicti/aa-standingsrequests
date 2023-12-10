@@ -137,10 +137,10 @@ class TestMainUseCases(WebTest):
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = ContactType.character_id
+            contact_type_id = ContactType.character_id()
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = ContactType.corporation_id
+            contact_type_id = ContactType.corporation_id()
         else:
             raise NotImplementedError()
 

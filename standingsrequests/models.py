@@ -269,11 +269,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_character(self) -> bool:
-        return ContactType.is_character(self.contact_type_id)
+        return ContactType(self.contact_type_id).is_character
 
     @property
     def is_corporation(self) -> bool:
-        return ContactType.is_corporation(self.contact_type_id)
+        return ContactType(self.contact_type_id).is_corporation
 
     @property
     def is_actioned(self) -> bool:
@@ -303,19 +303,19 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
         if contact_type == cls.ContactType.CHARACTER:
-            return ContactType.character_id
+            return ContactType.character_id()
 
         if contact_type == cls.ContactType.CORPORATION:
-            return ContactType.corporation_id
+            return ContactType.corporation_id()
 
         raise ValueError("Invalid contact type")
 
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
-        if contact_type_id in ContactType.character_ids:
+        if contact_type_id in ContactType.character_ids():
             return cls.ContactType.CHARACTER.value
 
-        if contact_type_id in ContactType.corporation_ids:
+        if contact_type_id in ContactType.corporation_ids():
             return cls.ContactType.CORPORATION.value
 
         raise ValueError("Invalid contact type")

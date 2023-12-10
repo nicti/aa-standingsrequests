@@ -29,10 +29,10 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
 
     @admin.display(description="contact type")
     def _contact_type_str(self, obj):
-        if obj.contact_type_id in ContactType.character_ids:
+        if obj.contact_type_id in ContactType.character_ids():
             return "Character"
 
-        if obj.contact_type_id in ContactType.corporation_ids:
+        if obj.contact_type_id in ContactType.corporation_ids():
             return "Corporation"
 
         return "(undefined)"

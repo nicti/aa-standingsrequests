@@ -58,7 +58,7 @@ def compose_standing_requests_data(
         for character in EveCharacter.objects.filter(
             character_id__in=(
                 requests_qs.exclude(
-                    contact_type_id=ContactType.corporation_id
+                    contact_type_id=ContactType.corporation_id()
                 ).values_list("contact_id", flat=True)
             )
         )
@@ -67,9 +67,9 @@ def compose_standing_requests_data(
     eve_corporations = {
         corporation.corporation_id: corporation
         for corporation in EveCorporation.get_many_by_id(
-            requests_qs.filter(contact_type_id=ContactType.corporation_id).values_list(
-                "contact_id", flat=True
-            )
+            requests_qs.filter(
+                contact_type_id=ContactType.corporation_id()
+            ).values_list("contact_id", flat=True)
         )
     }
     contacts = _identify_contacts(eve_characters, eve_corporations)

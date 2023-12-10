@@ -236,7 +236,7 @@ def corporation_standings_data(request):
         obj.contact_id: obj
         for obj in (
             StandingRequest.objects.filter(
-                contact_type_id=ContactType.corporation_id
+                contact_type_id=ContactType.corporation_id()
             ).filter(
                 contact_id__in=list(
                     corporations_qs.values_list("eve_entity_id", flat=True)

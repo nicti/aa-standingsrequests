@@ -295,7 +295,7 @@ class TestRequestCharacterStanding(TestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         StandingRequest.objects.create(
             contact_id=alt_character.character_id,
-            contact_type_id=ContactType.character_id,
+            contact_type_id=ContactType.character_id(),
             user=self.user,
         )
         # when
@@ -309,7 +309,7 @@ class TestRequestCharacterStanding(TestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         StandingRevocation.objects.create(
             contact_id=alt_character.character_id,
-            contact_type_id=ContactType.character_id,
+            contact_type_id=ContactType.character_id(),
             user=self.user,
         )
         # when
@@ -524,7 +524,9 @@ class TestRequestCorporationStanding(TestCase):
     def test_should_return_false_if_pending_request(self):
         # given
         StandingRequest.objects.create(
-            contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
+            contact_id=2102,
+            contact_type_id=ContactType.corporation_id(),
+            user=self.user,
         )
         # when
         result = self._view_request_corp_standing(2102)
@@ -534,7 +536,9 @@ class TestRequestCorporationStanding(TestCase):
     def test_should_return_false_if_pending_revocation(self):
         # given
         StandingRevocation.objects.create(
-            contact_id=2102, contact_type_id=ContactType.corporation_id, user=self.user
+            contact_id=2102,
+            contact_type_id=ContactType.corporation_id(),
+            user=self.user,
         )
         # when
         result = self._view_request_corp_standing(2102)

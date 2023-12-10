@@ -190,7 +190,7 @@ class TestCorporationStandingsData(PartialDictEqualMixin, TestCase):
         StandingRequest.objects.create(
             user=cls.user_2,
             contact_id=2102,
-            contact_type_id=ContactType.corporation_id,
+            contact_type_id=ContactType.corporation_id(),
             action_by=cls.user_1,
             action_date=now() - dt.timedelta(days=1, hours=1),
             is_effective=True,

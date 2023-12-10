@@ -206,10 +206,10 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
 
 class AbstractStandingsRequestManager(models.Manager):
     def filter_characters(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.character_ids)
+        return self.filter(contact_type_id__in=ContactType.character_ids())
 
     def filter_corporations(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.corporation_ids)
+        return self.filter(contact_type_id__in=ContactType.corporation_ids())
 
     def get_queryset(self) -> models.QuerySet:
         return AbstractStandingsRequestQuerySet(self.model, using=self._db)
@@ -367,9 +367,9 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 reason = StandingRevocation.Reason.LOST_PERMISSION
                 is_valid = False
 
-            elif ContactType.is_corporation(
+            elif ContactType(
                 standing_request.contact_type_id
-            ) and not self.model.can_request_corporation_standing(
+            ).is_corporation and not self.model.can_request_corporation_standing(
                 standing_request.contact_id, standing_request.user
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
