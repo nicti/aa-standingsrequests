@@ -13,7 +13,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
 from standingsrequests.core import app_config
-from standingsrequests.core.contact_types import ContactType
+from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.helpers.writers import UnicodeWriter
 from standingsrequests.models import ContactSet, StandingRequest
 
@@ -236,7 +236,7 @@ def corporation_standings_data(request):
         obj.contact_id: obj
         for obj in (
             StandingRequest.objects.filter(
-                contact_type_id=ContactType.corporation_id()
+                contact_type_id=ContactTypeId.CORPORATION
             ).filter(
                 contact_id__in=list(
                     corporations_qs.values_list("eve_entity_id", flat=True)

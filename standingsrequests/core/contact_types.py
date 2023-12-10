@@ -2,23 +2,23 @@ from enum import IntEnum
 from typing import Set
 
 
-class ContactType(IntEnum):
-    CHARACTER_AMARR_TYPE_ID = 1373
-    CHARACTER_NI_KUNNI_TYPE_ID = 1374
-    CHARACTER_CIVRE_TYPE_ID = 1375
-    CHARACTER_DETEIS_TYPE_ID = 1376
-    CHARACTER_GALLENTE_TYPE_ID = 1377
-    CHARACTER_INTAKI_TYPE_ID = 1378
-    CHARACTER_SEBIESTOR_TYPE_ID = 1379
-    CHARACTER_BRUTOR_TYPE_ID = 1380
-    CHARACTER_STATIC_TYPE_ID = 1381
-    CHARACTER_MODIFIER_TYPE_ID = 1382
-    CHARACTER_ACHURA_TYPE_ID = 1383
-    CHARACTER_JIN_MEI_TYPE_ID = 1384
-    CHARACTER_KHANID_TYPE_ID = 1385
-    CHARACTER_VHEROKIOR_TYPE_ID = 1386
-    CHARACTER_DRIFTER_TYPE_ID = 34574
-    CORPORATION_TYPE_ID = 2
+class ContactTypeId(IntEnum):
+    CHARACTER_AMARR = 1373
+    CHARACTER_KUNNI = 1374
+    CHARACTER_CIVRE = 1375
+    CHARACTER_DETEIS = 1376
+    CHARACTER_GALLENTE = 1377
+    CHARACTER_INTAKI = 1378
+    CHARACTER_SEBIESTOR = 1379
+    CHARACTER_BRUTOR = 1380
+    CHARACTER_STATIC = 1381
+    CHARACTER_MODIFIER = 1382
+    CHARACTER_ACHURA = 1383
+    CHARACTER_JIN_MEI = 1384
+    CHARACTER_KHANID = 1385
+    CHARACTER_VHEROKIOR = 1386
+    CHARACTER_DRIFTER = 34574
+    CORPORATION = 2
 
     @property
     def is_character(self) -> bool:
@@ -30,32 +30,28 @@ class ContactType(IntEnum):
 
     @classmethod
     def character_id(cls) -> int:
-        return cls.CHARACTER_AMARR_TYPE_ID
+        return cls.CHARACTER_AMARR
 
     @classmethod
     def character_ids(cls) -> Set[int]:
         return {
-            cls.CHARACTER_AMARR_TYPE_ID,
-            cls.CHARACTER_NI_KUNNI_TYPE_ID,
-            cls.CHARACTER_CIVRE_TYPE_ID,
-            cls.CHARACTER_DETEIS_TYPE_ID,
-            cls.CHARACTER_GALLENTE_TYPE_ID,
-            cls.CHARACTER_INTAKI_TYPE_ID,
-            cls.CHARACTER_SEBIESTOR_TYPE_ID,
-            cls.CHARACTER_BRUTOR_TYPE_ID,
-            cls.CHARACTER_STATIC_TYPE_ID,
-            cls.CHARACTER_MODIFIER_TYPE_ID,
-            cls.CHARACTER_ACHURA_TYPE_ID,
-            cls.CHARACTER_JIN_MEI_TYPE_ID,
-            cls.CHARACTER_KHANID_TYPE_ID,
-            cls.CHARACTER_VHEROKIOR_TYPE_ID,
-            cls.CHARACTER_DRIFTER_TYPE_ID,
+            cls.CHARACTER_AMARR,
+            cls.CHARACTER_KUNNI,
+            cls.CHARACTER_CIVRE,
+            cls.CHARACTER_DETEIS,
+            cls.CHARACTER_GALLENTE,
+            cls.CHARACTER_INTAKI,
+            cls.CHARACTER_SEBIESTOR,
+            cls.CHARACTER_BRUTOR,
+            cls.CHARACTER_STATIC,
+            cls.CHARACTER_MODIFIER,
+            cls.CHARACTER_ACHURA,
+            cls.CHARACTER_JIN_MEI,
+            cls.CHARACTER_KHANID,
+            cls.CHARACTER_VHEROKIOR,
+            cls.CHARACTER_DRIFTER,
         }
 
     @classmethod
     def corporation_ids(cls) -> Set[int]:
-        return {cls.CORPORATION_TYPE_ID}
-
-    @classmethod
-    def corporation_id(cls) -> int:
-        return cls.CORPORATION_TYPE_ID
+        return {cls.CORPORATION}

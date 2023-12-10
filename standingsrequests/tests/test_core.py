@@ -6,7 +6,7 @@ from allianceauth.eveonline.models import EveCharacter
 from app_utils.testing import NoSocketsTestCase
 
 from standingsrequests.core import app_config
-from standingsrequests.core.contact_types import ContactType
+from standingsrequests.core.contact_types import ContactTypeId
 
 from .testdata.entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
 from .testdata.my_test_data import create_entity, load_eve_entities
@@ -16,18 +16,18 @@ MODULE_PATH = "standingsrequests.core"
 
 class TestContactType(TestCase):
     def test_get_contact_type(self):
-        self.assertEqual(ContactType.character_id(), CHARACTER_TYPE_ID)
+        self.assertEqual(ContactTypeId.character_id(), CHARACTER_TYPE_ID)
 
     def test_is_character(self):
-        self.assertTrue(ContactType(CHARACTER_TYPE_ID).is_character)
-        self.assertFalse(ContactType(CORPORATION_TYPE_ID).is_character)
+        self.assertTrue(ContactTypeId(CHARACTER_TYPE_ID).is_character)
+        self.assertFalse(ContactTypeId(CORPORATION_TYPE_ID).is_character)
 
     def test_get_contact_type_2(self):
-        self.assertEqual(ContactType.corporation_id(), CORPORATION_TYPE_ID)
+        self.assertEqual(ContactTypeId.CORPORATION, CORPORATION_TYPE_ID)
 
     def test_is_corporation(self):
-        self.assertFalse(ContactType(CHARACTER_TYPE_ID).is_corporation)
-        self.assertTrue(ContactType(CORPORATION_TYPE_ID).is_corporation)
+        self.assertFalse(ContactTypeId(CHARACTER_TYPE_ID).is_corporation)
+        self.assertTrue(ContactTypeId(CORPORATION_TYPE_ID).is_corporation)
 
 
 @patch(MODULE_PATH + ".app_config.STANDINGS_API_CHARID", 1001)

@@ -21,7 +21,7 @@ from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
 from .constants import OperationMode
 from .core import app_config
-from .core.contact_types import ContactType
+from .core.contact_types import ContactTypeId
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
@@ -269,11 +269,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_character(self) -> bool:
-        return ContactType(self.contact_type_id).is_character
+        return ContactTypeId(self.contact_type_id).is_character
 
     @property
     def is_corporation(self) -> bool:
-        return ContactType(self.contact_type_id).is_corporation
+        return ContactTypeId(self.contact_type_id).is_corporation
 
     @property
     def is_actioned(self) -> bool:
@@ -303,19 +303,19 @@ class AbstractStandingsRequest(models.Model):
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
         if contact_type == cls.ContactType.CHARACTER:
-            return ContactType.character_id()
+            return ContactTypeId.character_id()
 
         if contact_type == cls.ContactType.CORPORATION:
-            return ContactType.corporation_id()
+            return ContactTypeId.CORPORATION
 
         raise ValueError("Invalid contact type")
 
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
-        if contact_type_id in ContactType.character_ids():
+        if contact_type_id in ContactTypeId.character_ids():
             return cls.ContactType.CHARACTER.value
 
-        if contact_type_id in ContactType.corporation_ids():
+        if contact_type_id == ContactTypeId.CORPORATION:
             return cls.ContactType.CORPORATION.value
 
         raise ValueError("Invalid contact type")

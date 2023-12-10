@@ -14,7 +14,7 @@ from app_utils.testing import (
     create_user_from_evecharacter,
 )
 
-from standingsrequests.core.contact_types import ContactType
+from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import (
     RequestLogEntry,
@@ -295,7 +295,7 @@ class TestRequestCharacterStanding(TestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         StandingRequest.objects.create(
             contact_id=alt_character.character_id,
-            contact_type_id=ContactType.character_id(),
+            contact_type_id=ContactTypeId.character_id(),
             user=self.user,
         )
         # when
@@ -309,7 +309,7 @@ class TestRequestCharacterStanding(TestCase):
         add_character_to_user(self.user, alt_character, scopes=["publicData"])
         StandingRevocation.objects.create(
             contact_id=alt_character.character_id,
-            contact_type_id=ContactType.character_id(),
+            contact_type_id=ContactTypeId.character_id(),
             user=self.user,
         )
         # when
@@ -525,7 +525,7 @@ class TestRequestCorporationStanding(TestCase):
         # given
         StandingRequest.objects.create(
             contact_id=2102,
-            contact_type_id=ContactType.corporation_id(),
+            contact_type_id=ContactTypeId.CORPORATION,
             user=self.user,
         )
         # when
@@ -537,7 +537,7 @@ class TestRequestCorporationStanding(TestCase):
         # given
         StandingRevocation.objects.create(
             contact_id=2102,
-            contact_type_id=ContactType.corporation_id(),
+            contact_type_id=ContactTypeId.CORPORATION,
             user=self.user,
         )
         # when

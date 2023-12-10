@@ -16,6 +16,7 @@ from app_utils.testing import (
 )
 
 from standingsrequests.core import app_config
+from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import (
     AbstractStandingsRequest,
@@ -27,7 +28,7 @@ from standingsrequests.models import (
     StandingRevocation,
 )
 
-from .testdata.entity_type_ids import CHARACTER_BRUTOR_TYPE_ID, CHARACTER_TYPE_ID
+from .testdata.entity_type_ids import CHARACTER_TYPE_ID
 from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     create_contacts_set,
@@ -190,7 +191,7 @@ class TestAbstractStandingsRequest(TestCase):
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1002,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         # then
         self.assertTrue(my_request.is_standing_request)
@@ -201,7 +202,7 @@ class TestAbstractStandingsRequest(TestCase):
         my_request = StandingRevocation(
             user=self.user_requestor,
             contact_id=1002,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         # then
         self.assertFalse(my_request.is_standing_request)
@@ -240,28 +241,28 @@ class TestStandingRequest(TestCase):
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1002,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         self.assertTrue(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1003,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         self.assertTrue(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1005,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 
         my_request = StandingRequest(
             user=self.user_requestor,
             contact_id=1009,
-            contact_type_id=CHARACTER_BRUTOR_TYPE_ID,
+            contact_type_id=ContactTypeId.CHARACTER_BRUTOR,
         )
         self.assertFalse(my_request.evaluate_effective_standing(check_only=True))
 

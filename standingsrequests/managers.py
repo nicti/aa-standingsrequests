@@ -23,7 +23,7 @@ from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
 from .constants import CreateCharacterRequestError, OperationMode
 from .core import app_config
-from .core.contact_types import ContactType
+from .core.contact_types import ContactTypeId
 from .providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -206,10 +206,10 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
 
 class AbstractStandingsRequestManager(models.Manager):
     def filter_characters(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.character_ids())
+        return self.filter(contact_type_id__in=ContactTypeId.character_ids())
 
     def filter_corporations(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.corporation_ids())
+        return self.filter(contact_type_id=ContactTypeId.CORPORATION)
 
     def get_queryset(self) -> models.QuerySet:
         return AbstractStandingsRequestQuerySet(self.model, using=self._db)

@@ -15,7 +15,7 @@ from allianceauth.eveonline.models import (
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user, response_text
 
-from standingsrequests.core.contact_types import ContactType
+from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.models import Contact, StandingRequest
 from standingsrequests.tests.testdata.my_test_data import (
     TEST_SCOPE,
@@ -118,10 +118,10 @@ class TestViewPagesBase(PartialDictEqualMixin, TestCase):
     def _create_standing_for_alt(self, alt: Any) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = ContactType.character_id()
+            contact_type_id = ContactTypeId.character_id()
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = ContactType.corporation_id()
+            contact_type_id = ContactTypeId.CORPORATION
         else:
             raise NotImplementedError()
 
