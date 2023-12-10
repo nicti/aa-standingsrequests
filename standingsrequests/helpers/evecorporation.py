@@ -143,21 +143,18 @@ class EveCorporation:
             )
             return None
 
-        else:
-            args = {
-                "corporation_id": corporation_id,
-                "corporation_name": info["name"],
-                "ticker": info["ticker"],
-                "member_count": info["member_count"],
-                "ceo_id": info["ceo_id"],
-            }
-            if "alliance_id" in info and info["alliance_id"]:
-                args["alliance_id"] = info["alliance_id"]
-                args["alliance_name"] = EveEntity.objects.resolve_name(
-                    info["alliance_id"]
-                )
+        args = {
+            "corporation_id": corporation_id,
+            "corporation_name": info["name"],
+            "ticker": info["ticker"],
+            "member_count": info["member_count"],
+            "ceo_id": info["ceo_id"],
+        }
+        if "alliance_id" in info and info["alliance_id"]:
+            args["alliance_id"] = info["alliance_id"]
+            args["alliance_name"] = EveEntity.objects.resolve_name(info["alliance_id"])
 
-            return cls(**args)
+        return cls(**args)
 
     @classmethod
     def thread_fetch_corporation(cls, corporation_id: int) -> object:

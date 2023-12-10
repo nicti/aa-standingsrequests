@@ -416,16 +416,19 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             logger.warning("Failed to get a contact set")
             return CreateCharacterRequestError.UNKNOWN_ERROR
         character_id = character.character_id
+
         if self.has_pending_request(
             character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
             return CreateCharacterRequestError.CHARACTER_HAS_REQUEST
-        elif not self.model.has_required_scopes_for_request(
+
+        if not self.model.has_required_scopes_for_request(
             character=character, user=user
         ):
             logger.warning("%s: Character does not have the required scopes", character)
             return CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES
+
         sr = self.get_or_create_2(
             user=user,
             contact_id=character_id,
@@ -589,8 +592,9 @@ class CharacterAffiliationManager(models.Manager):
             except HTTPError:
                 logger.exception("Could not fetch character affiliations from ESI")
                 return []
-            else:
-                affiliations += response
+
+            affiliations += response
+
         return affiliations
 
     def _store_affiliations(self, affiliations) -> None:

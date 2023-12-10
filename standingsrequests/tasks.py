@@ -48,15 +48,14 @@ def report_result_to_user(user_pk: int = None):
         except User.DoesNotExist:
             logger.warning("Can not find a user with pk %d", user_pk)
             return
-        else:
-            source_entity = BaseConfig.standings_source_entity()
-            notify(
-                user,
-                _("%s: Standings loaded") % __title__,
-                _("Standings have been successfully loaded for %s")
-                % source_entity.name,
-                level="success",
-            )
+
+        source_entity = BaseConfig.standings_source_entity()
+        notify(
+            user,
+            _("%s: Standings loaded") % __title__,
+            _("Standings have been successfully loaded for %s") % source_entity.name,
+            level="success",
+        )
 
 
 @shared_task(name="standings_requests.standings_update")

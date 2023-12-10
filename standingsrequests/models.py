@@ -255,10 +255,6 @@ class AbstractStandingsRequest(models.Model):
             ("request_standings", "User can request standings."),
         )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # self.reason = ""
-
     def __repr__(self) -> str:
         try:
             user_str = f", user='{self.user}'"
@@ -288,11 +284,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_standing_request(self) -> bool:
-        return type(self) is StandingRequest
+        return isinstance(self, StandingRequest)
 
     @property
     def is_standing_revocation(self) -> bool:
-        return type(self) is StandingRevocation
+        return isinstance(self, StandingRevocation)
 
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
@@ -317,8 +313,10 @@ class AbstractStandingsRequest(models.Model):
     def contact_id_2_type(cls, contact_type_id) -> str:
         if contact_type_id in ContactType.character_ids:
             return cls.ContactType.CHARACTER.value
-        elif contact_type_id in ContactType.corporation_ids:
+
+        if contact_type_id in ContactType.corporation_ids:
             return cls.ContactType.CORPORATION.value
+
         raise ValueError("Invalid contact type")
 
     def evaluate_effective_standing(self, check_only: bool = False) -> bool:
@@ -462,8 +460,10 @@ class StandingRequest(AbstractStandingsRequest):
         """Remove this standing request."""
         if self.is_character:
             return self._remove_character_standing()
-        elif self.is_corporation:
+
+        if self.is_corporation:
             return self._remove_corporation_request()
+
         raise NotImplementedError()
 
     def _remove_character_standing(self) -> bool:
@@ -586,8 +586,8 @@ class StandingRequest(AbstractStandingsRequest):
     def has_required_scopes_for_request(
         cls, character: EveCharacter, user: User = None, quick_check: bool = False
     ) -> bool:
-        """returns true if given character has the required scopes
-        for issueing a standings request else false
+        """Returns True if given character has the required scopes
+        for issuing a standings request else False.
 
         Params:
         - user: provide User object to shorten processing time
@@ -600,8 +600,9 @@ class StandingRequest(AbstractStandingsRequest):
                 ).get(character__character_id=character.character_id)
             except CharacterOwnership.DoesNotExist:
                 return False
-            else:
-                user = ownership.user
+
+            user = ownership.user
+
         try:
             state_name = user.profile.state.name
         except ObjectDoesNotExist:

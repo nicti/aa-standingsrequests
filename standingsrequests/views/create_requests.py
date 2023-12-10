@@ -34,8 +34,8 @@ def index_view(request):
     )
     if app_count > 0 and request.user.has_perm("standingsrequests.affect_standings"):
         return redirect("standingsrequests:manage")
-    else:
-        return redirect("standingsrequests:create_requests")
+
+    return redirect("standingsrequests:create_requests")
 
 
 @login_required

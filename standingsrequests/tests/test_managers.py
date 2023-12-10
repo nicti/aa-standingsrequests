@@ -347,10 +347,15 @@ class TestStandingsRequestValidateRequests(TestCase):
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_can_request_corporation_standing
     ):
+        # given
         StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.ContactType.CHARACTER
         )
+
+        # when
         StandingRequest.objects.validate_requests()
+
+        # then
         my_revocation = StandingRevocation.objects.get(contact_id=1002)
         self.assertEqual(
             my_revocation.reason, StandingRevocation.Reason.LOST_PERMISSION

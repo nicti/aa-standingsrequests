@@ -79,7 +79,8 @@ def manage_requests_write(request, contact_id):
         if actioned > 0:
             return HttpResponse("")
         return HttpResponseNotFound()
-    elif request.method == "DELETE":
+
+    if request.method == "DELETE":
         standing_request = get_object_or_404(StandingRequest, contact_id=contact_id)
         RequestLogEntry.objects.create_from_standing_request(
             standing_request, RequestLogEntry.Action.REJECTED, request.user
@@ -97,6 +98,7 @@ def manage_requests_write(request, contact_id):
 
             notify(user=standing_request.user, title=title, message=message)
         return HttpResponse("")
+
     return HttpResponseNotFound()
 
 
@@ -119,10 +121,13 @@ def manage_revocations_write(request, contact_id):
                 r, RequestLogEntry.Action.CONFIRMED, request.user
             )
             actioned += 1
+
         if actioned > 0:
             return HttpResponse("")
+
         return HttpResponseNotFound
-    elif request.method == "DELETE":
+
+    if request.method == "DELETE":
         standing_revocations_qs = StandingRevocation.objects.filter(
             contact_id=contact_id
         )
@@ -141,4 +146,5 @@ def manage_revocations_write(request, contact_id):
 
             notify(user=standing_revocation.user, title=title, message=message)
         return HttpResponse("")
+
     return HttpResponseNotFound()
