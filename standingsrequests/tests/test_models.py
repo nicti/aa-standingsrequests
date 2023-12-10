@@ -180,7 +180,6 @@ class TestAbstractStandingsRequest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        ContactSet.objects.all().delete()
         create_contacts_set()
         cls.user_requestor = User.objects.create_user(
             "Roger Requestor", "rr@example.com", "password"
@@ -213,7 +212,6 @@ class TestStandingRequest(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        ContactSet.objects.all().delete()
         create_contacts_set()
         cls.user_manager = User.objects.create_user(
             "Mike Manager", "mm@example.com", "password"
@@ -359,18 +357,6 @@ class TestStandingRequest(TestCase):
         )
         self.assertIsNone(my_request.check_actioned_timeout())
 
-    def test_check_standing_actioned_timeout_no_contact_set(self):
-        ContactSet.objects.all().delete()
-        my_request = StandingRequest(
-            user=self.user_requestor,
-            contact_id=1001,
-            contact_type_id=CHARACTER_TYPE_ID,
-            action_by=self.user_manager,
-            action_date=now(),
-            is_effective=False,
-        )
-        self.assertIsNone(my_request.check_actioned_timeout())
-
     def test_check_standing_actioned_timeout_after_deadline(self):
         my_request = StandingRequest.objects.create(
             user=self.user_requestor,
@@ -500,6 +486,29 @@ class TestStandingRequest(TestCase):
             ).count(),
             1,
         )
+
+
+class TestStandingRequest2(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.user_manager = User.objects.create_user(
+            "Mike Manager", "mm@example.com", "password"
+        )
+        cls.user_requestor = User.objects.create_user(
+            "Roger Requestor", "rr@example.com", "password"
+        )
+
+    def test_check_standing_actioned_timeout_no_contact_set(self):
+        my_request = StandingRequest(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=False,
+        )
+        self.assertIsNone(my_request.check_actioned_timeout())
 
 
 class TestStandingRequestClassMethods(TestCase):

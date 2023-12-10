@@ -258,6 +258,7 @@ class TestRequestCharacterStanding(TestCase):
             )
         )
         request.user = self.user
+
         with patch(VIEWS_PATH + ".messages.error") as mock_message, patch(
             MANAGERS_PATH + ".esi"
         ) as mock_esi:
@@ -272,6 +273,7 @@ class TestRequestCharacterStanding(TestCase):
             )
             response = create_requests.request_character_standing(request, character_id)
             success = not mock_message.called
+
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
         return success

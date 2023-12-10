@@ -77,9 +77,6 @@ class TestPurgeTasks(TestCase):
 
 @patch(MODULE_PATH + ".SR_STANDINGS_STALE_HOURS", 48)
 class TestPurgeStaleStandingData(TestCase):
-    def setUp(self):
-        ContactSet.objects.all().delete()
-
     def test_do_nothing_if_not_contacts_sets(self):
         tasks.purge_stale_standings_data()
 

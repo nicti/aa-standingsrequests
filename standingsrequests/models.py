@@ -372,6 +372,7 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
+        # pylint: disable unidiomatic-typecheck
         if type(self) is AbstractStandingsRequest:
             raise RuntimeError("Can not be called from abstract")
 

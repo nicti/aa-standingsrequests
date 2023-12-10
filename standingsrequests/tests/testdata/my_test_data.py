@@ -272,10 +272,6 @@ def create_contacts_set(my_set: ContactSet = None, include_assoc=True) -> Contac
 
 def create_eve_objects():
     """creates all Eve objects from test data"""
-    EveCharacter.objects.all().delete()  # TODO: Remove the deletes
-    EveCorporationInfo.objects.all().delete()
-    EveAllianceInfo.objects.all().delete()
-
     for character_data in _my_test_data[EveCharacter.__name__].values():
         character = EveCharacter.objects.create(**character_data)
         if character.alliance_id:

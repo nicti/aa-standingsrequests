@@ -50,12 +50,12 @@ class TestContactSetManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        load_eve_entities()
         cls.user = AuthUtils.create_member(TEST_STANDINGS_API_CHARNAME)
         character = create_standings_char()
         add_character_to_user(
             cls.user, character, scopes=["esi-alliances.read_contacts.v1"]
         )
-        load_eve_entities()
 
     @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
@@ -165,7 +165,6 @@ class TestAbstractStandingsRequestProcessRequests(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
         create_standings_char()
 
@@ -293,7 +292,6 @@ class TestAbstractStandingsRequestAnnotations(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
         create_standings_char()
 
@@ -328,9 +326,6 @@ class TestStandingsRequestValidateRequests(TestCase):
         super().setUpClass()
         create_contacts_set()
         cls.user = AuthUtils.create_member("Bruce Wayne")
-
-    def setUp(self):
-        StandingRequest.objects.all().delete()
 
     def test_do_nothing_character_request_is_valid(
         self, mock_can_request_corporation_standing
@@ -425,7 +420,6 @@ class TestStandingsRequestManager(TestCase):
 
 class TestStandingsRevocationManager(TestCase):
     def setUp(self):
-        ContactSet.objects.all().delete()
         load_eve_entities()
         my_set = ContactSet.objects.create(name="Dummy Set")
         Contact.objects.create(contact_set=my_set, eve_entity_id=1001, standing=10)

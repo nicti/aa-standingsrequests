@@ -17,7 +17,6 @@ from standingsrequests import tasks
 from standingsrequests.core import ContactType
 from standingsrequests.models import (
     Contact,
-    ContactSet,
     RequestLogEntry,
     StandingRequest,
     StandingRevocation,
@@ -28,7 +27,6 @@ from .testdata.my_test_data import (
     TEST_STANDINGS_API_CHARID,
     create_contacts_set,
     create_eve_objects,
-    create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_characters_affiliation,
     esi_post_universe_names,
@@ -57,7 +55,6 @@ class TestMainUseCases(WebTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        create_standings_char()
         create_eve_objects()
         load_eve_entities()
         # State is alliance, all members can add standings
@@ -190,11 +187,7 @@ class TestMainUseCases(WebTest):
 
     def setUp(self) -> None:
         cache.clear()
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
-        StandingRequest.objects.all().delete()
-        StandingRevocation.objects.all().delete()
-        Notification.objects.all().delete()
 
         # requestor as permission
         self.user_requestor = AuthUtils.add_permission_to_user_by_name(

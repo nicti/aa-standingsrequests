@@ -43,7 +43,6 @@ compilemessages:
 
 coverage:
 	coverage run --concurrency=multiprocessing $(myauth_path) test $(package).tests --keepdb --failfast --timing --parallel && coverage combine && coverage html && coverage report -m
-	# coverage run ../myauth/manage.py test $(appname) --keepdb --failfast && coverage html && coverage report -m
 
 graph_models:
 	python ../myauth/manage.py graph_modegraph_models:

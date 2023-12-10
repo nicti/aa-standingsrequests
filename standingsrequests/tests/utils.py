@@ -16,12 +16,11 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user, response_text
 
 from standingsrequests.core import ContactType
-from standingsrequests.models import Contact, StandingRequest, StandingRevocation
+from standingsrequests.models import Contact, StandingRequest
 from standingsrequests.tests.testdata.my_test_data import (
     TEST_SCOPE,
     create_contacts_set,
     create_eve_objects,
-    create_standings_char,
 )
 
 
@@ -54,9 +53,7 @@ class TestViewPagesBase(PartialDictEqualMixin, TestCase):
         super().setUpClass()
         cls.factory = RequestFactory()
 
-        create_standings_char()
         create_eve_objects()
-
         cls.contact_set = create_contacts_set()
 
         # State is alliance, all members can add standings
@@ -117,10 +114,6 @@ class TestViewPagesBase(PartialDictEqualMixin, TestCase):
             cls.alt_character_3,
             scopes=[TEST_SCOPE],
         )
-
-    def setUp(self):
-        StandingRequest.objects.all().delete()
-        StandingRevocation.objects.all().delete()
 
     def _create_standing_for_alt(self, alt: Any) -> StandingRequest:
         if isinstance(alt, EveCharacter):

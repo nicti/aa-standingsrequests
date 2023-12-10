@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
-from esi.models import CallbackRedirect, Token
+from esi.models import Token
 
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import _generate_token, _store_as_Token, generate_invalid_pk
@@ -32,9 +32,6 @@ class TestTokenRequiredByState(TestCase):
             cls.user,
         )
         cls.factory = RequestFactory()
-
-    def setUp(self):
-        CallbackRedirect.objects.all().delete()
 
     def generate_get_request(self):
         request = self.factory.get("https://www.example.com/my_view/")

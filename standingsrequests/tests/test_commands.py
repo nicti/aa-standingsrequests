@@ -15,7 +15,6 @@ from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     create_contacts_set,
     create_entity,
-    create_standings_char,
     load_eve_entities,
 )
 
@@ -45,9 +44,7 @@ class TestSyncRequests(TestCase):
         load_eve_entities()
 
     def setUp(self):
-        create_standings_char()
         self.contacts_set = create_contacts_set()
-        StandingRequest.objects.all().delete()
         self.out = StringIO()
 
     def test_abort_if_input_is_not_y(self, mock_get_input):

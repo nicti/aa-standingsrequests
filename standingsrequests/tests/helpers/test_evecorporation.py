@@ -36,7 +36,6 @@ class TestEveCorporation(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprises",
         )
-        EveEntity.objects.all().delete()
         EveEntity.objects.create(id=3001, name="Wayne Enterprises", category="alliance")
         cls.maxDiff = None
 
