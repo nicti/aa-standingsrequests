@@ -1,7 +1,7 @@
 import datetime as dt
 from unittest.mock import patch
 
-from django.test import RequestFactory
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.utils.timezone import now
 
@@ -18,14 +18,14 @@ from ..my_test_data import (
     load_corporation_details,
     load_eve_entities,
 )
-from ..utils import NoSocketsTestCasePlus, json_response_to_dict_2
+from ..utils import PartialDictEqualMixin, json_response_to_dict_2
 
 TEST_SCOPE = "publicData"
 MODULE_PATH = "standingsrequests.views.standings"
 
 
 @patch("standingsrequests.core.STANDINGS_API_CHARID", 1001)
-class TestStandingsView(NoSocketsTestCasePlus):
+class TestStandingsView(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -50,7 +50,7 @@ class TestStandingsView(NoSocketsTestCasePlus):
         self.assertEqual(response.status_code, 200)
 
 
-class TestCharacterStandingsData(NoSocketsTestCasePlus):
+class TestCharacterStandingsData(PartialDictEqualMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -157,7 +157,7 @@ class TestCharacterStandingsData(NoSocketsTestCasePlus):
         self.assertPartialDictEqual(data_character_1002, expected)
 
 
-class TestCorporationStandingsData(NoSocketsTestCasePlus):
+class TestCorporationStandingsData(PartialDictEqualMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -264,7 +264,7 @@ class TestCorporationStandingsData(NoSocketsTestCasePlus):
         )
 
 
-class TestAllianceStandingsData(NoSocketsTestCasePlus):
+class TestAllianceStandingsData(PartialDictEqualMixin, TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

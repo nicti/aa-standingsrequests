@@ -9,7 +9,6 @@ from eveuniverse.models import EveEntity
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import (
-    NoSocketsTestCase,
     _generate_token,
     _store_as_Token,
     add_character_to_user,
@@ -43,7 +42,7 @@ TEST_USER_NAME = "Peter Parker"
 TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 
-class TestContactSet(NoSocketsTestCase):
+class TestContactSet(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -56,26 +55,26 @@ class TestContactSet(NoSocketsTestCase):
 
     @patch(CORE_PATH + ".STR_CORP_IDS", ["2001"])
     @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
-    def test_pilot_in_organisation_matches_corp(self):
+    def test_pilot_in_organization_matches_corp(self):
         self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
     @patch(CORE_PATH + ".STR_CORP_IDS", [])
     @patch(CORE_PATH + ".STR_ALLIANCE_IDS", ["3001"])
-    def test_pilot_in_organisation_matches_alliance(self):
+    def test_pilot_in_organization_matches_alliance(self):
         self.assertTrue(MainOrganizations.is_character_a_member(self.character_1001))
 
     @patch(CORE_PATH + ".STR_CORP_IDS", [])
     @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [3101])
-    def test_pilot_in_organisation_doest_not_exist(self):
+    def test_pilot_in_organization_doest_not_exist(self):
         self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
     @patch(CORE_PATH + ".STR_CORP_IDS", [])
     @patch(CORE_PATH + ".STR_ALLIANCE_IDS", [])
-    def test_pilot_in_organisation_matches_none(self):
+    def test_pilot_in_organization_matches_none(self):
         self.assertFalse(MainOrganizations.is_character_a_member(self.character_1001))
 
 
-class TestContactSetCreateStanding(NoSocketsTestCase):
+class TestContactSetCreateStanding(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -502,7 +501,7 @@ class TestStandingRequest(TestCase):
         )
 
 
-class TestStandingRequestClassMethods(NoSocketsTestCase):
+class TestStandingRequestClassMethods(TestCase):
     @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
     @patch(MODELS_PATH + ".EveCorporation.get_by_id")
     def test_can_request_corporation_standing_good(self, mock_get_corp_by_id):
@@ -599,7 +598,7 @@ class TestStandingRequestClassMethods(NoSocketsTestCase):
         self.assertFalse(StandingRequest.can_request_corporation_standing(2001, user_2))
 
 
-class TestStandingRequestGetRequiredScopesForState(NoSocketsTestCase):
+class TestStandingRequestGetRequiredScopesForState(TestCase):
     @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"member": ["abc"]})
     def test_return_scopes_if_defined_for_state(self):
         expected = ["abc"]
@@ -623,7 +622,7 @@ class TestStandingRequestGetRequiredScopesForState(NoSocketsTestCase):
 
 
 @patch(MODELS_PATH + ".StandingRequest.get_required_scopes_for_state")
-class TestStandingsManagerHasRequiredScopesForRequest(NoSocketsTestCase):
+class TestStandingsManagerHasRequiredScopesForRequest(TestCase):
     def test_true_when_user_has_required_scopes(
         self, mock_get_required_scopes_for_state
     ):

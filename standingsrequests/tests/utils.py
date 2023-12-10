@@ -2,7 +2,7 @@ import json
 
 from django.http import JsonResponse
 
-from app_utils.testing import NoSocketsTestCase, response_text
+from app_utils.testing import response_text
 
 
 class PartialDictEqualMixin:
@@ -10,10 +10,6 @@ class PartialDictEqualMixin:
         """Assert that d1 equals d2 for the subset of keys of d1."""
         subset = {k: v for k, v in d1.items() if k in d2}
         self.assertDictEqual(subset, d2)
-
-
-class NoSocketsTestCasePlus(PartialDictEqualMixin, NoSocketsTestCase):
-    pass
 
 
 def json_response_to_python_2(response: JsonResponse, data_key="data") -> object:

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from bravado.exception import HTTPError
 
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
@@ -118,7 +118,7 @@ class TestContactSetManager(NoSocketsTestCase):
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
-class TestAbstractStandingsRequestManager(NoSocketsTestCase):
+class TestAbstractStandingsRequestManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -160,7 +160,7 @@ class TestAbstractStandingsRequestManager(NoSocketsTestCase):
 @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODELS_PATH + ".SR_STANDING_TIMEOUT_HOURS", 24)
 @patch(MANAGERS_PATH + ".notify")
-class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
+class TestAbstractStandingsRequestProcessRequests(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
@@ -288,7 +288,7 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertFalse(AbstractStandingsRequest.objects.has_pending_request(1002))
 
 
-class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
+class TestAbstractStandingsRequestAnnotations(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
@@ -321,7 +321,7 @@ class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
 
 
 @patch(MODELS_PATH + ".StandingRequest.can_request_corporation_standing")
-class TestStandingsRequestValidateRequests(NoSocketsTestCase):
+class TestStandingsRequestValidateRequests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -388,7 +388,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self.assertTrue(StandingRequest.objects.filter(pk=request.pk).exists())
 
 
-class TestStandingsRequestManager(NoSocketsTestCase):
+class TestStandingsRequestManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -417,7 +417,7 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         self.assertEqual(my_request_1, my_request_2)
 
 
-class TestStandingsRevocationManager(NoSocketsTestCase):
+class TestStandingsRevocationManager(TestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
         load_eve_entities()
@@ -589,7 +589,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestRequestLogEntryManager(NoSocketsTestCase):
+class TestRequestLogEntryManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

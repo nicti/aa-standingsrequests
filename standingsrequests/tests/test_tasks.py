@@ -1,10 +1,8 @@
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.utils.timezone import now
-
-from app_utils.testing import NoSocketsTestCase
 
 from .. import tasks
 from ..models import ContactSet
@@ -16,7 +14,7 @@ MODULE_PATH = "standingsrequests.tasks"
 @patch(MODULE_PATH + ".StandingRequest.objects.process_requests")
 @patch(MODULE_PATH + ".StandingRevocation.objects.process_requests")
 @patch(MODULE_PATH + ".ContactSet.objects.create_new_from_api")
-class TestStandingsUpdate(NoSocketsTestCase):
+class TestStandingsUpdate(TestCase):
     def test_can_update_standings(
         self,
         mock_create_new_from_api,
@@ -41,7 +39,7 @@ class TestStandingsUpdate(NoSocketsTestCase):
         self.assertFalse(mock_revocations_process_standings.called)
 
 
-class TestOtherTasks(NoSocketsTestCase):
+class TestOtherTasks(TestCase):
     @patch(MODULE_PATH + ".StandingRequest.objects.validate_requests")
     def test_validate_standings_requests(self, mock_validate_standings_requests):
         tasks.validate_requests()
@@ -69,7 +67,7 @@ class TestOtherTasks(NoSocketsTestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestPurgeTasks(NoSocketsTestCase):
+class TestPurgeTasks(TestCase):
     @patch(MODULE_PATH + ".purge_stale_standings_data")
     def test_purge_stale_data(self, mock_purge_stale_standings_data):
         tasks.purge_stale_data.delay()
@@ -77,7 +75,7 @@ class TestPurgeTasks(NoSocketsTestCase):
 
 
 @patch(MODULE_PATH + ".SR_STANDINGS_STALE_HOURS", 48)
-class TestPurgeStaleStandingData(NoSocketsTestCase):
+class TestPurgeStaleStandingData(TestCase):
     def setUp(self):
         ContactSet.objects.all().delete()
 
@@ -132,7 +130,7 @@ class TestPurgeStaleStandingData(NoSocketsTestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestUpdateAllCorporationDetails(NoSocketsTestCase):
+class TestUpdateAllCorporationDetails(TestCase):
     def setUp(self):
         create_contacts_set()
 

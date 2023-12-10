@@ -1,6 +1,6 @@
-appname = standingsrequests
+appname = aa-standingsrequests
 package = standingsrequests
-pipname = aa-standingsrequests
+myauth_path = ../myauth/manage.py
 
 help:
 	@echo "Makefile for $(appname)"
@@ -42,16 +42,12 @@ compilemessages:
 		-l zh_Hans
 
 coverage:
-	coverage run ../myauth/manage.py test $(appname) --keepdb --failfast && coverage html && coverage report -m
-
-pylint:
-	pylint --load-plugins pylint_django $(package)
-
-check_complexity:
-	flake8 $(package) --max-complexity=10
-
-flake8:
-	flake8 $(package) --count
+	coverage run --concurrency=multiprocessing $(myauth_path) test $(package).tests --keepdb --failfast --timing --parallel && coverage combine && coverage html && coverage report -m
+	# coverage run ../myauth/manage.py test $(appname) --keepdb --failfast && coverage html && coverage report -m
 
 graph_models:
-	python ../myauth/manage.py graph_models $(appname) -X AbstractContact --arrow-shape normal -o $(pipname).png
+	python ../myauth/manage.py graph_modegraph_models:
+	python $(myauth_path) graph_models $(package) --arrow-shape normal -o $(appname)_models.png
+
+create_testdata:
+	python $(myauth_path) test $(package).tests.testdata.create_eveuniverse --keepdb -v 2
