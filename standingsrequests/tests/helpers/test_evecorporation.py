@@ -5,8 +5,7 @@ from eveuniverse.models import EveEntity
 from app_utils.testing import NoSocketsTestCase
 
 from standingsrequests.helpers.evecorporation import EveCorporation
-
-from .my_test_data import esi_get_corporations_corporation_id
+from standingsrequests.tests.my_test_data import esi_get_corporations_corporation_id
 
 MODULE_PATH = "standingsrequests.helpers.evecorporation"
 
