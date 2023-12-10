@@ -1,6 +1,7 @@
-from typing import Optional
+"""API for current configuration from settings."""
 
-from django.utils.functional import classproperty
+from typing import Optional, Set
+
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
@@ -53,21 +54,17 @@ def standings_source_entity() -> Optional[EveEntity]:
     return entity
 
 
-class MainOrganizations:
-    """Configured main alliances and corporations from settings"""
+def is_character_a_member(character: EveCharacter) -> bool:
+    """Return True if the character is in the organization, False otherwise."""
+    return (
+        character.corporation_id in corporation_ids()
+        or character.alliance_id in alliance_ids()
+    )
 
-    @classmethod
-    def is_character_a_member(cls, character: EveCharacter) -> bool:
-        """Return True if the character is in the organization, False otherwise."""
-        return (
-            character.corporation_id in cls.corporation_ids
-            or character.alliance_id in cls.alliance_ids
-        )
 
-    @classproperty
-    def corporation_ids(cls) -> set:
-        return {int(org_id) for org_id in list(STR_CORP_IDS)}
+def corporation_ids() -> Set[int]:
+    return {int(org_id) for org_id in list(STR_CORP_IDS)}
 
-    @classproperty
-    def alliance_ids(cls) -> set:
-        return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
+
+def alliance_ids() -> Set[int]:
+    return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}

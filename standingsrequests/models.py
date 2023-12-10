@@ -89,7 +89,7 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not app_config.MainOrganizations.is_character_a_member(alt)
+                not app_config.is_character_a_member(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
@@ -373,9 +373,8 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
-        if (
-            type(self) is AbstractStandingsRequest
-        ):  # pylint: disable unidiomatic-typecheck
+        # pylint: disable = unidiomatic-typecheck
+        if type(self) is AbstractStandingsRequest:
             raise RuntimeError("Can not be called from abstract")
 
         logger.debug("Marking standing for %d as actioned", self.contact_id)
@@ -478,7 +477,7 @@ class StandingRequest(AbstractStandingsRequest):
             character = EveCharacter.objects.get(character_id=self.contact_id)
         except EveCharacter.DoesNotExist:
             return False
-        if app_config.MainOrganizations.is_character_a_member(character):
+        if app_config.is_character_a_member(character):
             logger.warning(
                 "%s: Character %s of user %s is in organization. Can not remove standing",
                 self,

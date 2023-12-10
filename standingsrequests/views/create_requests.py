@@ -127,9 +127,7 @@ def request_characters(request):
                 "pendingRequest": has_pending_request,
                 "pendingRevocation": has_pending_revocation,
                 "requestActioned": has_actioned_request,
-                "inOrganisation": app_config.MainOrganizations.is_character_a_member(
-                    character
-                ),
+                "inOrganisation": app_config.is_character_a_member(character),
                 "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
                     character, user=request.user, quick_check=True
                 ),
@@ -160,10 +158,8 @@ def request_corporations(request):
         character_ownership__user=request.user
     ).select_related("character_ownership__user")
     corporation_ids = set(
-        eve_characters_qs.exclude(
-            corporation_id__in=app_config.MainOrganizations.corporation_ids
-        )
-        .exclude(alliance_id__in=app_config.MainOrganizations.alliance_ids)
+        eve_characters_qs.exclude(corporation_id__in=app_config.corporation_ids())
+        .exclude(alliance_id__in=app_config.alliance_ids())
         .values_list("corporation_id", flat=True)
     )
     corporations_standing_requests = {
