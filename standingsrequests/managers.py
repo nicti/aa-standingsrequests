@@ -594,7 +594,7 @@ class CharacterAffiliationManager(models.Manager):
         return affiliations
 
     def _store_affiliations(self, affiliations) -> None:
-        affiliation_objects = list()
+        affiliation_objects = []
         for affiliation in affiliations:
             character, _ = EveEntity.objects.get_or_create(
                 id=affiliation["character_id"]

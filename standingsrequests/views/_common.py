@@ -72,7 +72,7 @@ def compose_standing_requests_data(
         )
     }
     contacts = _identify_contacts(eve_characters, eve_corporations)
-    requests_data = list()
+    requests_data = []
     for req in requests_qs:
         (
             main_character_name,
@@ -147,7 +147,7 @@ def _identify_contacts(eve_characters, eve_corporations):
     try:
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
-        contacts = dict()
+        contacts = {}
     else:
         all_contact_ids = set(eve_characters.keys()) | set(eve_corporations.keys())
         contacts = {

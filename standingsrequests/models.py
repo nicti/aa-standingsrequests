@@ -619,9 +619,7 @@ class StandingRequest(AbstractStandingsRequest):
     def get_required_scopes_for_state(state_name: str) -> list:
         state_name = "" if not state_name else state_name
         return (
-            SR_REQUIRED_SCOPES[state_name]
-            if state_name in SR_REQUIRED_SCOPES
-            else list()
+            SR_REQUIRED_SCOPES[state_name] if state_name in SR_REQUIRED_SCOPES else []
         )
 
 

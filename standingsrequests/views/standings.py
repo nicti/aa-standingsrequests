@@ -66,7 +66,7 @@ def character_standings_data(request):
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    characters_data = list()
+    characters_data = []
     for contact in character_contacts_qs:
         character_name_html = label_with_icon(
             contact.eve_entity.icon_url(), contact.eve_entity.name
@@ -230,7 +230,7 @@ def corporation_standings_data(request):
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    corporations_data = list()
+    corporations_data = []
     standings_requests = {
         obj.contact_id: obj
         for obj in (
@@ -329,7 +329,7 @@ def alliance_standings_data(request):
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contacts = ContactSet()
-    alliances_data = list()
+    alliances_data = []
     for contact in (
         contacts.contacts.filter_alliances()
         .select_related("eve_entity")

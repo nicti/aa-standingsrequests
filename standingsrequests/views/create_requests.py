@@ -99,7 +99,7 @@ def request_characters(request):
             ).annotate_is_pending()
         )
     }
-    characters_data = list()
+    characters_data = []
     for character in eve_characters.values():
         character_id = character.character_id
         standing = characters_with_standing.get(character_id)
@@ -183,7 +183,7 @@ def request_corporations(request):
         obj.eve_entity_id: obj
         for obj in (contact_set.contacts.filter(eve_entity_id__in=corporation_ids))
     }
-    corporations_data = list()
+    corporations_data = []
     for corporation in EveCorporation.get_many_by_id(corporation_ids):
         if corporation and not corporation.is_npc:
             corporation_id = corporation.corporation_id

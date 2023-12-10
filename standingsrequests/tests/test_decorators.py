@@ -43,7 +43,7 @@ class TestTokenRequiredByState(TestCase):
         request.session.save()
         return request
 
-    def generate_post_request(self, data=dict(), user=None):
+    def generate_post_request(self, data={}, user=None):
         request = self.factory.post("https://www.example.com/my_view/", data)
         request.user = self.user if not user else user
         middleware = SessionMiddleware(Mock())

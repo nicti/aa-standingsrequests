@@ -59,7 +59,7 @@ def _load_test_data():
 
 
 def _load_entities():
-    entities = dict()
+    entities = {}
     for character_id, character in _my_test_data["EveCharacter"].items():
         entities[int(character_id)] = character["character_name"]
 
@@ -96,7 +96,7 @@ def get_entity_name(entity_id: int):
 
 def get_entity_names(eve_entity_ids: list) -> dict:
     """returns dict with {id: name} for found entities, else empty dict"""
-    names_info = dict()
+    names_info = {}
     for id in eve_entity_ids:
         name = get_entity_name(id)
         if name:
@@ -126,7 +126,7 @@ def create_entity(EntityClass: type, entity_id: int) -> object:
 
 
 def esi_post_universe_names(ids, *args, **kwargs) -> object:
-    entities = list()
+    entities = []
     for entity in _my_test_data["esi_post_universe_names"]:
         if entity["id"] in ids:
             entities.append(entity)
@@ -191,7 +191,7 @@ def create_standings_char():
 
 def get_test_labels() -> list:
     """returns labels from test data as list of _ContactsWrapper.Label"""
-    labels = list()
+    labels = []
     for label_data in get_my_test_data()["alliance_labels"]:
         labels.append(_ContactsWrapper.Label(label_data))
 
@@ -204,7 +204,7 @@ def get_test_contacts():
 
     contact_ids = [x["contact_id"] for x in get_my_test_data()["alliance_contacts"]]
     names_info = get_entity_names(contact_ids)
-    contacts = list()
+    contacts = []
     for contact_data in get_my_test_data()["alliance_contacts"]:
         contacts.append(_ContactsWrapper.Contact(contact_data, labels, names_info))
 
