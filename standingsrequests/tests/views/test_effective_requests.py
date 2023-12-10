@@ -3,11 +3,10 @@ from unittest.mock import patch
 from django.urls import reverse
 
 from standingsrequests.tests.testdata.my_test_data import (
-    TestViewPagesBase,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
 )
-from standingsrequests.tests.utils import json_response_to_dict_2
+from standingsrequests.tests.utils import TestViewPagesBase, json_response_to_dict_2
 from standingsrequests.views.effective_requests import effective_requests_data
 
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"

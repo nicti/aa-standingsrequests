@@ -6,10 +6,10 @@ from allianceauth.eveonline.models import EveCharacter
 
 from standingsrequests.models import StandingRequest, StandingRevocation
 from standingsrequests.tests.testdata.my_test_data import (
-    TestViewPagesBase,
     esi_get_corporations_corporation_id,
     esi_post_universe_names,
 )
+from standingsrequests.tests.utils import TestViewPagesBase
 
 HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
 

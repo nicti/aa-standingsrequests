@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import List
+from typing import List, Optional
 
 from bravado.exception import HTTPError
 
@@ -36,7 +36,7 @@ class EveCorporation:
     def __str__(self):
         return self.corporation_name
 
-    def __eq__(self, o: object) -> bool:
+    def __eq__(self, o: "EveCorporation") -> bool:
         return (
             isinstance(o, type(self))
             and self.corporation_id == o.corporation_id
@@ -73,18 +73,19 @@ class EveCorporation:
         """
         from standingsrequests.models import StandingRequest
 
+        corporation_members = (
+            EveCharacter.objects.filter(character_ownership__user=user)
+            .select_related("character_ownership__user__profile__state")
+            .filter(corporation_id=self.corporation_id)
+        )
+
         return sum(
-            [
-                1
-                for character in EveCharacter.objects.filter(
-                    character_ownership__user=user
-                )
-                .select_related("character_ownership__user__profile__state")
-                .filter(corporation_id=self.corporation_id)
-                if StandingRequest.has_required_scopes_for_request(
-                    character=character, user=user, quick_check=quick_check
-                )
-            ]
+            1
+            if StandingRequest.has_required_scopes_for_request(
+                character=character, user=user, quick_check=quick_check
+            )
+            else 0
+            for character in corporation_members
         )
 
     def user_has_all_member_tokens(self, user: User, quick_check: bool = False) -> bool:
@@ -102,7 +103,9 @@ class EveCorporation:
         )
 
     @classmethod
-    def get_by_id(cls, corporation_id: int, ignore_cache: bool = False) -> object:
+    def get_by_id(
+        cls, corporation_id: int, ignore_cache: bool = False
+    ) -> Optional["EveCorporation"]:
         """Get a corporation from the cache or ESI if not cached
         Corps are cached for 3 hours
 
@@ -121,7 +124,7 @@ class EveCorporation:
             if corporation is not None:
                 cache.set(my_cache_key, corporation, cls.CACHE_TIME)
         else:
-            logger.debug("Retreving corporation %s from cache", corporation_id)
+            logger.debug("Retrieving corporation %s from cache", corporation_id)
         return corporation
 
     @classmethod
@@ -129,7 +132,9 @@ class EveCorporation:
         return cls.CACHE_PREFIX + str(corporation_id)
 
     @classmethod
-    def fetch_corporation_from_api(cls, corporation_id):
+    def fetch_corporation_from_api(
+        cls, corporation_id: int
+    ) -> Optional["EveCorporation"]:
         logger.debug(
             "Attempting to fetch corporation from ESI with id %s", corporation_id
         )
@@ -157,36 +162,33 @@ class EveCorporation:
         return cls(**args)
 
     @classmethod
-    def thread_fetch_corporation(cls, corporation_id: int) -> object:
-        """Gets one corporation by ID and returns it - used for threads"""
-        return EveCorporation.get_by_id(corporation_id)
-
-    @classmethod
-    def get_many_by_id(cls, corporation_ids: List[int]) -> list:
+    def get_many_by_id(cls, corporation_ids: List[int]) -> List["EveCorporation"]:
         """Returns multiple corporations by ID
 
         Fetches requested corporations from cache or API as needed.
         Uses threads to fetch them in parallel.
         """
-        corporation_ids2 = set(corporation_ids)
-        if not corporation_ids2:
+        corporation_ids_unique = set(corporation_ids)
+        if not corporation_ids_unique:
             return []
 
         # make sure client is loaded before starting threads
         esi.client.Status.get_status().results()
         logger.info(
             "Starting to fetch the %d corporations from ESI with up to %d workers",
-            len(corporation_ids2),
+            len(corporation_ids_unique),
             MAX_WORKERS,
         )
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
             futures = [
-                executor.submit(cls.thread_fetch_corporation, corporation_id)
-                for corporation_id in corporation_ids2
+                executor.submit(cls.get_by_id, corporation_id)
+                for corporation_id in corporation_ids_unique
             ]
             logger.info("Waiting for all threads fetching corporations to complete...")
 
         logger.info(
-            "Completed fetching %d corporations from ESI", len(corporation_ids2)
+            "Completed fetching %d corporations from ESI", len(corporation_ids_unique)
         )
-        return [f.result() for f in futures]
+        results_raw = (f.result() for f in futures)
+        results = [obj for obj in results_raw if obj is not None]
+        return results

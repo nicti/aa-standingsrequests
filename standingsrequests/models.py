@@ -615,9 +615,12 @@ class StandingRequest(AbstractStandingsRequest):
         token_qs = Token.objects.filter(
             character_id=character.character_id
         ).require_scopes(scopes_string)
+
         if not quick_check:
             token_qs = token_qs.require_valid()
-        return token_qs.exists()
+
+        result = token_qs.exists()
+        return result
 
     @staticmethod
     def get_required_scopes_for_state(state_name: str) -> list:
