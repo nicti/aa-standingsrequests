@@ -4,8 +4,13 @@ from django.contrib import admin
 from django.db.models import Count
 from eveuniverse.models import EveEntity
 
-from .core.contact_types import ContactType
-from .models import ContactSet, RequestLogEntry, StandingRequest, StandingRevocation
+from .models import (
+    AbstractStandingsRequest,
+    ContactSet,
+    RequestLogEntry,
+    StandingRequest,
+    StandingRevocation,
+)
 
 
 class AbstractStandingsRequestAdmin(admin.ModelAdmin):
@@ -24,15 +29,22 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
     list_select_related = True
     ordering = ("-id",)
 
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @admin.display
     def _contact_name(self, obj):
         return EveEntity.objects.resolve_name(obj.contact_id)
 
     @admin.display(description="contact type")
-    def _contact_type_str(self, obj):
-        if obj.contact_type_id in ContactType.character_ids():
+    def _contact_type_str(self, obj: AbstractStandingsRequest):
+        if obj.is_character:
             return "Character"
 
-        if obj.contact_type_id in ContactType.corporation_ids():
+        if obj.is_corporation:
             return "Corporation"
 
         return "(undefined)"
@@ -42,12 +54,6 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
             return obj.user
         except AttributeError:
             return None
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
 
 
 @admin.register(StandingRequest)

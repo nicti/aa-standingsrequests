@@ -367,10 +367,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 reason = StandingRevocation.Reason.LOST_PERMISSION
                 is_valid = False
 
-            elif ContactType(
-                standing_request.contact_type_id
-            ).is_corporation and not self.model.can_request_corporation_standing(
-                standing_request.contact_id, standing_request.user
+            elif (
+                standing_request.is_corporation
+                and not self.model.can_request_corporation_standing(
+                    standing_request.contact_id, standing_request.user
+                )
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
                 reason = StandingRevocation.Reason.MISSING_CORP_TOKEN
