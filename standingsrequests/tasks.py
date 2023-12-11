@@ -5,7 +5,6 @@ from celery import chain, shared_task
 from django.contrib.auth.models import User
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-from eveuniverse.tasks import update_unresolved_eve_entities
 
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
@@ -92,10 +91,9 @@ def update_associations_api():
     """Update character affiliations from ESI and relations to Eve Characters"""
     chain(
         [
-            _update_character_affiliations_from_esi.si(),
-            _update_character_affiliations_to_auth.si(),
-            update_all_corporation_details.si(),
-            update_unresolved_eve_entities.si(),
+            _update_character_affiliations_from_esi.si(),  # resolved
+            _update_character_affiliations_to_auth.si(),  # N/A
+            update_all_corporation_details.si(),  # resolves
         ]
     ).delay()
 
@@ -162,7 +160,7 @@ def purge_stale_standings_data():
         )
         if stale_contacts_qs.exists():
             logger.debug("Deleting old ContactSets")
-            # we can't just do standigs.delete()
+            # we can't just do standings.delete()
             # because with lots of them it uses lots of memory
             # lets go over them one by one and delete
             for contact_set in stale_contacts_qs:

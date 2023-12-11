@@ -635,18 +635,22 @@ class CharacterAffiliationManager(models.Manager):
             corporation, _ = EveEntity.objects.get_or_create(
                 id=affiliation["corporation_id"]
             )
+
             if affiliation.get("alliance_id"):
                 alliance, _ = EveEntity.objects.get_or_create(
                     id=affiliation["alliance_id"]
                 )
+
             else:
                 alliance = None
+
             if affiliation.get("faction_id"):
                 faction, _ = EveEntity.objects.get_or_create(
                     id=affiliation["faction_id"]
                 )
             else:
                 faction = None
+
             affiliation_objects.append(
                 self.model(
                     character=character,
@@ -659,8 +663,8 @@ class CharacterAffiliationManager(models.Manager):
         with transaction.atomic():
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
-        new_ids = set()
 
+        new_ids = set()
         for obj in affiliation_objects:
             new_ids |= obj.entity_ids()
 
