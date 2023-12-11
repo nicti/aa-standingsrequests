@@ -21,7 +21,7 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
-from .constants import CreateCharacterRequestError, OperationMode
+from .constants import CreateCharacterRequestResult, OperationMode
 from .core import app_config
 from .core.contact_types import ContactTypeId
 from .providers import esi
@@ -419,7 +419,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
     def create_character_request(
         self, user: User, character: EveCharacter
-    ) -> CreateCharacterRequestError:
+    ) -> CreateCharacterRequestResult:
         """Create new character standings request for user if possible."""
         from .models import ContactSet, RequestLogEntry, StandingRevocation
 
@@ -428,27 +428,29 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 logger.warning(
                     "%s: User %s does not own character, forbidden", character, user
                 )
-                return CreateCharacterRequestError.USER_IS_NOT_OWNER
+                return CreateCharacterRequestResult.USER_IS_NOT_OWNER
+
         except ObjectDoesNotExist:
-            return CreateCharacterRequestError.USER_IS_NOT_OWNER
+            return CreateCharacterRequestResult.USER_IS_NOT_OWNER
+
         try:
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Failed to get a contact set")
-            return CreateCharacterRequestError.UNKNOWN_ERROR
+            return CreateCharacterRequestResult.UNKNOWN_ERROR
         character_id = character.character_id
 
         if self.has_pending_request(
             character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
-            return CreateCharacterRequestError.CHARACTER_HAS_REQUEST
+            return CreateCharacterRequestResult.CHARACTER_HAS_REQUEST
 
         if not self.model.has_required_scopes_for_request(
             character=character, user=user
         ):
             logger.warning("%s: Character does not have the required scopes", character)
-            return CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES
+            return CreateCharacterRequestResult.CHARACTER_IS_MISSING_SCOPES
 
         sr = self.get_or_create_2(
             user=user,
@@ -461,7 +463,8 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             RequestLogEntry.objects.create_from_standing_request(
                 sr, RequestLogEntry.Action.CONFIRMED, None
             )
-        return CreateCharacterRequestError.NO_ERROR
+
+        return CreateCharacterRequestResult.NO_ERROR
 
     def create_corporation_request(self, user, corporation_id) -> bool:
         """Create new corporation standings request for user if possible."""

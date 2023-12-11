@@ -17,7 +17,7 @@ from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_CORPORATIONS_ENABLED
-from standingsrequests.constants import CreateCharacterRequestError
+from standingsrequests.constants import CreateCharacterRequestResult
 from standingsrequests.core import app_config
 from standingsrequests.decorators import token_required_by_state
 from standingsrequests.helpers.evecorporation import EveCorporation
@@ -293,15 +293,22 @@ def request_character_standing(request, character_id: int):
         EveCharacter.objects.select_related("character_ownership__user"),
         character_id=character_id,
     )
-    error = StandingRequest.objects.create_character_request(request.user, character)
-    if error is not CreateCharacterRequestError.NO_ERROR:
-        if error is CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES:
+    result: CreateCharacterRequestResult = (
+        StandingRequest.objects.create_character_request(
+            user=request.user, character=character
+        )
+    )
+    if result is CreateCharacterRequestResult.NO_ERROR:
+        update_associations_api.delay()
+
+    else:
+        if result is CreateCharacterRequestResult.CHARACTER_IS_MISSING_SCOPES:
             messages.error(
                 request,
                 _("You character %s is missing scopes.")
                 % EveEntity.objects.resolve_name(character_id),
             )
-        elif error is CreateCharacterRequestError.USER_IS_NOT_OWNER:
+        elif result is CreateCharacterRequestResult.USER_IS_NOT_OWNER:
             messages.error(
                 request,
                 _("You are not the owner of character %s.")
@@ -316,8 +323,7 @@ def request_character_standing(request, character_id: int):
                 )
                 % EveEntity.objects.resolve_name(character_id),
             )
-    else:
-        update_associations_api.delay()
+
     return redirect("standingsrequests:create_requests")
 
 
