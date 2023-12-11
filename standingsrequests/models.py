@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List, Optional, Set
+from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -16,6 +16,12 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.helpers import default_if_none
 from app_utils.logging import LoggerAddTag
+
+from standingsrequests.helpers.models import (
+    FrozenModelMixin,
+    GatherEntityIdsMixin,
+    get_or_create_sentinel_user,
+)
 
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
@@ -37,11 +43,6 @@ from .managers import (
 )
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-
-def get_or_create_sentinel_user() -> User:
-    """Get or create the sentinel user."""
-    return User.objects.get_or_create(username="deleted")[0]
 
 
 class ContactSet(models.Model):
@@ -649,8 +650,8 @@ class StandingRevocation(AbstractStandingsRequest):
     objects = StandingRevocationManager()
 
 
-class CharacterAffiliation(models.Model):
-    """Affiliation of a character."""
+class CharacterAffiliation(GatherEntityIdsMixin, models.Model):
+    """An affiliation of a character."""
 
     character = models.OneToOneField(
         EveEntity,
@@ -695,22 +696,8 @@ class CharacterAffiliation(models.Model):
         """Return character name for main."""
         return self.character.name if self.character.name else None
 
-    def entity_ids(self) -> set:
-        """Ids of all entities."""
-        return set(
-            filter(
-                lambda x: x is not None,
-                [
-                    self.character_id,
-                    self.corporation_id,
-                    self.alliance_id,
-                    self.faction_id,
-                ],
-            )
-        )
 
-
-class CorporationDetails(models.Model):
+class CorporationDetails(GatherEntityIdsMixin, models.Model):
     """A corporation affiliation."""
 
     corporation = models.OneToOneField(
@@ -748,34 +735,6 @@ class CorporationDetails(models.Model):
 
     def __str__(self) -> str:
         return self.corporation.name
-
-
-class FrozenModelMixin:
-    """Objects of this model type can only be created, but not updated."""
-
-    def save(self, *args, **kwargs) -> None:
-        if self.pk is None:
-            super().save(*args, **kwargs)
-        else:
-            raise RuntimeError("No updates allowed for this object.")
-
-
-class GatherEntityIdsMixin:
-    """Add ability to gather all entity IDs from foreign keys of an object."""
-
-    def gather_entity_ids(self: models.Model) -> Set[int]:
-        """Return all entity IDs in this object and ignore fields, which are None.
-
-        The relevant fields are automatically detected.
-        """
-        relevant_fields = (
-            field
-            for field in self._meta.get_fields()
-            if field.is_relation and field.related_model is EveEntity
-        )
-        values = (field.value_from_object(self) for field in relevant_fields)
-        entity_ids = {value for value in values if value is not None}
-        return entity_ids
 
 
 class RequestLogEntry(FrozenModelMixin, models.Model):

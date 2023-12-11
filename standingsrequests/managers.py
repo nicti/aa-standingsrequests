@@ -765,11 +765,9 @@ class RequestLogEntryManagerBase(models.Manager):
             requested_for=requested_for,
             reason=standing_request.reason,
         )
-        eve_entity_ids = (
-            requested_for.gather_entity_ids() | requested_by_obj.gather_entity_ids()
-        )
+        eve_entity_ids = requested_for.entity_ids() | requested_by_obj.entity_ids()
         if action_by_obj:
-            eve_entity_ids |= action_by_obj.gather_entity_ids()
+            eve_entity_ids |= action_by_obj.entity_ids()
 
         create_eve_entities.delay(list(eve_entity_ids))
         return new_obj

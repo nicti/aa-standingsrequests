@@ -102,16 +102,41 @@ def update_associations_api():
 
 @shared_task
 def _update_character_affiliations_from_esi():
-    logger.info("Running character affiliations updating from ESI...")
     CharacterAffiliation.objects.update_from_esi()
     logger.info("Finished character affiliations from ESI.")
 
 
 @shared_task
 def _update_character_affiliations_to_auth():
-    logger.info("Updating character affiliations relations to Auth...")
     CharacterAffiliation.objects.update_evecharacter_relations()
     logger.info("Finished updating character affiliations to Auth.")
+
+
+@shared_task
+def update_all_corporation_details():
+    existing_corporation_ids = (
+        CorporationDetails.objects.corporation_ids_from_contacts()
+    )
+    CorporationDetails.objects.exclude(
+        corporation_id__in=existing_corporation_ids
+    ).delete()
+
+    if not existing_corporation_ids:
+        logger.info("No corporations to update.")
+        return
+
+    for corporation_id in existing_corporation_ids:
+        update_corporation_detail.delay(corporation_id)
+
+    logger.info(
+        "Started updating corporation details for %d corporations.",
+        len(existing_corporation_ids),
+    )
+
+
+@shared_task
+def update_corporation_detail(corporation_id: int):
+    CorporationDetails.objects.update_or_create_from_esi(corporation_id)
 
 
 @shared_task(name="standings_requests.purge_stale_data")
@@ -152,27 +177,3 @@ def purge_stale_standings_data():
 
     except ContactSet.DoesNotExist:
         logger.warning("No ContactSets available, nothing to delete")
-
-
-@shared_task
-def update_all_corporation_details():
-    existing_corporation_ids = (
-        CorporationDetails.objects.corporation_ids_from_contacts()
-    )
-    CorporationDetails.objects.exclude(
-        corporation_id__in=existing_corporation_ids
-    ).delete()
-    if existing_corporation_ids:
-        logger.info(
-            "Updating corporation details for %d corporations.",
-            len(existing_corporation_ids),
-        )
-        for corporation_id in existing_corporation_ids:
-            update_corporation_detail.delay(corporation_id)
-    else:
-        logger.info("No corporations to update.")
-
-
-@shared_task
-def update_corporation_detail(corporation_id: int):
-    CorporationDetails.objects.update_or_create_from_esi(corporation_id)
