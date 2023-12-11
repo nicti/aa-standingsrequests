@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import List, Optional
+from typing import List, Optional, Set
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -45,7 +45,7 @@ def get_or_create_sentinel_user() -> User:
 
 
 class ContactSet(models.Model):
-    """Set of contacts from configured alliance or corporation
+    """Container for contacts from configured alliance or corporation
     which defines its current standings
     """
 
@@ -760,6 +760,24 @@ class FrozenModelMixin:
             raise RuntimeError("No updates allowed for this object.")
 
 
+class GatherEntityIdsMixin:
+    """Add ability to gather all entity IDs from foreign keys of an object."""
+
+    def gather_entity_ids(self: models.Model) -> Set[int]:
+        """Return all entity IDs in this object and ignore fields, which are None.
+
+        The relevant fields are automatically detected.
+        """
+        relevant_fields = (
+            field
+            for field in self._meta.get_fields()
+            if field.is_relation and field.related_model is EveEntity
+        )
+        values = (field.value_from_object(self) for field in relevant_fields)
+        entity_ids = {value for value in values if value is not None}
+        return entity_ids
+
+
 class RequestLogEntry(FrozenModelMixin, models.Model):
     class Action(models.TextChoices):
         CONFIRMED = "CN", _("confirmed")
@@ -813,8 +831,8 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
         return f"{self.created_at}-{self.action}"
 
 
-class FrozenAuthUser(FrozenModelMixin, models.Model):
-    """Main with user, character and affiliations.
+class FrozenAuthUser(GatherEntityIdsMixin, FrozenModelMixin, models.Model):
+    """A main with user, character and affiliations.
     Objects are frozen at creation and can not be changed.
     """
 
@@ -853,8 +871,10 @@ class FrozenAuthUser(FrozenModelMixin, models.Model):
         return str(self.user)
 
 
-class FrozenAlt(FrozenModelMixin, models.Model):
-    """Alt with alignments. Objects are frozen at creation and can not be changed."""
+class FrozenAlt(GatherEntityIdsMixin, FrozenModelMixin, models.Model):
+    """A character or corporation alt with alignments.
+    Objects are frozen at creation and can not be changed.
+    """
 
     class Category(models.TextChoices):
         CHARACTER = "CH", "character"
