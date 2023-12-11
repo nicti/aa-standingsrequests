@@ -1,6 +1,8 @@
 # pylint: disable = redefined-builtin
 
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from bravado.exception import HTTPError
 
@@ -25,6 +27,9 @@ from .constants import CreateCharacterRequestResult, OperationMode
 from .core import app_config
 from .core.contact_types import ContactTypeId
 from .providers import esi
+
+if TYPE_CHECKING:
+    from .models import AbstractStandingsRequest
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -466,7 +471,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
         return CreateCharacterRequestResult.NO_ERROR
 
-    def create_corporation_request(self, user, corporation_id) -> bool:
+    def create_corporation_request(self, user: User, corporation_id: int) -> bool:
         """Create new corporation standings request for user if possible."""
         from .models import StandingRevocation
 
@@ -499,7 +504,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         - contact_id: contact_id to request standings on
         - contact_type: type of this contact
 
-        Restuns the created StandingRequest instance
+        Returns the created StandingRequest instance
         """
         contact_type_id = self.model.contact_type_2_id(contact_type)
         instance, _ = self.get_or_create(
@@ -680,7 +685,7 @@ class CorporationDetailsManager(models.Manager):
             )
         )
 
-    def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
+    def update_or_create_from_esi(self, id: int) -> Tuple[Any, bool]:
         """Updates or create an obj from ESI"""
         logger.info("%s: Fetching corporation from ESI", id)
         data = esi.client.Corporation.get_corporations_corporation_id(
@@ -730,8 +735,8 @@ class RequestLogEntryQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 class RequestLogEntryManagerBase(models.Manager):
     def create_from_standing_request(
-        self, standing_request, action, action_by
-    ) -> Optional[models.Model]:
+        self, standing_request: AbstractStandingsRequest, action, action_by: User
+    ) -> Optional[Any]:
         from .models import FrozenAlt, FrozenAuthUser, RequestLogEntry
 
         requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
@@ -749,7 +754,7 @@ class RequestLogEntryManagerBase(models.Manager):
             standing_request
         )
         new_obj = self.create(
-            action=action,
+            action=RequestLogEntry.Action(action),
             action_by=action_by_obj,
             request_type=request_type,
             requested_at=standing_request.request_date,
@@ -771,15 +776,17 @@ class FrozenAuthUserQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 
 class FrozenAuthUserManagerBase(models.Manager):
-    def get_or_create_from_user(self, user) -> Tuple[models.Model, bool]:
+    def get_or_create_from_user(self, user: User) -> Tuple[Any, bool]:
         main_character = user.profile.main_character
         if main_character:
             character_id = main_character.character_id
             corporation_id = main_character.corporation_id
             alliance_id = main_character.alliance_id
             faction_id = main_character.faction_id
+
         else:
             character_id = corporation_id = alliance_id = faction_id = None
+
         try:
             obj = self.get(
                 user_id=user.id,
@@ -789,6 +796,7 @@ class FrozenAuthUserManagerBase(models.Manager):
                 faction_id=faction_id,
             )
             return obj, False
+
         except self.model.DoesNotExist:
             alliance = (
                 EveEntity.objects.get_or_create(id=alliance_id)[0]
@@ -829,9 +837,10 @@ class FrozenAltQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 class FrozenAltManagerBase(models.Manager):
     def get_or_create_from_standing_request(
-        self, standing_request: object
-    ) -> Tuple[models.Model, bool]:
+        self, standing_request: AbstractStandingsRequest
+    ) -> Tuple[Any, bool]:
         eve_entity, _ = EveEntity.objects.get_or_create(id=standing_request.contact_id)
+
         if standing_request.is_character:
             category = self.model.Category.CHARACTER
             character = eve_entity
@@ -843,6 +852,7 @@ class FrozenAltManagerBase(models.Manager):
                 alliance = None
                 corporation = None
                 faction = None
+
         elif standing_request.is_corporation:
             category = self.model.Category.CORPORATION
             character = None
@@ -853,8 +863,10 @@ class FrozenAltManagerBase(models.Manager):
             except ObjectDoesNotExist:
                 alliance = None
                 faction = None
+
         else:
             raise NotImplementedError()
+
         return self.get_or_create(
             character=character,
             corporation=corporation,
