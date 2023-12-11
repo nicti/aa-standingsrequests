@@ -1,4 +1,4 @@
-from datetime import timedelta
+import datetime as dt
 from typing import Optional
 
 from celery import chain, shared_task
@@ -167,27 +167,27 @@ def purge_stale_standings_data():
     """Deletes all stale (=older than threshold hours) contact sets
     except the last remaining contact set
     """
-    logger.info("Purging stale standings data")
-    cutoff_date = now() - timedelta(hours=SR_STANDINGS_STALE_HOURS)
+    cutoff_date = now() - dt.timedelta(hours=SR_STANDINGS_STALE_HOURS)
+
     try:
         latest_standings = ContactSet.objects.latest()
-        stale_contacts_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
-            id=latest_standings.id
-        )
-        if stale_contacts_qs.exists():
-            logger.debug("Deleting old ContactSets")
-            # we can't just do standings.delete()
-            # because with lots of them it uses lots of memory
-            # lets go over them one by one and delete
-            for contact_set in stale_contacts_qs:
-                Contact.objects.filter(contact_set=contact_set).delete()
-                Contact.objects.filter(contact_set=contact_set).delete()
-                Contact.objects.filter(contact_set=contact_set).delete()
-                ContactLabel.objects.filter(contact_set=contact_set).delete()
-
-            stale_contacts_qs.delete()
-        else:
-            logger.debug("No ContactSets to delete")
-
     except ContactSet.DoesNotExist:
         logger.warning("No ContactSets available, nothing to delete")
+        return
+
+    stale_contacts_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
+        id=latest_standings.id
+    )
+    if not stale_contacts_qs.exists():
+        logger.debug("No ContactSets to delete")
+        return
+
+    # we can't just do standings.delete()
+    # because with lots of them it uses lots of memory
+    # lets go over them one by one and delete
+    for contact_set in stale_contacts_qs:
+        Contact.objects.filter(contact_set=contact_set).delete()
+        ContactLabel.objects.filter(contact_set=contact_set).delete()
+
+    stale_contacts_qs.delete()
+    logger.info("Deleted stale contact sets")
