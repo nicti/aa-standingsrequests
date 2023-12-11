@@ -237,8 +237,10 @@ class TestViewsBasics(TestViewPagesBase):
 #         self.assertEqual(response.status_code, 200)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-@patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["publicData"]})
+@patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["required_scope"]})
+@patch(MANAGERS_PATH + ".update_unresolved_eve_entities", Mock())
+@patch(VIEWS_PATH + ".update_associations_api.delay")
+@patch(VIEWS_PATH + ".messages.error")
 class TestRequestCharacterStanding(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -250,115 +252,181 @@ class TestRequestCharacterStanding(TestCase):
             1001, permissions=["standingsrequests.request_standings"]
         )
 
-    def _view_request_pilot_standing(self, character_id: int) -> bool:
-        request = self.factory.get(
-            reverse(
-                "standingsrequests:request_character_standing",
-                args=[character_id],
-            )
-        )
+    def test_should_create_new_request(
+        self, mock_message_error, mock_update_associations_api
+    ):
+        # given
+        character = create_entity(EveCharacter, 1008)
+        add_character_to_user(self.user, character, scopes=["required_scope"])
+        request = self.factory.get("/")
         request.user = self.user
 
-        with patch(VIEWS_PATH + ".messages.error") as mock_message, patch(
-            MANAGERS_PATH + ".esi"
-        ) as mock_esi:
-            mock_esi.client.Character.post_characters_affiliation.side_effect = (
-                esi_post_characters_affiliation
-            )
-            mock_esi.client.Corporation.get_corporations_corporation_id.side_effect = (
-                esi_get_corporations_corporation_id
-            )
-            mock_esi.client.Universe.post_universe_names.side_effect = (
-                esi_post_universe_names
-            )
-            response = create_requests.request_character_standing(request, character_id)
-            success = not mock_message.called
+        # when
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
+        # then
+        self.assertFalse(mock_message_error.called)
+        self.assertTrue(mock_update_associations_api.called)
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
-        return success
 
-    def test_should_create_new_request(self):
-        # when
-        alt_character = create_entity(EveCharacter, 1008)
-        add_character_to_user(self.user, alt_character, scopes=["publicData"])
-        result = self._view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertTrue(result)
-        obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
+        obj = StandingRequest.objects.get(contact_id=character.character_id)
         self.assertFalse(obj.is_actioned)
         self.assertFalse(obj.is_effective)
 
-    def test_should_not_create_new_request_if_character_has_pending_request(self):
+    def test_should_not_create_new_request_if_character_has_pending_request(
+        self, mock_message_error, mock_update_associations_api
+    ):
         # given
-        alt_character = create_entity(EveCharacter, 1110)
-        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, character, scopes=["required_scope"])
         StandingRequest.objects.create(
-            contact_id=alt_character.character_id,
+            contact_id=character.character_id,
             contact_type_id=ContactTypeId.character_id(),
             user=self.user,
         )
-        # when
-        result = self._view_request_pilot_standing(alt_character.character_id)
-        # then
-        self.assertFalse(result)
+        request = self.factory.get("/")
+        request.user = self.user
 
-    def test_should_not_create_new_request_if_character_has_pending_revocation(self):
+        # when
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
+        # then
+        self.assertTrue(mock_message_error.called)
+        self.assertFalse(mock_update_associations_api.called)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+    def test_should_not_create_new_request_if_character_has_pending_revocation(
+        self, mock_message_error, mock_update_associations_api
+    ):
         # given
-        alt_character = create_entity(EveCharacter, 1110)
-        add_character_to_user(self.user, alt_character, scopes=["publicData"])
+        character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, character, scopes=["required_scope"])
         StandingRevocation.objects.create(
-            contact_id=alt_character.character_id,
+            contact_id=character.character_id,
             contact_type_id=ContactTypeId.character_id(),
             user=self.user,
         )
+        request = self.factory.get("/")
+        request.user = self.user
+
         # when
-        result = self._view_request_pilot_standing(alt_character.character_id)
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
         # then
-        self.assertFalse(result)
+        self.assertTrue(mock_message_error.called)
+        self.assertFalse(mock_update_associations_api.called)
 
-    # FIXME
-    # def test_should_not_create_new_request_if_character_is_missing_scopes(self):
-    #     # given
-    #     alt_character = create_entity(EveCharacter, 1009)
-    #     add_character_to_user(self.user, alt_character)
-    #     # when
-    #     result = self._view_request_pilot_standing(alt_character.character_id)
-    #     # then
-    #     self.assertFalse(result)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
 
-    def test_should_not_create_new_request_if_character_is_not_owned_by_anyone(self):
+        self.assertFalse(StandingRequest.objects.exists())
+
+    def test_should_not_create_new_request_if_character_is_missing_scopes(
+        self, mock_message_error, mock_update_associations_api
+    ):
         # given
-        random_character = create_entity(EveCharacter, 1007)
-        # when
-        result = self._view_request_pilot_standing(random_character.character_id)
-        # then
-        self.assertFalse(result)
+        character = create_entity(EveCharacter, 1009)
+        add_character_to_user(self.user, character)
+        request = self.factory.get("/")
+        request.user = self.user
 
-    def test_should_not_create_new_request_if_character_is_owned_by_sombody_else(self):
+        # when
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
+        # then
+        self.assertTrue(mock_message_error.called)
+        self.assertFalse(mock_update_associations_api.called)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+        self.assertFalse(StandingRequest.objects.exists())
+
+    def test_should_not_create_new_request_if_character_is_not_owned_by_anyone(
+        self, mock_message_error, mock_update_associations_api
+    ):
+        # given
+        character = create_entity(EveCharacter, 1007)
+        request = self.factory.get("/")
+        request.user = self.user
+
+        # when
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
+        # then
+        self.assertTrue(mock_message_error.called)
+        self.assertFalse(mock_update_associations_api.called)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+        self.assertFalse(StandingRequest.objects.exists())
+
+    def test_should_not_create_new_request_if_character_is_owned_by_somebody_else(
+        self, mock_message_error, mock_update_associations_api
+    ):
         # given
         user = AuthUtils.create_member("Peter Parker")
-        other_character = create_entity(EveCharacter, 1006)
-        add_character_to_user(user, other_character, scopes=["publicData"])
-        # when
-        result = self._view_request_pilot_standing(other_character.character_id)
-        # then
-        self.assertFalse(result)
+        character = create_entity(EveCharacter, 1006)
+        add_character_to_user(user, character, scopes=["required_scope"])
+        request = self.factory.get("/")
+        request.user = self.user
 
-    def test_should_auto_confirm_new_request_if_standing_is_satisfied(self):
-        # given
-        alt_character = create_entity(EveCharacter, 1110)
-        add_character_to_user(self.user, alt_character, scopes=["publicData"])
         # when
-        result = self._view_request_pilot_standing(alt_character.character_id)
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
         # then
-        self.assertTrue(result)
-        obj = StandingRequest.objects.get(contact_id=alt_character.character_id)
+        self.assertTrue(mock_message_error.called)
+        self.assertFalse(mock_update_associations_api.called)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+        self.assertFalse(StandingRequest.objects.exists())
+
+    def test_should_auto_confirm_new_request_if_standing_is_satisfied(
+        self, mock_message_error, mock_update_associations_api
+    ):
+        # given
+        character = create_entity(EveCharacter, 1110)
+        add_character_to_user(self.user, character, scopes=["required_scope"])
+        request = self.factory.get("/")
+        request.user = self.user
+
+        # when
+        response = create_requests.request_character_standing(
+            request, character.character_id
+        )
+
+        # then
+        self.assertFalse(mock_message_error.called)
+        self.assertTrue(mock_update_associations_api.called)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("standingsrequests:create_requests"))
+
+        obj = StandingRequest.objects.get(contact_id=character.character_id)
         self.assertTrue(obj.is_effective)
         self.assertEqual(
             RequestLogEntry.objects.filter(
                 action_by__isnull=True,
-                requested_for__character_id=alt_character.character_id,
+                requested_for__character_id=character.character_id,
                 requested_by__user=self.user,
                 request_type=RequestLogEntry.RequestType.REQUEST,
                 action=RequestLogEntry.Action.CONFIRMED,
