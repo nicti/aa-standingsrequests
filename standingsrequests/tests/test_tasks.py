@@ -12,18 +12,27 @@ from .testdata.my_test_data import create_contacts_set
 MODULE_PATH = "standingsrequests.tasks"
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODULE_PATH + ".StandingRequest.objects.process_requests")
 @patch(MODULE_PATH + ".StandingRevocation.objects.process_requests")
 @patch(MODULE_PATH + ".ContactSet.objects.create_new_from_api")
 class TestStandingsUpdate(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.contact_set = create_contacts_set()
+
     def test_can_update_standings(
         self,
         mock_create_new_from_api,
         mock_requests_process_standings,
         mock_revocations_process_standings,
     ):
+        # given
+        mock_create_new_from_api.return_value = self.contact_set
+
         # when
-        tasks.standings_update()
+        tasks.standings_update.delay()
 
         # then
         self.assertTrue(mock_create_new_from_api.called)

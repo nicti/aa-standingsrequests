@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 from celery import chain, shared_task
 
@@ -61,23 +62,46 @@ def report_result_to_user(user_pk: int = None):
 def standings_update():
     """Updates standings from ESI"""
     logger.info("Standings API update started")
-    contact_set = ContactSet.objects.create_new_from_api()
+    contact_set: Optional[ContactSet] = ContactSet.objects.create_new_from_api()
     if not contact_set:
         raise RuntimeError(
             "Standings API update returned None (API error probably),"
             "aborting standings update"
         )
 
-    if SR_SYNC_BLUE_ALTS_ENABLED:
-        contact_set.generate_standing_requests_for_blue_alts()
+    tasks = []
 
+    if SR_SYNC_BLUE_ALTS_ENABLED:
+        tasks.append(generate_standing_requests_for_blue_alts.si(contact_set.pk))
+
+    tasks.append(process_standing_requests.si())
+    tasks.append(process_standing_revocations.si())
+
+    chain(tasks).delay()
+
+
+@shared_task
+def generate_standing_requests_for_blue_alts(contact_set_pk: int):
+    """Generate standing requests for blue alts."""
+    contact_set = ContactSet.objects.get(pk=contact_set_pk)
+    contact_set.generate_standing_requests_for_blue_alts()
+
+
+@shared_task
+def process_standing_requests():
+    """Process standings requests."""
     StandingRequest.objects.process_requests()
+
+
+@shared_task
+def process_standing_revocations():
+    """Process standing revocations."""
     StandingRevocation.objects.process_requests()
 
 
 @shared_task(name="standings_requests.validate_requests")
 def validate_requests():
-    logger.info("Validating standings request running")
+    """Validate standings requests."""
     count = StandingRequest.objects.validate_requests()
     logger.info("Dealt with %d invalid standings requests", count)
 
