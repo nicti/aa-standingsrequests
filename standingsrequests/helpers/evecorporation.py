@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from bravado.exception import HTTPError
 
@@ -162,7 +162,7 @@ class EveCorporation:
         return cls(**args)
 
     @classmethod
-    def get_many_by_id(cls, corporation_ids: List[int]) -> List["EveCorporation"]:
+    def get_many_by_id(cls, corporation_ids: Iterable[int]) -> List["EveCorporation"]:
         """Returns multiple corporations by ID
 
         Fetches requested corporations from cache or API as needed.

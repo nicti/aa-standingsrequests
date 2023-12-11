@@ -58,11 +58,11 @@ def is_character_a_member(character: EveCharacter) -> bool:
 
 def corporation_ids() -> Set[int]:
     """Return corporation IDs, which belong the configured organization."""
-    corporation_ids = {int(org_id) for org_id in list(STR_CORP_IDS)}
-    return corporation_ids
+    result = {int(org_id) for org_id in list(STR_CORP_IDS)}
+    return result
 
 
 def alliance_ids() -> Set[int]:
     """Return alliance IDs, which belong to the configured organization."""
-    alliance_ids = {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
-    return alliance_ids
+    result = {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
+    return result

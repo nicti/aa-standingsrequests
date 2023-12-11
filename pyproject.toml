@@ -77,7 +77,8 @@ disable = [
     "imported-auth-user",
     "fixme",
     "cyclic-import",
-    "missing-class-docstring",    # temporary
-    "missing-module-docstring",   # temporary
-    "missing-function-docstring", # temporary
+    "too-many-instance-attributes",
+    "missing-class-docstring",      # temporary
+    "missing-module-docstring",     # temporary
+    "missing-function-docstring",   # temporary
 ]
