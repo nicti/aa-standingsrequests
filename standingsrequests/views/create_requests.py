@@ -51,10 +51,12 @@ def create_requests(request):
         main_char_id = request.user.profile.main_character.character_id
     except AttributeError:
         main_char_id = None
+
+    image_url = organization.icon_url(size=DEFAULT_ICON_SIZE) if organization else ""
     context = {
         "corporations_enabled": SR_CORPORATIONS_ENABLED,
         "organization": organization,
-        "organization_image_url": organization.icon_url(size=DEFAULT_ICON_SIZE),
+        "organization_image_url": image_url,
         "authinfo": {"main_char_id": main_char_id},
     }
     return render(
@@ -282,7 +284,7 @@ def _calc_corporation_ids(user: User) -> Set[int]:
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def request_character_standing(request, character_id: int):
+def request_character_standing(request: HttpRequest, character_id: int):
     """For a user to request standings for their own characters"""
     logger.debug(
         "Standings request from user %s for characterID %s",
@@ -329,7 +331,7 @@ def request_character_standing(request, character_id: int):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def remove_character_standing(request, character_id: int):
+def remove_character_standing(request: HttpRequest, character_id: int):
     """
     Handles both removing requests and removing existing standings
     """
@@ -354,7 +356,7 @@ def remove_character_standing(request, character_id: int):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def request_corp_standing(request, corporation_id):
+def request_corp_standing(request: HttpRequest, corporation_id):
     """
     For a user to request standings for their own corp
     """
@@ -380,7 +382,7 @@ def request_corp_standing(request, corporation_id):
 
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
-def remove_corp_standing(request, corporation_id: int):
+def remove_corp_standing(request: HttpRequest, corporation_id: int):
     """
     Handles both removing corp requests and removing existing standings
     """
@@ -464,7 +466,7 @@ def view_auth_page(request: HttpRequest, token: Token):
 @login_required
 @permission_required(StandingRequest.REQUEST_PERMISSION_NAME)
 @token_required_by_state(new=False)
-def view_requester_add_scopes(request, token):
+def view_requester_add_scopes(request: HttpRequest, token):
     messages.success(
         request,
         _("Successfully added token with required scopes for %(char_name)s")
