@@ -769,6 +769,15 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
         REQUEST = "RQ", _("request")
         REVOCATION = "RV", _("revocation")
 
+        @classmethod
+        def from_standing_request(
+            cls, standing_request: AbstractStandingsRequest
+        ) -> "RequestLogEntry.RequestType":
+            """Create obj from a standings request."""
+            if standing_request.is_standing_request:
+                return cls.REQUEST
+            return cls.REVOCATION
+
     action = models.CharField(max_length=2, choices=Action.choices)
     action_by = models.ForeignKey(
         "FrozenAuthUser",

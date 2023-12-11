@@ -732,12 +732,8 @@ class RequestLogEntryManagerBase(models.Manager):
     def create_from_standing_request(
         self, standing_request, action, action_by
     ) -> Optional[models.Model]:
-        from .models import FrozenAlt, FrozenAuthUser
+        from .models import FrozenAlt, FrozenAuthUser, RequestLogEntry
 
-        if standing_request.is_standing_request:
-            request_type = self.model.RequestType.REQUEST
-        else:
-            request_type = self.model.RequestType.REVOCATION
         requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
             standing_request
         )
@@ -745,8 +741,12 @@ class RequestLogEntryManagerBase(models.Manager):
             action_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(action_by)
         else:
             action_by_obj = None
+
         requested_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(
             standing_request.user
+        )
+        request_type = RequestLogEntry.RequestType.from_standing_request(
+            standing_request
         )
         new_obj = self.create(
             action=action,
