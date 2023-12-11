@@ -15,7 +15,7 @@ from allianceauth.eveonline.models import (
 )
 from app_utils.esi_testing import BravadoOperationStub, BravadoResponseStub
 
-from standingsrequests.managers import _ContactsWrapper
+from standingsrequests.managers import EsiContactsContainer
 from standingsrequests.models import (
     CharacterAffiliation,
     Contact,
@@ -185,7 +185,7 @@ def get_test_labels() -> list:
     """returns labels from test data as list of _ContactsWrapper.Label"""
     labels = []
     for label_data in get_my_test_data()["alliance_labels"]:
-        labels.append(_ContactsWrapper.Label(label_data))
+        labels.append(EsiContactsContainer.EsiLabel(label_data))
 
     return labels
 
@@ -198,7 +198,9 @@ def get_test_contacts():
     names_info = get_entity_names(contact_ids)
     contacts = []
     for contact_data in get_my_test_data()["alliance_contacts"]:
-        contacts.append(_ContactsWrapper.Contact(contact_data, labels, names_info))
+        contacts.append(
+            EsiContactsContainer.EsiContact(contact_data, labels, names_info)
+        )
 
     return contacts
 

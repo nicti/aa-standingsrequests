@@ -29,83 +29,15 @@ from .core.contact_types import ContactTypeId
 from .providers import esi
 
 if TYPE_CHECKING:
-    from .models import AbstractStandingsRequest
+    from .models import AbstractStandingsRequest, ContactSet, StandingRequest
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-class ContactSetManager(models.Manager):
-    def create_new_from_api(self) -> object:
-        """fetches contacts with standings for configured alliance
-        or corporation from ESI and stores them as newly created ContactSet
-
-        Returns new ContactSet on success, else None
-        """
-        owner_character = app_config.owner_character()
-        token = (
-            Token.objects.filter(character_id=owner_character.character_id)
-            .require_scopes(self.model.required_esi_scope())
-            .require_valid()
-            .first()
-        )
-        if not token:
-            logger.warning("Token for standing char could not be found")
-            return None
-
-        try:
-            contacts_wrap = _ContactsWrapper(token, owner_character)
-        except HTTPError as ex:
-            logger.exception(
-                "APIError occurred while trying to query api server: %s", ex
-            )
-            return None
-
-        with transaction.atomic():
-            contacts_set = self.create()
-            self._add_labels_from_api(contacts_set, contacts_wrap.labels)
-            self._add_contacts_from_api(contacts_set, contacts_wrap.contacts)
-
-        return contacts_set
-
-    def _add_labels_from_api(self, contact_set, labels):
-        """Add the list of labels to the given ContactSet
-
-        contact_set: ContactSet instance
-        labels: Label dictionary
-        """
-        from .models import ContactLabel
-
-        contact_labels = [
-            ContactLabel(label_id=label.id, name=label.name, contact_set=contact_set)
-            for label in labels
-        ]
-        ContactLabel.objects.bulk_create(contact_labels, ignore_conflicts=True)
-
-    def _add_contacts_from_api(self, contact_set, contacts):
-        """Add all contacts to the given ContactSet
-        Labels _MUST_ be added before adding contacts
-
-        :param contact_set: Django ContactSet to add contacts to
-        :param contacts: List of _ContactsWrapper.Contact to add
-        """
-        from .models import Contact
-
-        for contact in contacts:
-            eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact.id)
-            obj = Contact.objects.create(
-                contact_set=contact_set,
-                eve_entity=eve_entity,
-                standing=contact.standing,
-            )
-            flat_labels = [label.id for label in contact.labels]
-            labels = contact_set.labels.filter(label_id__in=flat_labels)
-            obj.labels.add(*labels)
-
-
-class _ContactsWrapper:
+class EsiContactsContainer:
     """Converts raw contacts and contact labels data from ESI into an object"""
 
-    class Label:
+    class EsiLabel:
         def __init__(self, json):
             self.id = json["label_id"]
             self.name = json["label_name"]
@@ -116,7 +48,7 @@ class _ContactsWrapper:
         def __repr__(self) -> str:
             return str(self)
 
-    class Contact:
+    class EsiContact:
         def __init__(self, json, labels, names_info):
             self.id = json["contact_id"]
             self.name = names_info[self.id] if self.id in names_info else ""
@@ -149,7 +81,7 @@ class _ContactsWrapper:
                 alliance_id=owner_character.alliance_id,
                 token=token.valid_access_token(),
             ).results()
-            self.labels = [self.Label(label) for label in labels]
+            self.labels = [self.EsiLabel(label) for label in labels]
             contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
                 alliance_id=owner_character.alliance_id,
                 token=token.valid_access_token(),
@@ -162,7 +94,7 @@ class _ContactsWrapper:
                     token=token.valid_access_token(),
                 ).results()
             )
-            self.labels = [self.Label(label) for label in labels]
+            self.labels = [self.EsiLabel(label) for label in labels]
             contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
                 corporation_id=owner_character.corporation_id,
                 token=token.valid_access_token(),
@@ -174,9 +106,77 @@ class _ContactsWrapper:
         entity_ids = [contact["contact_id"] for contact in contacts]
         resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
         self.contacts = [
-            self.Contact(contact, self.labels, resolver._names_map)
+            self.EsiContact(contact, self.labels, resolver._names_map)
             for contact in contacts
         ]
+
+
+class ContactSetManager(models.Manager):
+    def create_new_from_api(self) -> Optional[ContactSet]:
+        """fetches contacts with standings for configured alliance
+        or corporation from ESI and stores them as newly created ContactSet
+
+        Returns new ContactSet on success, else None
+        """
+        owner_character = app_config.owner_character()
+        token: Token = (
+            Token.objects.filter(character_id=owner_character.character_id)
+            .require_scopes(self.model.required_esi_scope())
+            .require_valid()
+            .first()
+        )
+        if not token:
+            logger.warning("Token for standing char could not be found")
+            return None
+
+        try:
+            contacts_wrap = EsiContactsContainer(token, owner_character)
+        except HTTPError as ex:
+            logger.exception(
+                "APIError occurred while trying to query api server: %s", ex
+            )
+            return None
+
+        with transaction.atomic():
+            contacts_set = self.create()
+            self._add_labels_from_api(contacts_set, contacts_wrap.labels)
+            self._add_contacts_from_api(contacts_set, contacts_wrap.contacts)
+
+        return contacts_set
+
+    def _add_labels_from_api(self, contact_set: ContactSet, labels):
+        """Add the list of labels to the given ContactSet
+
+        contact_set: ContactSet instance
+        labels: Label dictionary
+        """
+        from .models import ContactLabel
+
+        contact_labels = [
+            ContactLabel(label_id=label.id, name=label.name, contact_set=contact_set)
+            for label in labels
+        ]
+        ContactLabel.objects.bulk_create(contact_labels, ignore_conflicts=True)
+
+    def _add_contacts_from_api(self, contact_set, contacts):
+        """Add all contacts to the given ContactSet
+        Labels _MUST_ be added before adding contacts
+
+        :param contact_set: Django ContactSet to add contacts to
+        :param contacts: List of _ContactsWrapper.Contact to add
+        """
+        from .models import Contact
+
+        for contact in contacts:
+            eve_entity, _ = EveEntity.objects.get_or_create_esi(id=contact.id)
+            obj = Contact.objects.create(
+                contact_set=contact_set,
+                eve_entity=eve_entity,
+                standing=contact.standing,
+            )
+            flat_labels = [label.id for label in contact.labels]
+            labels = contact_set.labels.filter(label_id__in=flat_labels)
+            obj.labels.add(*labels)
 
 
 class ContactQuerySet(models.QuerySet):
@@ -236,7 +236,9 @@ class _AbstractStandingsRequestManagerBase(models.Manager):
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
                     self._notify_user_about_standing_change(
-                        organization_name, standing_request, contact
+                        organization_name=organization_name,
+                        standing_request=standing_request,
+                        contact=contact,
                     )
 
                 # if this was a revocation the standing requests need to be remove
@@ -269,7 +271,10 @@ class _AbstractStandingsRequestManagerBase(models.Manager):
                         )
 
     def _notify_user_about_standing_change(
-        self, organization_name, standing_request, contact
+        self,
+        organization_name: str,
+        standing_request: AbstractStandingsRequest,
+        contact: EveEntity,
     ):
         if standing_request.is_standing_request:
             notify(
@@ -307,7 +312,7 @@ class _AbstractStandingsRequestManagerBase(models.Manager):
                     },
                 )
 
-    def _removing_effective_standing(self, standing_request):
+    def _removing_effective_standing(self, standing_request: AbstractStandingsRequest):
         from .models import StandingRevocation
 
         logger.info(
@@ -326,7 +331,10 @@ class _AbstractStandingsRequestManagerBase(models.Manager):
         ).delete()
 
     def _notify_user_about_timed_out_request(
-        self, standing_request, contact, actioned_timeout
+        self,
+        standing_request: AbstractStandingsRequest,
+        contact: EveEntity,
+        actioned_timeout,
     ):
         title = _("Standing Request for %s reset") % contact.name
         message = (
@@ -496,7 +504,9 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return True
 
-    def get_or_create_2(self, user: User, contact_id: int, contact_type: str) -> object:
+    def get_or_create_2(
+        self, user: User, contact_id: int, contact_type: str
+    ) -> StandingRequest:
         """Get or create a new standing request
 
         Params:
@@ -748,9 +758,9 @@ class RequestLogEntryManagerBase(models.Manager):
             FrozenAlt.objects.get_or_create_from_standing_request(standing_request)[0]
         )
         if action_by:
-            action_by_obj: FrozenAuthUser = (
-                FrozenAuthUser.objects.get_or_create_from_user(action_by)[0]
-            )
+            action_by_obj: Optional[
+                FrozenAuthUser
+            ] = FrozenAuthUser.objects.get_or_create_from_user(action_by)[0]
         else:
             action_by_obj = None
 

@@ -22,22 +22,26 @@ class TestStandingsUpdate(TestCase):
         mock_requests_process_standings,
         mock_revocations_process_standings,
     ):
+        # when
         tasks.standings_update()
+
+        # then
         self.assertTrue(mock_create_new_from_api.called)
         self.assertTrue(mock_requests_process_standings.called)
         self.assertTrue(mock_revocations_process_standings.called)
 
-    def test_can_handle_api_error(
+    def test_should_abort_with_error_when_api_failed(
         self,
         mock_create_new_from_api,
         mock_requests_process_standings,
         mock_revocations_process_standings,
     ):
+        # given
         mock_create_new_from_api.return_value = None
-        tasks.standings_update()
-        self.assertTrue(mock_create_new_from_api.called)
-        self.assertFalse(mock_requests_process_standings.called)
-        self.assertFalse(mock_revocations_process_standings.called)
+
+        # when/then
+        with self.assertRaises(RuntimeError):
+            tasks.standings_update()
 
 
 class TestOtherTasks(TestCase):

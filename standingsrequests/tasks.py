@@ -63,15 +63,16 @@ def standings_update():
     logger.info("Standings API update started")
     contact_set = ContactSet.objects.create_new_from_api()
     if not contact_set:
-        logger.warning(
+        raise RuntimeError(
             "Standings API update returned None (API error probably),"
             "aborting standings update"
         )
-    else:
-        if SR_SYNC_BLUE_ALTS_ENABLED:
-            contact_set.generate_standing_requests_for_blue_alts()
-        StandingRequest.objects.process_requests()
-        StandingRevocation.objects.process_requests()
+
+    if SR_SYNC_BLUE_ALTS_ENABLED:
+        contact_set.generate_standing_requests_for_blue_alts()
+
+    StandingRequest.objects.process_requests()
+    StandingRevocation.objects.process_requests()
 
 
 @shared_task(name="standings_requests.validate_requests")
@@ -81,31 +82,22 @@ def validate_requests():
     logger.info("Dealt with %d invalid standings requests", count)
 
 
-@shared_task(name="standings_requests.update_associations_auth")
-def update_associations_auth():
-    ...
-
-
 @shared_task(name="standings_requests.update_associations_api")
 def update_associations_api():
     """Update character affiliations from ESI and relations to Eve Characters"""
-    chain(
-        [
-            _update_character_affiliations_from_esi.si(),  # resolved
-            _update_character_affiliations_to_auth.si(),  # N/A
-            update_all_corporation_details.si(),  # resolves
-        ]
-    ).delay()
+    update_character_affiliations_from_esi.delay()
+    update_character_affiliations_to_auth.delay()
+    update_all_corporation_details.delay()
 
 
 @shared_task
-def _update_character_affiliations_from_esi():
+def update_character_affiliations_from_esi():
     CharacterAffiliation.objects.update_from_esi()
     logger.info("Finished character affiliations from ESI.")
 
 
 @shared_task
-def _update_character_affiliations_to_auth():
+def update_character_affiliations_to_auth():
     CharacterAffiliation.objects.update_evecharacter_relations()
     logger.info("Finished updating character affiliations to Auth.")
 
