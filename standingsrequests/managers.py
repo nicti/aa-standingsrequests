@@ -13,7 +13,7 @@ from django.db.models import Case, Q, Value, When
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
-from eveuniverse.tasks import update_unresolved_eve_entities
+from eveuniverse.tasks import create_eve_entities
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
@@ -734,21 +734,24 @@ class RequestLogEntryQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 
 class RequestLogEntryManagerBase(models.Manager):
+    # TODO: This method should be called as tasks, and entities should be resolved
     def create_from_standing_request(
         self, standing_request: AbstractStandingsRequest, action, action_by: User
     ) -> Optional[Any]:
         from .models import FrozenAlt, FrozenAuthUser, RequestLogEntry
 
-        requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
-            standing_request
+        requested_for: FrozenAlt = (
+            FrozenAlt.objects.get_or_create_from_standing_request(standing_request)[0]
         )
         if action_by:
-            action_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(action_by)
+            action_by_obj: FrozenAuthUser = (
+                FrozenAuthUser.objects.get_or_create_from_user(action_by)[0]
+            )
         else:
             action_by_obj = None
 
-        requested_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(
-            standing_request.user
+        requested_by_obj: FrozenAuthUser = (
+            FrozenAuthUser.objects.get_or_create_from_user(standing_request.user)[0]
         )
         request_type = RequestLogEntry.RequestType.from_standing_request(
             standing_request
@@ -762,7 +765,13 @@ class RequestLogEntryManagerBase(models.Manager):
             requested_for=requested_for,
             reason=standing_request.reason,
         )
-        update_unresolved_eve_entities.delay()
+        eve_entity_ids = (
+            requested_for.gather_entity_ids() | requested_by_obj.gather_entity_ids()
+        )
+        if action_by_obj:
+            eve_entity_ids |= action_by_obj.gather_entity_ids()
+
+        create_eve_entities.delay(list(eve_entity_ids))
         return new_obj
 
 

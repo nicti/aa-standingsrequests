@@ -238,7 +238,7 @@ class TestViewsBasics(TestViewPagesBase):
 
 
 @patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": ["required_scope"]})
-@patch(MANAGERS_PATH + ".update_unresolved_eve_entities", Mock())
+@patch(MANAGERS_PATH + ".create_eve_entities", Mock())
 @patch(VIEWS_PATH + ".update_associations_api.delay")
 @patch(VIEWS_PATH + ".messages.error")
 class TestRequestCharacterStanding(TestCase):
