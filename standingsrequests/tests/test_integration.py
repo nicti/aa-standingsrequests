@@ -57,6 +57,7 @@ class TestMainUseCases(WebTest):
         super().setUpClass()
         create_eve_objects()
         load_eve_entities()
+
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
         perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
@@ -68,18 +69,12 @@ class TestMainUseCases(WebTest):
             cls.user_requestor,
             cls.main_character_1,
             is_main=True,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         cls.member_state.member_characters.add(cls.main_character_1)
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor,
-            cls.alt_character_1,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            cls.user_requestor, cls.alt_character_1, scopes=[TEST_REQUIRED_SCOPE]
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
             corporation_id=cls.alt_character_1.corporation_id
@@ -88,9 +83,7 @@ class TestMainUseCases(WebTest):
         add_character_to_user(
             cls.user_requestor,
             cls.alt_character_2,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         # Standing manager
         cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
@@ -99,9 +92,7 @@ class TestMainUseCases(WebTest):
             cls.user_manager,
             cls.main_character_2,
             is_main=True,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
         cls.user_manager = AuthUtils.add_permission_to_user_by_name(

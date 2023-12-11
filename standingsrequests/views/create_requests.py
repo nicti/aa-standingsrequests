@@ -1,5 +1,8 @@
+from typing import Set
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.models import User
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
@@ -72,10 +75,7 @@ def request_characters(request):
             request, "standingsrequests/error.html", add_common_context(request, {})
         )
 
-    eve_characters_qs = EveCharacter.objects.filter(
-        character_ownership__user=request.user
-    ).select_related("character_ownership__user")
-    eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
+    eve_characters = _make_eve_characters_map(request)
     characters_with_standing = {
         contact["eve_entity_id"]: contact["standing"]
         for contact in (
@@ -101,41 +101,16 @@ def request_characters(request):
             ).annotate_is_pending()
         )
     }
-    characters_data = []
-    for character in eve_characters.values():
-        character_id = character.character_id
-        standing = characters_with_standing.get(character_id)
-        has_pending_request = (
-            character_id in characters_standings_requests
-            and characters_standings_requests[character_id].is_pending_annotated
+    characters_data = [
+        _create_character_row(
+            user=request.user,
+            character=character,
+            characters_with_standing=characters_with_standing,
+            characters_standings_requests=characters_standings_requests,
+            characters_standing_revocation=characters_standing_revocation,
         )
-        has_pending_revocation = (
-            character_id in characters_standing_revocation
-            and characters_standing_revocation[character_id].is_pending_annotated
-        )
-        has_actioned_request = (
-            character_id in characters_standings_requests
-            and characters_standings_requests[character_id].is_actioned_annotated
-        )
-        has_standing = (
-            character_id in characters_standings_requests
-            and characters_standings_requests[character_id].is_effective
-            and characters_standings_requests[character_id].user == request.user
-        )
-        characters_data.append(
-            {
-                "character": character,
-                "standing": standing,
-                "pendingRequest": has_pending_request,
-                "pendingRevocation": has_pending_revocation,
-                "requestActioned": has_actioned_request,
-                "inOrganisation": app_config.is_character_a_member(character),
-                "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
-                    character, user=request.user, quick_check=True
-                ),
-                "hasStanding": has_standing,
-            }
-        )
+        for character in eve_characters.values()
+    ]
 
     context = {"characters": characters_data}
     return render(
@@ -143,6 +118,55 @@ def request_characters(request):
         "standingsrequests/partials/request_characters.html",
         add_common_context(request, context),
     )
+
+
+def _create_character_row(
+    user: User,
+    character: EveCharacter,
+    characters_with_standing,
+    characters_standings_requests,
+    characters_standing_revocation,
+):
+    character_id = character.character_id
+    standing = characters_with_standing.get(character_id)
+    has_pending_request = (
+        character_id in characters_standings_requests
+        and characters_standings_requests[character_id].is_pending_annotated
+    )
+    has_pending_revocation = (
+        character_id in characters_standing_revocation
+        and characters_standing_revocation[character_id].is_pending_annotated
+    )
+    has_actioned_request = (
+        character_id in characters_standings_requests
+        and characters_standings_requests[character_id].is_actioned_annotated
+    )
+    has_standing = (
+        character_id in characters_standings_requests
+        and characters_standings_requests[character_id].is_effective
+        and characters_standings_requests[character_id].user == user
+    )
+    result = {
+        "character": character,
+        "standing": standing,
+        "pendingRequest": has_pending_request,
+        "pendingRevocation": has_pending_revocation,
+        "requestActioned": has_actioned_request,
+        "inOrganisation": app_config.is_character_a_member(character),
+        "hasRequiredScopes": StandingRequest.has_required_scopes_for_request(
+            character, user=user, quick_check=True
+        ),
+        "hasStanding": has_standing,
+    }
+    return result
+
+
+def _make_eve_characters_map(request):
+    eve_characters_qs = EveCharacter.objects.filter(
+        character_ownership__user=request.user
+    ).select_related("character_ownership__user")
+    eve_characters = {obj.character_id: obj for obj in eve_characters_qs}
+    return eve_characters
 
 
 @login_required
@@ -156,14 +180,7 @@ def request_corporations(request):
             request, "standingsrequests/error.html", add_common_context(request, {})
         )
 
-    eve_characters_qs = EveCharacter.objects.filter(
-        character_ownership__user=request.user
-    ).select_related("character_ownership__user")
-    corporation_ids = set(
-        eve_characters_qs.exclude(corporation_id__in=app_config.corporation_ids())
-        .exclude(alliance_id__in=app_config.alliance_ids())
-        .values_list("corporation_id", flat=True)
-    )
+    corporation_ids = _calc_corporation_ids(request.user)
     corporations_standing_requests = {
         obj.contact_id: obj
         for obj in (
@@ -187,44 +204,17 @@ def request_corporations(request):
     }
     corporations_data = []
     for corporation in EveCorporation.get_many_by_id(corporation_ids):
-        if corporation and not corporation.is_npc:
-            corporation_id = corporation.corporation_id
-            try:
-                standing = corporation_contacts[corporation_id].standing
-            except KeyError:
-                standing = None
-            has_pending_request = (
-                corporation_id in corporations_standing_requests
-                and corporations_standing_requests[corporation_id].is_pending_annotated
-            )
-            has_pending_revocation = (
-                corporation_id in corporations_revocation_requests
-                and corporations_revocation_requests[
-                    corporation_id
-                ].is_pending_annotated
-            )
-            has_actioned_request = (
-                corporation_id in corporations_standing_requests
-                and corporations_standing_requests[corporation_id].is_actioned_annotated
-            )
-            has_standing = (
-                corporation_id in corporations_standing_requests
-                and corporations_standing_requests[corporation_id].is_effective
-                and corporations_standing_requests[corporation_id].user == request.user
-            )
-            corporations_data.append(
-                {
-                    "token_count": corporation.member_tokens_count_for_user(
-                        request.user, quick_check=True
-                    ),
-                    "corp": corporation,
-                    "standing": standing,
-                    "pendingRequest": has_pending_request,
-                    "pendingRevocation": has_pending_revocation,
-                    "requestActioned": has_actioned_request,
-                    "hasStanding": has_standing,
-                }
-            )
+        if not corporation or corporation.is_npc:
+            continue
+
+        row = _create_corporation_row(
+            user=request.user,
+            corporation=corporation,
+            corporations_standing_requests=corporations_standing_requests,
+            corporations_revocation_requests=corporations_revocation_requests,
+            corporation_contacts=corporation_contacts,
+        )
+        corporations_data.append(row)
 
     corporations_data.sort(key=lambda x: x["corp"].corporation_name)
     context = {"corps": corporations_data}
@@ -233,6 +223,61 @@ def request_corporations(request):
         "standingsrequests/partials/request_corporations.html",
         add_common_context(request, context),
     )
+
+
+def _create_corporation_row(
+    user: User,
+    corporation: EveCorporation,
+    corporations_standing_requests,
+    corporations_revocation_requests,
+    corporation_contacts,
+):
+    corporation_id = corporation.corporation_id
+    try:
+        standing = corporation_contacts[corporation_id].standing
+    except KeyError:
+        standing = None
+    has_pending_request = (
+        corporation_id in corporations_standing_requests
+        and corporations_standing_requests[corporation_id].is_pending_annotated
+    )
+    has_pending_revocation = (
+        corporation_id in corporations_revocation_requests
+        and corporations_revocation_requests[corporation_id].is_pending_annotated
+    )
+    has_actioned_request = (
+        corporation_id in corporations_standing_requests
+        and corporations_standing_requests[corporation_id].is_actioned_annotated
+    )
+    has_standing = (
+        corporation_id in corporations_standing_requests
+        and corporations_standing_requests[corporation_id].is_effective
+        and corporations_standing_requests[corporation_id].user == user
+    )
+    result = {
+        "token_count": corporation.member_tokens_count_for_user(user, quick_check=True),
+        "corp": corporation,
+        "standing": standing,
+        "pendingRequest": has_pending_request,
+        "pendingRevocation": has_pending_revocation,
+        "requestActioned": has_actioned_request,
+        "hasStanding": has_standing,
+    }
+
+    return result
+
+
+def _calc_corporation_ids(user: User) -> Set[int]:
+    eve_characters_qs = EveCharacter.objects.filter(
+        character_ownership__user=user
+    ).select_related("character_ownership__user")
+    corporation_ids = set(
+        eve_characters_qs.exclude(corporation_id__in=app_config.corporation_ids())
+        .exclude(alliance_id__in=app_config.alliance_ids())
+        .values_list("corporation_id", flat=True)
+    )
+
+    return corporation_ids
 
 
 @login_required
