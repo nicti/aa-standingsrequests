@@ -36,7 +36,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
         return False
 
     @admin.display
-    def _contact_name(self, obj):
+    def _contact_name(self, obj: AbstractStandingsRequest):
         return EveEntity.objects.resolve_name(obj.contact_id)
 
     @admin.display(description="contact type")
@@ -49,7 +49,7 @@ class AbstractStandingsRequestAdmin(admin.ModelAdmin):
 
         return "(undefined)"
 
-    def _user(self, obj):
+    def _user(self, obj: AbstractStandingsRequest):
         try:
             return obj.user
         except AttributeError:
@@ -83,6 +83,7 @@ class ContactSetAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
+    @admin.display
     def _contacts_count(self, obj):
         return obj.contacts_count
 
@@ -109,23 +110,6 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
     )
     ordering = ("-created_at",)
 
-    @admin.display(ordering="action_by")
-    def _action_by(self, obj) -> str:
-        return "SYSTEM" if obj.action_by is None else obj.action_by.html()
-
-    @admin.display(ordering="requested_by")
-    def _requested_by(self, obj) -> str:
-        return obj.requested_by.html()
-
-    @admin.display(ordering="requested_for")
-    def _requested_for(self, obj) -> str:
-        return obj.requested_for.html()
-
-    @admin.display(ordering="reason")
-    def _reason(self, obj) -> Optional[str]:
-        reason_obj = StandingRequest.Reason(obj.reason)
-        return None if reason_obj is StandingRequest.Reason.NONE else reason_obj.label
-
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related(
@@ -145,3 +129,20 @@ class RequestLogEntryAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, *args, **kwargs) -> bool:
         return False
+
+    @admin.display(ordering="action_by")
+    def _action_by(self, obj: RequestLogEntry) -> str:
+        return "SYSTEM" if obj.action_by is None else obj.action_by.html()
+
+    @admin.display(ordering="requested_by")
+    def _requested_by(self, obj: RequestLogEntry) -> str:
+        return obj.requested_by.html()
+
+    @admin.display(ordering="requested_for")
+    def _requested_for(self, obj: RequestLogEntry) -> str:
+        return obj.requested_for.html()
+
+    @admin.display(ordering="reason")
+    def _reason(self, obj: RequestLogEntry) -> Optional[str]:
+        reason_obj = StandingRequest.Reason(obj.reason)
+        return None if reason_obj is StandingRequest.Reason.NONE else reason_obj.label
