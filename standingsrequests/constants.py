@@ -17,3 +17,6 @@ class CreateCharacterRequestError(IntEnum):
     CHARACTER_HAS_REQUEST = 2
     CHARACTER_IS_MISSING_SCOPES = 3
     UNKNOWN_ERROR = 99
+
+
+DEFAULT_IMAGE_SIZE = 32

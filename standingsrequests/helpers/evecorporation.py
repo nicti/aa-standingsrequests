@@ -13,6 +13,7 @@ from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
+from standingsrequests.constants import DEFAULT_IMAGE_SIZE
 from standingsrequests.providers import esi
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -58,7 +59,7 @@ class EveCorporation:
         """returns true if this corporation is an NPC, else false"""
         return 1000000 <= corporation_id <= 2000000
 
-    def logo_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
+    def logo_url(self, size: int = DEFAULT_IMAGE_SIZE) -> str:
         return eveimageserver.corporation_logo_url(self.corporation_id, size)
 
     def member_tokens_count_for_user(

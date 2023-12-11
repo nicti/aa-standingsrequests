@@ -1,8 +1,7 @@
 from allianceauth.eveonline.evelinks import eveimageserver
 
+from standingsrequests.constants import DEFAULT_IMAGE_SIZE
 from standingsrequests.models import CharacterAffiliation
-
-DEFAULT_IMAGE_SIZE = 32
 
 
 class EveCharacterHelper:
