@@ -554,6 +554,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        create_contacts_set()
         load_eve_entities()
 
     def test_should_update_corporations(self, mock_esi):
@@ -585,6 +586,14 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.corporation_id, 2199)
         self.assertIsNone(obj.ceo_id)
+
+    def test_should_return_all_corporation_ids(self, _mock_esi):
+        # given
+        # when
+        result = CorporationDetails.objects.corporation_ids_from_contacts()
+        # then
+        expected = {2001, 2003, 2004, 2102}
+        self.assertSetEqual(result, expected)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
