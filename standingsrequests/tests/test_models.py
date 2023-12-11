@@ -379,6 +379,19 @@ class TestStandingRequest(TestCase):
         self.assertIsNone(my_request.action_by)
         self.assertIsNone(my_request.action_date)
 
+
+class TestStandingRequestDelete(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        create_contacts_set()
+        cls.user_manager = User.objects.create_user(
+            "Mike Manager", "mm@example.com", "password"
+        )
+        cls.user_requestor = User.objects.create_user(
+            "Roger Requestor", "rr@example.com", "password"
+        )
+
     def test_delete_for_non_effective_dont_add_revocation(self):
         my_request_effective = StandingRequest.objects.create(
             user=self.user_requestor,
@@ -419,6 +432,34 @@ class TestStandingRequest(TestCase):
                 contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
             ).exists()
         )
+
+    def test_delete_for_effective_add_revocation_and_reason(self):
+        # given
+        my_request_effective = StandingRequest.objects.create(
+            user=self.user_requestor,
+            contact_id=1001,
+            contact_type_id=CHARACTER_TYPE_ID,
+            action_by=self.user_manager,
+            action_date=now(),
+            is_effective=True,
+            effective_date=now(),
+        )
+
+        # when
+        my_request_effective.delete(
+            reason=AbstractStandingsRequest.Reason.REVOKED_IN_GAME
+        )
+
+        # then
+        self.assertFalse(
+            StandingRequest.objects.filter(
+                contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
+            ).exists()
+        )
+        obj = StandingRevocation.objects.get(
+            contact_id=1001, contact_type_id=CHARACTER_TYPE_ID
+        )
+        self.assertEqual(obj.reason, AbstractStandingsRequest.Reason.REVOKED_IN_GAME)
 
     def test_delete_for_pending_add_revocation(self):
         my_request_effective = StandingRequest.objects.create(

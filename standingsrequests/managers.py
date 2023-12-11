@@ -531,7 +531,7 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         contact_id: int,
         contact_type: str,
         user: Optional[User] = None,
-        reason: Optional[str] = None,
+        reason: Optional[AbstractStandingsRequest.Reason] = None,
     ) -> object:
         """Add a new standings revocation
 
@@ -542,12 +542,14 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
 
         Returns the created StandingRevocation instance
         """
+        from .models import AbstractStandingsRequest
+
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
             contact_id,
             contact_type,
         )
-        contact_type_id = self.model.contact_type_2_id(contact_type)
+        contact_type_id = AbstractStandingsRequest.contact_type_2_id(contact_type)
         if self.has_pending_request(contact_id):
             logger.debug(
                 "Cannot add revocation for contact %d %s, pending revocation exists",
@@ -555,13 +557,15 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
                 contact_type_id,
             )
             return None
+
         if not reason:
-            reason = self.model.Reason.NONE
+            reason = AbstractStandingsRequest.Reason.NONE
+
         instance = self.create(
             contact_id=contact_id,
             contact_type_id=contact_type_id,
             user=user,
-            reason=reason,
+            reason=AbstractStandingsRequest.Reason(reason),
         )
         return instance
 

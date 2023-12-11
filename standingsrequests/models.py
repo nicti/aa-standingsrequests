@@ -1,4 +1,4 @@
-from datetime import timedelta
+import datetime as dt
 from typing import List, Optional
 
 from django.contrib.auth.models import User
@@ -329,7 +329,7 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.contacts.get(eve_entity_id=self.contact_id)
+            contact: Contact = latest.contacts.get(eve_entity_id=self.contact_id)
             if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)
@@ -354,7 +354,7 @@ class AbstractStandingsRequest(models.Model):
         logger.debug("Standing NOT satisfied for %d", self.contact_id)
         return False
 
-    def mark_effective(self, date=None):
+    def mark_effective(self, date: Optional[dt.datetime] = None):
         """
         Marks a standing as effective (standing exists in game)
         from the current or supplied TZ aware datetime
@@ -366,7 +366,12 @@ class AbstractStandingsRequest(models.Model):
         self.effective_date = date if date else now()
         self.save()
 
-    def mark_actioned(self, user, date=None, reason=None):
+    def mark_actioned(
+        self,
+        user,
+        date: Optional[dt.datetime] = None,
+        reason: Optional["AbstractStandingsRequest.Reason"] = None,
+    ):
         """
         Marks a standing as actioned (user has made the change in game)
         with the current or supplied TZ aware datetime
@@ -410,7 +415,7 @@ class AbstractStandingsRequest(models.Model):
         # Reset request that has not become effective after timeout expired
         if (
             self.action_date
-            and self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
+            and self.action_date + dt.timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
             < latest.date
         ):
             logger.info(
@@ -529,14 +534,13 @@ class StandingRequest(AbstractStandingsRequest):
         )
         return True
 
-    def delete(
-        self, using=None, keep_parents: bool = False, reason: Optional[str] = None
-    ):
+    def delete(self, *args, **kwargs):
         """
         Add a revocation before deleting if the standing has been
         actioned (pending) or is effective and
         doesn't already have a pending revocation request.
         """
+        reason = kwargs.pop("reason", None)
         if self.action_by is not None or self.is_effective:
             # Check if theres not already a revocation pending
             if not StandingRevocation.objects.has_pending_request(self.contact_id):
@@ -568,7 +572,7 @@ class StandingRequest(AbstractStandingsRequest):
             )
 
         logger.debug("%s: Removing standing request by user %s", self, self.user)
-        super().delete(using, keep_parents)
+        super().delete(*args, **kwargs)
 
     @classmethod
     def can_request_corporation_standing(cls, corporation_id: int, user: User) -> bool:
@@ -590,7 +594,10 @@ class StandingRequest(AbstractStandingsRequest):
 
     @classmethod
     def has_required_scopes_for_request(
-        cls, character: EveCharacter, user: User = None, quick_check: bool = False
+        cls,
+        character: EveCharacter,
+        user: Optional[User] = None,
+        quick_check: bool = False,
     ) -> bool:
         """Returns True if given character has the required scopes
         for issuing a standings request else False.
