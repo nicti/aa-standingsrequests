@@ -1,9 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from esi.decorators import token_required
+from esi.models import Token
 from eveuniverse.models import EveEntity
 
 from allianceauth.eveonline.models import EveCharacter
@@ -355,10 +357,9 @@ def remove_corp_standing(request, corporation_id: int):
 @login_required
 @permission_required("standingsrequests.affect_standings")
 @token_required(new=False, scopes=ContactSet.required_esi_scope())
-def view_auth_page(request, token):
+def view_auth_page(request: HttpRequest, token: Token):
     source_entity = app_config.standings_source_entity()
-    owner_character_id = app_config.owner_character_id()
-    char_name = EveEntity.objects.resolve_name(owner_character_id)
+    owner_character = app_config.owner_character()
     if not source_entity:
         messages.error(
             request,
@@ -369,11 +370,11 @@ def view_auth_page(request, token):
                     "to setup alliance standings. "
                     "Please configure a character that has an alliance."
                 )
-                % char_name,
+                % owner_character.character_name,
             ),
         )
 
-    elif token.character_id == owner_character_id:
+    elif token.character_id == owner_character.character_id:
         update_all.delay(user_pk=request.user.pk)
         messages.success(
             request,
@@ -384,7 +385,7 @@ def view_auth_page(request, token):
                     "from %(standings_character)s."
                 )
                 % {
-                    "user_character": char_name,
+                    "user_character": owner_character.character_name,
                     "standings_character": source_entity.name,
                 },
             ),
@@ -400,8 +401,8 @@ def view_auth_page(request, token):
                 "%(token_char_name)s (id:%(token_char_id)s)"
             )
             % {
-                "char_name": char_name,
-                "standings_api_char_id": owner_character_id,
+                "char_name": owner_character.character_name,
+                "standings_api_char_id": owner_character.character_id,
                 "token_char_name": EveEntity.objects.resolve_name(token.character_id),
                 "token_char_id": token.character_id,
             },

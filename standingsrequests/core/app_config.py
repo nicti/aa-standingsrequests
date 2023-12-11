@@ -15,11 +15,6 @@ from standingsrequests.app_settings import (
 from standingsrequests.constants import OperationMode
 
 
-def owner_character_id() -> int:
-    """Return owner character ID."""
-    return STANDINGS_API_CHARID
-
-
 def operation_mode() -> OperationMode:
     """Return current operation mode."""
     return OperationMode(SR_OPERATION_MODE)
