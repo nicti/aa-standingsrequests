@@ -46,6 +46,7 @@ class ContactSetManager(models.Manager):
         if not token:
             logger.warning("Token for standing char could not be found")
             return None
+
         try:
             contacts_wrap = _ContactsWrapper(token, owner_character)
         except HTTPError as ex:
@@ -204,83 +205,39 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
         )
 
 
-class AbstractStandingsRequestManager(models.Manager):
+class _AbstractStandingsRequestManagerBase(models.Manager):
     def filter_characters(self) -> models.QuerySet:
         return self.filter(contact_type_id__in=ContactTypeId.character_ids())
 
     def filter_corporations(self) -> models.QuerySet:
         return self.filter(contact_type_id=ContactTypeId.CORPORATION)
 
-    def get_queryset(self) -> models.QuerySet:
-        return AbstractStandingsRequestQuerySet(self.model, using=self._db)
-
     def process_requests(self) -> None:
         """Process all the Standing requests/revocation objects"""
-        from .models import (
-            AbstractStandingsRequest,
-            StandingRequest,
-            StandingRevocation,
-        )
+        from .models import AbstractStandingsRequest
 
         if self.model is AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
         organization = app_config.standings_source_entity()
         organization_name = organization.name if organization else ""
-        for standing_request in self.all():
-            contact, dummy = EveEntity.objects.get_or_create_esi(
+        query: models.QuerySet[AbstractStandingsRequest] = self.all()
+        for standing_request in query:
+            contact = EveEntity.objects.get_or_create_esi(
                 id=standing_request.contact_id
-            )
+            )[0]
             is_currently_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.evaluate_effective_standing()
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
-                    # send notification to user about standing change if enabled
-                    if standing_request.is_standing_request:
-                        notify(
-                            user=standing_request.user,
-                            title=_("%s: Standing with %s now in effect")
-                            % (__title__, contact.name),
-                            message=_(
-                                "'%(organization_name)s' now has blue standing with "
-                                "your alt %(contact_category)s '%(contact_name)s'. "
-                                "Please also update the standing of "
-                                "your %(contact_category)s accordingly."
-                            )
-                            % {
-                                "organization_name": organization_name,
-                                "contact_category": contact.category,
-                                "contact_name": contact.name,
-                            },
-                        )
-                    elif standing_request.is_standing_revocation:
-                        if standing_request.user:
-                            notify(
-                                user=standing_request.user,
-                                title=f"{__title__}: Standing with {contact.name} revoked",
-                                message=_(
-                                    "'%(organization_name)s' no longer has "
-                                    "standing with your "
-                                    "%(contact_category)s '%(contact_name)s'. "
-                                    "Please also update the standing of "
-                                    "your %(contact_category)s accordingly."
-                                )
-                                % {
-                                    "organization_name": organization_name,
-                                    "contact_category": contact.category,
-                                    "contact_name": contact.name,
-                                },
-                            )
+                    self._notify_user_about_standing_change(
+                        organization_name, standing_request, contact
+                    )
 
                 # if this was a revocation the standing requests need to be remove
                 # to indicate that this character no longer has standing
                 if standing_request.is_standing_revocation:
-                    StandingRequest.objects.filter(
-                        contact_id=standing_request.contact_id
-                    ).delete()
-                    StandingRevocation.objects.filter(
-                        contact_id=standing_request.contact_id
-                    ).delete()
+                    self._remove_standing_request_after_revocation(standing_request)
 
             elif is_satisfied_standing:
                 # Just catching all other contact types (corps/alliances)
@@ -289,14 +246,7 @@ class AbstractStandingsRequestManager(models.Manager):
 
             elif not is_satisfied_standing and is_currently_effective:
                 # Effective standing no longer effective
-                logger.info(
-                    "Standing for %d is marked as effective but is not "
-                    "satisfied in game. Deleting.",
-                    standing_request.contact_id,
-                )
-                standing_request.delete(
-                    reason=StandingRevocation.Reason.REVOKED_IN_GAME
-                )
+                self._removing_effective_standing(standing_request)
 
             else:
                 # Check the standing hasn't been set actioned
@@ -304,30 +254,94 @@ class AbstractStandingsRequestManager(models.Manager):
                 actioned_timeout = standing_request.check_actioned_timeout()
                 if actioned_timeout is not None and actioned_timeout:
                     logger.info(
-                        "Standing request for contact ID %d has timedout "
+                        "Standing request for contact ID %d has timed out "
                         "and will be reset",
                         standing_request.contact_id,
                     )
                     if SR_NOTIFICATIONS_ENABLED:
-                        title = _("Standing Request for %s reset") % contact.name
-                        message = (
-                            _(
-                                "The standing request for %(contact_category)s "
-                                "'%(contact_name)s' from %(user_name)s "
-                                "has been reset as it did not appear in "
-                                "game before the timeout period expired."
-                            )
-                            % {
-                                "contact_category": contact.category,
-                                "contact_name": contact.name,
-                                "user_name": standing_request.user.username,
-                            },
+                        self._notify_user_about_timed_out_request(
+                            standing_request, contact, actioned_timeout
                         )
 
-                        # Notify standing manager
-                        notify(user=actioned_timeout, title=title, message=message)
-                        # Notify the user
-                        notify(user=standing_request.user, title=title, message=message)
+    def _notify_user_about_standing_change(
+        self, organization_name, standing_request, contact
+    ):
+        if standing_request.is_standing_request:
+            notify(
+                user=standing_request.user,
+                title=_("%s: Standing with %s now in effect")
+                % (__title__, contact.name),
+                message=_(
+                    "'%(organization_name)s' now has blue standing with "
+                    "your alt %(contact_category)s '%(contact_name)s'. "
+                    "Please also update the standing of "
+                    "your %(contact_category)s accordingly."
+                )
+                % {
+                    "organization_name": organization_name,
+                    "contact_category": contact.category,
+                    "contact_name": contact.name,
+                },
+            )
+        elif standing_request.is_standing_revocation:
+            if standing_request.user:
+                notify(
+                    user=standing_request.user,
+                    title=f"{__title__}: Standing with {contact.name} revoked",
+                    message=_(
+                        "'%(organization_name)s' no longer has "
+                        "standing with your "
+                        "%(contact_category)s '%(contact_name)s'. "
+                        "Please also update the standing of "
+                        "your %(contact_category)s accordingly."
+                    )
+                    % {
+                        "organization_name": organization_name,
+                        "contact_category": contact.category,
+                        "contact_name": contact.name,
+                    },
+                )
+
+    def _removing_effective_standing(self, standing_request):
+        from .models import StandingRevocation
+
+        logger.info(
+            "Standing for %d is marked as effective but is not "
+            "satisfied in game. Deleting.",
+            standing_request.contact_id,
+        )
+        standing_request.delete(reason=StandingRevocation.Reason.REVOKED_IN_GAME)
+
+    def _remove_standing_request_after_revocation(self, standing_request):
+        from .models import StandingRequest, StandingRevocation
+
+        StandingRequest.objects.filter(contact_id=standing_request.contact_id).delete()
+        StandingRevocation.objects.filter(
+            contact_id=standing_request.contact_id
+        ).delete()
+
+    def _notify_user_about_timed_out_request(
+        self, standing_request, contact, actioned_timeout
+    ):
+        title = _("Standing Request for %s reset") % contact.name
+        message = (
+            _(
+                "The standing request for %(contact_category)s "
+                "'%(contact_name)s' from %(user_name)s "
+                "has been reset as it did not appear in "
+                "game before the timeout period expired."
+            )
+            % {
+                "contact_category": contact.category,
+                "contact_name": contact.name,
+                "user_name": standing_request.user.username,
+            },
+        )
+
+        # Notify standing manager
+        notify(user=actioned_timeout, title=title, message=message)
+        # Notify the user
+        notify(user=standing_request.user, title=title, message=message)
 
     def has_pending_request(self, contact_id: int) -> bool:
         """Checks if a request is pending for the given contact_id
@@ -341,6 +355,11 @@ class AbstractStandingsRequestManager(models.Manager):
     def pending_requests(self) -> models.QuerySet:
         """returns all pending requests for this class"""
         return self.filter(action_date__isnull=True, is_effective=False)
+
+
+AbstractStandingsRequestManager = _AbstractStandingsRequestManagerBase.from_queryset(
+    AbstractStandingsRequestQuerySet
+)
 
 
 class StandingRequestManager(AbstractStandingsRequestManager):
