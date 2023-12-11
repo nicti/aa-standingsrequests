@@ -36,17 +36,16 @@ def standings_source_entity() -> Optional[EveEntity]:
     character = owner_character()
     if operation_mode() is OperationMode.ALLIANCE:
         if character.alliance_id:
-            entity, _ = EveEntity.objects.get_or_create_esi(id=character.alliance_id)
-        else:
-            entity = None
+            obj, _ = EveEntity.objects.get_or_create_esi(id=character.alliance_id)
+            return obj
 
-    elif operation_mode() is OperationMode.CORPORATION:
-        entity, _ = EveEntity.objects.get_or_create_esi(id=character.corporation_id)
+        return None
 
-    else:
-        raise NotImplementedError()
+    if operation_mode() is OperationMode.CORPORATION:
+        obj, _ = EveEntity.objects.get_or_create_esi(id=character.corporation_id)
+        return obj
 
-    return entity
+    raise NotImplementedError()
 
 
 def is_character_a_member(character: EveCharacter) -> bool:
@@ -58,8 +57,12 @@ def is_character_a_member(character: EveCharacter) -> bool:
 
 
 def corporation_ids() -> Set[int]:
-    return {int(org_id) for org_id in list(STR_CORP_IDS)}
+    """Return corporation IDs, which belong the configured organization."""
+    corporation_ids = {int(org_id) for org_id in list(STR_CORP_IDS)}
+    return corporation_ids
 
 
 def alliance_ids() -> Set[int]:
-    return {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
+    """Return alliance IDs, which belong to the configured organization."""
+    alliance_ids = {int(org_id) for org_id in list(STR_ALLIANCE_IDS)}
+    return alliance_ids

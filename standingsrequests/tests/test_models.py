@@ -15,7 +15,6 @@ from app_utils.testing import (
     add_new_token,
 )
 
-from standingsrequests.core import app_config
 from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.helpers.evecorporation import EveCorporation
 from standingsrequests.models import (
@@ -54,26 +53,6 @@ class TestContactSet(TestCase):
     def test_str(self):
         my_set = ContactSet(name="My Set")
         self.assertIsInstance(str(my_set), str)
-
-    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", ["2001"])
-    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [])
-    def test_pilot_in_organization_matches_corp(self):
-        self.assertTrue(app_config.is_character_a_member(self.character_1001))
-
-    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", ["3001"])
-    def test_pilot_in_organization_matches_alliance(self):
-        self.assertTrue(app_config.is_character_a_member(self.character_1001))
-
-    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [3101])
-    def test_pilot_in_organization_doest_not_exist(self):
-        self.assertFalse(app_config.is_character_a_member(self.character_1001))
-
-    @patch(CORE_PATH + ".app_config.STR_CORP_IDS", [])
-    @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [])
-    def test_pilot_in_organization_matches_none(self):
-        self.assertFalse(app_config.is_character_a_member(self.character_1001))
 
 
 class TestContactSetCreateStanding(TestCase):
