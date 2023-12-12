@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from bravado.exception import HTTPError
 
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.utils.timezone import now
 from eveuniverse.models import EveEntity
 
@@ -12,8 +12,8 @@ from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase, add_character_to_user, create_fake_user
 
-from ..core import BaseConfig
-from ..models import (
+from standingsrequests.core import app_config
+from standingsrequests.models import (
     AbstractStandingsRequest,
     CharacterAffiliation,
     Contact,
@@ -25,8 +25,9 @@ from ..models import (
     StandingRequest,
     StandingRevocation,
 )
-from .entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
-from .my_test_data import (
+
+from .testdata.entity_type_ids import CHARACTER_TYPE_ID, CORPORATION_TYPE_ID
+from .testdata.my_test_data import (
     TEST_STANDINGS_API_CHARID,
     TEST_STANDINGS_API_CHARNAME,
     create_contacts_set,
@@ -49,16 +50,15 @@ class TestContactSetManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        load_eve_entities()
         cls.user = AuthUtils.create_member(TEST_STANDINGS_API_CHARNAME)
         character = create_standings_char()
         add_character_to_user(
             cls.user, character, scopes=["esi-alliances.read_contacts.v1"]
         )
-        load_eve_entities()
 
-    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
-    @patch(CORE_PATH + ".SR_OPERATION_MODE", "alliance")
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.SR_OPERATION_MODE", "alliance")
     @patch(MANAGERS_PATH + ".esi")
     def test_can_create_new_from_api(self, mock_esi):
         mock_Contacts = mock_esi.client.Contacts
@@ -97,12 +97,12 @@ class TestContactSetManager(NoSocketsTestCase):
         }
         self.assertSetEqual(all_contacts, expected)
 
-    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     def test_standings_character_exists(self):
         character = create_standings_char()
-        self.assertEqual(BaseConfig.owner_character(), character)
+        self.assertEqual(app_config.owner_character(), character)
 
-    @patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+    @patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
     @patch(MODELS_PATH + ".EveCharacter.objects.create_character")
     def test_standings_character_not_exists(self, mock_create_character):
         character, _ = EveCharacter.objects.get_or_create(
@@ -114,11 +114,11 @@ class TestContactSetManager(NoSocketsTestCase):
             },
         )
         mock_create_character.return_value = character
-        self.assertEqual(BaseConfig.owner_character(), character)
+        self.assertEqual(app_config.owner_character(), character)
         self.assertTrue(EveEntity.objects.filter(id=TEST_STANDINGS_API_CHARID).exists())
 
 
-class TestAbstractStandingsRequestManager(NoSocketsTestCase):
+class TestAbstractStandingsRequestManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -157,14 +157,13 @@ class TestAbstractStandingsRequestManager(NoSocketsTestCase):
 
 
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MODELS_PATH + ".SR_STANDING_TIMEOUT_HOURS", 24)
 @patch(MANAGERS_PATH + ".notify")
-class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
+class TestAbstractStandingsRequestProcessRequests(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
         create_standings_char()
 
@@ -288,11 +287,10 @@ class TestAbstractStandingsRequestProcessRequests(NoSocketsTestCase):
         self.assertFalse(AbstractStandingsRequest.objects.has_pending_request(1002))
 
 
-class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
+class TestAbstractStandingsRequestAnnotations(TestCase):
     def setUp(self):
         self.user_manager = AuthUtils.create_user("Mike Manager")
         self.user_requestor = AuthUtils.create_user("Roger Requestor")
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
         create_standings_char()
 
@@ -321,15 +319,12 @@ class TestAbstractStandingsRequestAnnotations(NoSocketsTestCase):
 
 
 @patch(MODELS_PATH + ".StandingRequest.can_request_corporation_standing")
-class TestStandingsRequestValidateRequests(NoSocketsTestCase):
+class TestStandingsRequestValidateRequests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         create_contacts_set()
         cls.user = AuthUtils.create_member("Bruce Wayne")
-
-    def setUp(self):
-        StandingRequest.objects.all().delete()
 
     def test_do_nothing_character_request_is_valid(
         self, mock_can_request_corporation_standing
@@ -347,10 +342,15 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
     def test_create_revocation_if_users_character_has_standing_but_user_no_permission(
         self, mock_can_request_corporation_standing
     ):
+        # given
         StandingRequest.objects.get_or_create_2(
             self.user, 1002, StandingRequest.ContactType.CHARACTER
         )
+
+        # when
         StandingRequest.objects.validate_requests()
+
+        # then
         my_revocation = StandingRevocation.objects.get(contact_id=1002)
         self.assertEqual(
             my_revocation.reason, StandingRevocation.Reason.LOST_PERMISSION
@@ -388,7 +388,7 @@ class TestStandingsRequestValidateRequests(NoSocketsTestCase):
         self.assertTrue(StandingRequest.objects.filter(pk=request.pk).exists())
 
 
-class TestStandingsRequestManager(NoSocketsTestCase):
+class TestStandingsRequestManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -417,9 +417,8 @@ class TestStandingsRequestManager(NoSocketsTestCase):
         self.assertEqual(my_request_1, my_request_2)
 
 
-class TestStandingsRevocationManager(NoSocketsTestCase):
+class TestStandingsRevocationManager(TestCase):
     def setUp(self):
-        ContactSet.objects.all().delete()
         load_eve_entities()
         my_set = ContactSet.objects.create(name="Dummy Set")
         Contact.objects.create(contact_set=my_set, eve_entity_id=1001, standing=10)
@@ -555,6 +554,7 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        create_contacts_set()
         load_eve_entities()
 
     def test_should_update_corporations(self, mock_esi):
@@ -587,9 +587,17 @@ class TestCorporationDetailsManager(NoSocketsTestCase):
         self.assertEqual(obj.corporation_id, 2199)
         self.assertIsNone(obj.ceo_id)
 
+    def test_should_return_all_corporation_ids(self, _mock_esi):
+        # given
+        # when
+        result = CorporationDetails.objects.corporation_ids_from_contacts()
+        # then
+        expected = {2001, 2003, 2004, 2102}
+        self.assertSetEqual(result, expected)
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestRequestLogEntryManager(NoSocketsTestCase):
+class TestRequestLogEntryManager(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

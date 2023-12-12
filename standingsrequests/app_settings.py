@@ -35,7 +35,7 @@ SR_REQUIRED_SCOPES = getattr(
 
 # Standing data will be considered stale and removed from the local
 # database after the configured hours.
-# The latest standings data will never be purged, no matter how old it is
+# The latest standings data will never be purged, no matter how old it is.
 SR_STANDINGS_STALE_HOURS = clean_setting("SR_STANDINGS_STALE_HOURS", 48)
 
 # Max hours to wait for a standing to be effective after being marked actioned

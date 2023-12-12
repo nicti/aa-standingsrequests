@@ -11,7 +11,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
 from standingsrequests.constants import DATETIME_FORMAT_PY
-from standingsrequests.core import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.models import StandingRequest
 
 from ._common import add_common_context, compose_standing_requests_data
@@ -23,7 +23,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 @permission_required("standingsrequests.affect_standings")
 def effective_requests(request):
     context = {
-        "organization": BaseConfig.standings_source_entity(),
+        "organization": app_config.standings_source_entity(),
         "requests_count": _standing_requests_to_view().count(),
     }
     return render(

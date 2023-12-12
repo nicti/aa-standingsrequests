@@ -1,4 +1,8 @@
-from typing import Optional, Tuple
+# pylint: disable = redefined-builtin
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from bravado.exception import HTTPError
 
@@ -9,7 +13,7 @@ from django.db.models import Case, Q, Value, When
 from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from eveuniverse.models import EveEntity
-from eveuniverse.tasks import update_unresolved_eve_entities
+from eveuniverse.tasks import create_eve_entities
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.notifications import notify
@@ -19,22 +23,103 @@ from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import SR_NOTIFICATIONS_ENABLED
-from .constants import CreateCharacterRequestError, OperationMode
-from .core import BaseConfig, ContactType
+from .constants import CreateCharacterRequestResult, OperationMode
+from .core import app_config
+from .core.contact_types import ContactTypeId
 from .providers import esi
+
+if TYPE_CHECKING:
+    from .models import AbstractStandingsRequest, ContactSet, StandingRequest
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
+class EsiContactsContainer:
+    """Converts raw contacts and contact labels data from ESI into an object"""
+
+    class EsiLabel:
+        def __init__(self, json):
+            self.id = json["label_id"]
+            self.name = json["label_name"]
+
+        def __str__(self) -> str:
+            return str(self.name)
+
+        def __repr__(self) -> str:
+            return str(self)
+
+    class EsiContact:
+        def __init__(self, json, labels, names_info):
+            self.id = json["contact_id"]
+            self.name = names_info[self.id] if self.id in names_info else ""
+            self.standing = json["standing"]
+            self.in_watchlist = json["in_watchlist"] if "in_watchlist" in json else None
+            self.label_ids = (
+                json["label_ids"]
+                if "label_ids" in json and json["label_ids"] is not None
+                else []
+            )
+            # list of labels
+            self.labels = [label for label in labels if label.id in self.label_ids]
+
+        def __str__(self) -> str:
+            return str(self.name)
+
+        def __repr__(self):
+            return str(self)
+
+    def __init__(self, token, owner_character):
+        self.contacts = []
+        self.labels = []
+
+        if app_config.operation_mode() is OperationMode.ALLIANCE:
+            if not owner_character.alliance_id:
+                raise RuntimeError(
+                    "{owner_character}: owner character is not a member of an alliance"
+                )
+            labels = esi.client.Contacts.get_alliances_alliance_id_contacts_labels(
+                alliance_id=owner_character.alliance_id,
+                token=token.valid_access_token(),
+            ).results()
+            self.labels = [self.EsiLabel(label) for label in labels]
+            contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
+                alliance_id=owner_character.alliance_id,
+                token=token.valid_access_token(),
+            ).results()
+
+        elif app_config.operation_mode() is OperationMode.CORPORATION:
+            labels = (
+                esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
+                    corporation_id=owner_character.corporation_id,
+                    token=token.valid_access_token(),
+                ).results()
+            )
+            self.labels = [self.EsiLabel(label) for label in labels]
+            contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
+                corporation_id=owner_character.corporation_id,
+                token=token.valid_access_token(),
+            ).results()
+        else:
+            raise NotImplementedError()
+
+        logger.debug("Got %d contacts in total", len(contacts))
+        entity_ids = [contact["contact_id"] for contact in contacts]
+        resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
+        self.contacts = [
+            self.EsiContact(contact, self.labels, resolver._names_map)
+            for contact in contacts
+        ]
+
+
 class ContactSetManager(models.Manager):
-    def create_new_from_api(self) -> object:
+    def create_new_from_api(self) -> Optional[ContactSet]:
         """fetches contacts with standings for configured alliance
         or corporation from ESI and stores them as newly created ContactSet
 
         Returns new ContactSet on success, else None
         """
-        owner_character = BaseConfig.owner_character()
-        token = (
+        owner_character = app_config.owner_character()
+        token: Token = (
             Token.objects.filter(character_id=owner_character.character_id)
             .require_scopes(self.model.required_esi_scope())
             .require_valid()
@@ -43,8 +128,9 @@ class ContactSetManager(models.Manager):
         if not token:
             logger.warning("Token for standing char could not be found")
             return None
+
         try:
-            contacts_wrap = _ContactsWrapper(token, owner_character)
+            contacts_wrap = EsiContactsContainer(token, owner_character)
         except HTTPError as ex:
             logger.exception(
                 "APIError occurred while trying to query api server: %s", ex
@@ -58,7 +144,7 @@ class ContactSetManager(models.Manager):
 
         return contacts_set
 
-    def _add_labels_from_api(self, contact_set, labels):
+    def _add_labels_from_api(self, contact_set: ContactSet, labels):
         """Add the list of labels to the given ContactSet
 
         contact_set: ContactSet instance
@@ -93,83 +179,6 @@ class ContactSetManager(models.Manager):
             obj.labels.add(*labels)
 
 
-class _ContactsWrapper:
-    """Converts raw contacts and contact labels data from ESI into an object"""
-
-    class Label:
-        def __init__(self, json):
-            self.id = json["label_id"]
-            self.name = json["label_name"]
-
-        def __str__(self) -> str:
-            return str(self.name)
-
-        def __repr__(self) -> str:
-            return str(self)
-
-    class Contact:
-        def __init__(self, json, labels, names_info):
-            self.id = json["contact_id"]
-            self.name = names_info[self.id] if self.id in names_info else ""
-            self.standing = json["standing"]
-            self.in_watchlist = json["in_watchlist"] if "in_watchlist" in json else None
-            self.label_ids = (
-                json["label_ids"]
-                if "label_ids" in json and json["label_ids"] is not None
-                else []
-            )
-            # list of labels
-            self.labels = [label for label in labels if label.id in self.label_ids]
-
-        def __str__(self) -> str:
-            return str(self.name)
-
-        def __repr__(self):
-            return str(self)
-
-    def __init__(self, token, owner_character):
-        self.contacts = []
-        self.labels = []
-
-        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
-            if not owner_character.alliance_id:
-                raise RuntimeError(
-                    "{owner_character}: owner character is not a member of an alliance"
-                )
-            labels = esi.client.Contacts.get_alliances_alliance_id_contacts_labels(
-                alliance_id=owner_character.alliance_id,
-                token=token.valid_access_token(),
-            ).results()
-            self.labels = [self.Label(label) for label in labels]
-            contacts = esi.client.Contacts.get_alliances_alliance_id_contacts(
-                alliance_id=owner_character.alliance_id,
-                token=token.valid_access_token(),
-            ).results()
-
-        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
-            labels = (
-                esi.client.Contacts.get_corporations_corporation_id_contacts_labels(
-                    corporation_id=owner_character.corporation_id,
-                    token=token.valid_access_token(),
-                ).results()
-            )
-            self.labels = [self.Label(label) for label in labels]
-            contacts = esi.client.Contacts.get_corporations_corporation_id_contacts(
-                corporation_id=owner_character.corporation_id,
-                token=token.valid_access_token(),
-            ).results()
-        else:
-            raise NotImplementedError()
-
-        logger.debug("Got %d contacts in total", len(contacts))
-        entity_ids = [contact["contact_id"] for contact in contacts]
-        resolver = EveEntity.objects.bulk_resolve_names(entity_ids)
-        self.contacts = [
-            self.Contact(contact, self.labels, resolver._names_map)
-            for contact in contacts
-        ]
-
-
 class ContactQuerySet(models.QuerySet):
     def filter_characters(self):
         return self.filter(eve_entity__category=EveEntity.CATEGORY_CHARACTER)
@@ -201,84 +210,41 @@ class AbstractStandingsRequestQuerySet(models.QuerySet):
         )
 
 
-class AbstractStandingsRequestManager(models.Manager):
+class _AbstractStandingsRequestManagerBase(models.Manager):
     def filter_characters(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.character_ids)
+        return self.filter(contact_type_id__in=ContactTypeId.character_ids())
 
     def filter_corporations(self) -> models.QuerySet:
-        return self.filter(contact_type_id__in=ContactType.corporation_ids)
-
-    def get_queryset(self) -> models.QuerySet:
-        return AbstractStandingsRequestQuerySet(self.model, using=self._db)
+        return self.filter(contact_type_id=ContactTypeId.CORPORATION)
 
     def process_requests(self) -> None:
         """Process all the Standing requests/revocation objects"""
-        from .models import (
-            AbstractStandingsRequest,
-            StandingRequest,
-            StandingRevocation,
-        )
+        from .models import AbstractStandingsRequest
 
         if self.model is AbstractStandingsRequest:
             raise TypeError("Can not be called from abstract objects")
 
-        organization = BaseConfig.standings_source_entity()
+        organization = app_config.standings_source_entity()
         organization_name = organization.name if organization else ""
-        for standing_request in self.all():
-            contact, dummy = EveEntity.objects.get_or_create_esi(
+        query: models.QuerySet[AbstractStandingsRequest] = self.all()
+        for standing_request in query:
+            contact = EveEntity.objects.get_or_create_esi(
                 id=standing_request.contact_id
-            )
+            )[0]
             is_currently_effective = standing_request.is_effective
             is_satisfied_standing = standing_request.evaluate_effective_standing()
             if is_satisfied_standing and not is_currently_effective:
                 if SR_NOTIFICATIONS_ENABLED:
-                    # send notification to user about standing change if enabled
-                    if standing_request.is_standing_request:
-                        notify(
-                            user=standing_request.user,
-                            title=_("%s: Standing with %s now in effect")
-                            % (__title__, contact.name),
-                            message=_(
-                                "'%(organization_name)s' now has blue standing with "
-                                "your alt %(contact_category)s '%(contact_name)s'. "
-                                "Please also update the standing of "
-                                "your %(contact_category)s accordingly."
-                            )
-                            % {
-                                "organization_name": organization_name,
-                                "contact_category": contact.category,
-                                "contact_name": contact.name,
-                            },
-                        )
-                    elif standing_request.is_standing_revocation:
-                        if standing_request.user:
-                            notify(
-                                user=standing_request.user,
-                                title="%s: Standing with %s revoked"
-                                % (__title__, contact.name),
-                                message=_(
-                                    "'%(organization_name)s' no longer has "
-                                    "standing with your "
-                                    "%(contact_category)s '%(contact_name)s'. "
-                                    "Please also update the standing of "
-                                    "your %(contact_category)s accordingly."
-                                )
-                                % {
-                                    "organization_name": organization_name,
-                                    "contact_category": contact.category,
-                                    "contact_name": contact.name,
-                                },
-                            )
+                    self._notify_user_about_standing_change(
+                        organization_name=organization_name,
+                        standing_request=standing_request,
+                        contact=contact,
+                    )
 
                 # if this was a revocation the standing requests need to be remove
                 # to indicate that this character no longer has standing
                 if standing_request.is_standing_revocation:
-                    StandingRequest.objects.filter(
-                        contact_id=standing_request.contact_id
-                    ).delete()
-                    StandingRevocation.objects.filter(
-                        contact_id=standing_request.contact_id
-                    ).delete()
+                    self._remove_standing_request_after_revocation(standing_request)
 
             elif is_satisfied_standing:
                 # Just catching all other contact types (corps/alliances)
@@ -287,13 +253,7 @@ class AbstractStandingsRequestManager(models.Manager):
 
             elif not is_satisfied_standing and is_currently_effective:
                 # Effective standing no longer effective
-                logger.info(
-                    "Standing for %d is marked as effective but is not "
-                    "satisfied in game. Deleting." % standing_request.contact_id
-                )
-                standing_request.delete(
-                    reason=StandingRevocation.Reason.REVOKED_IN_GAME
-                )
+                self._removing_effective_standing(standing_request)
 
             else:
                 # Check the standing hasn't been set actioned
@@ -301,29 +261,100 @@ class AbstractStandingsRequestManager(models.Manager):
                 actioned_timeout = standing_request.check_actioned_timeout()
                 if actioned_timeout is not None and actioned_timeout:
                     logger.info(
-                        "Standing request for contact ID %d has timedout "
-                        "and will be reset" % standing_request.contact_id
+                        "Standing request for contact ID %d has timed out "
+                        "and will be reset",
+                        standing_request.contact_id,
                     )
                     if SR_NOTIFICATIONS_ENABLED:
-                        title = _("Standing Request for %s reset") % contact.name
-                        message = (
-                            _(
-                                "The standing request for %(contact_category)s "
-                                "'%(contact_name)s' from %(user_name)s "
-                                "has been reset as it did not appear in "
-                                "game before the timeout period expired."
-                            )
-                            % {
-                                "contact_category": contact.category,
-                                "contact_name": contact.name,
-                                "user_name": standing_request.user.username,
-                            },
+                        self._notify_user_about_timed_out_request(
+                            standing_request, contact, actioned_timeout
                         )
 
-                        # Notify standing manager
-                        notify(user=actioned_timeout, title=title, message=message)
-                        # Notify the user
-                        notify(user=standing_request.user, title=title, message=message)
+    def _notify_user_about_standing_change(
+        self,
+        organization_name: str,
+        standing_request: AbstractStandingsRequest,
+        contact: EveEntity,
+    ):
+        if standing_request.is_standing_request:
+            notify(
+                user=standing_request.user,
+                title=_("%s: Standing with %s now in effect")
+                % (__title__, contact.name),
+                message=_(
+                    "'%(organization_name)s' now has blue standing with "
+                    "your alt %(contact_category)s '%(contact_name)s'. "
+                    "Please also update the standing of "
+                    "your %(contact_category)s accordingly."
+                )
+                % {
+                    "organization_name": organization_name,
+                    "contact_category": contact.category,
+                    "contact_name": contact.name,
+                },
+            )
+        elif standing_request.is_standing_revocation:
+            if standing_request.user:
+                notify(
+                    user=standing_request.user,
+                    title=f"{__title__}: Standing with {contact.name} revoked",
+                    message=_(
+                        "'%(organization_name)s' no longer has "
+                        "standing with your "
+                        "%(contact_category)s '%(contact_name)s'. "
+                        "Please also update the standing of "
+                        "your %(contact_category)s accordingly."
+                    )
+                    % {
+                        "organization_name": organization_name,
+                        "contact_category": contact.category,
+                        "contact_name": contact.name,
+                    },
+                )
+
+    def _removing_effective_standing(self, standing_request: AbstractStandingsRequest):
+        from .models import StandingRevocation
+
+        logger.info(
+            "Standing for %d is marked as effective but is not "
+            "satisfied in game. Deleting.",
+            standing_request.contact_id,
+        )
+        standing_request.delete(reason=StandingRevocation.Reason.REVOKED_IN_GAME)
+
+    def _remove_standing_request_after_revocation(self, standing_request):
+        from .models import StandingRequest, StandingRevocation
+
+        StandingRequest.objects.filter(contact_id=standing_request.contact_id).delete()
+        StandingRevocation.objects.filter(
+            contact_id=standing_request.contact_id
+        ).delete()
+
+    def _notify_user_about_timed_out_request(
+        self,
+        standing_request: AbstractStandingsRequest,
+        contact: EveEntity,
+        actioned_timeout,
+    ):
+        title = _("Standing Request for %s reset") % contact.name
+        message = (
+            _(
+                "The standing request for %(contact_category)s "
+                "'%(contact_name)s' from %(user_name)s "
+                "has been reset as it did not appear in "
+                "game before the timeout period expired."
+            )
+            % {
+                "contact_category": contact.category,
+                "contact_name": contact.name,
+                "user_name": standing_request.user.username,
+            },
+        )
+
+        # Notify standing manager
+        notify(user=actioned_timeout, title=title, message=message)
+        # Notify the user
+        notify(user=standing_request.user, title=title, message=message)
 
     def has_pending_request(self, contact_id: int) -> bool:
         """Checks if a request is pending for the given contact_id
@@ -337,6 +368,11 @@ class AbstractStandingsRequestManager(models.Manager):
     def pending_requests(self) -> models.QuerySet:
         """returns all pending requests for this class"""
         return self.filter(action_date__isnull=True, is_effective=False)
+
+
+AbstractStandingsRequestManager = _AbstractStandingsRequestManagerBase.from_queryset(
+    AbstractStandingsRequestQuerySet
+)
 
 
 class StandingRequestManager(AbstractStandingsRequestManager):
@@ -363,10 +399,11 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 reason = StandingRevocation.Reason.LOST_PERMISSION
                 is_valid = False
 
-            elif ContactType.is_corporation(
-                standing_request.contact_type_id
-            ) and not self.model.can_request_corporation_standing(
-                standing_request.contact_id, standing_request.user
+            elif (
+                standing_request.is_corporation
+                and not self.model.can_request_corporation_standing(
+                    standing_request.contact_id, standing_request.user
+                )
             ):
                 logger.debug("Request is invalid, not all corp API keys recorded.")
                 reason = StandingRevocation.Reason.MISSING_CORP_TOKEN
@@ -395,7 +432,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
 
     def create_character_request(
         self, user: User, character: EveCharacter
-    ) -> CreateCharacterRequestError:
+    ) -> CreateCharacterRequestResult:
         """Create new character standings request for user if possible."""
         from .models import ContactSet, RequestLogEntry, StandingRevocation
 
@@ -404,25 +441,30 @@ class StandingRequestManager(AbstractStandingsRequestManager):
                 logger.warning(
                     "%s: User %s does not own character, forbidden", character, user
                 )
-                return CreateCharacterRequestError.USER_IS_NOT_OWNER
+                return CreateCharacterRequestResult.USER_IS_NOT_OWNER
+
         except ObjectDoesNotExist:
-            return CreateCharacterRequestError.USER_IS_NOT_OWNER
+            return CreateCharacterRequestResult.USER_IS_NOT_OWNER
+
         try:
             contact_set = ContactSet.objects.latest()
         except ContactSet.DoesNotExist:
             logger.warning("Failed to get a contact set")
-            return CreateCharacterRequestError.UNKNOWN_ERROR
+            return CreateCharacterRequestResult.UNKNOWN_ERROR
         character_id = character.character_id
+
         if self.has_pending_request(
             character_id
         ) or StandingRevocation.objects.has_pending_request(character_id):
             logger.warning("%s: Character already has a pending request", character)
-            return CreateCharacterRequestError.CHARACTER_HAS_REQUEST
-        elif not self.model.has_required_scopes_for_request(
+            return CreateCharacterRequestResult.CHARACTER_HAS_REQUEST
+
+        if not self.model.has_required_scopes_for_request(
             character=character, user=user
         ):
             logger.warning("%s: Character does not have the required scopes", character)
-            return CreateCharacterRequestError.CHARACTER_IS_MISSING_SCOPES
+            return CreateCharacterRequestResult.CHARACTER_IS_MISSING_SCOPES
+
         sr = self.get_or_create_2(
             user=user,
             contact_id=character_id,
@@ -434,9 +476,10 @@ class StandingRequestManager(AbstractStandingsRequestManager):
             RequestLogEntry.objects.create_from_standing_request(
                 sr, RequestLogEntry.Action.CONFIRMED, None
             )
-        return CreateCharacterRequestError.NO_ERROR
 
-    def create_corporation_request(self, user, corporation_id) -> bool:
+        return CreateCharacterRequestResult.NO_ERROR
+
+    def create_corporation_request(self, user: User, corporation_id: int) -> bool:
         """Create new corporation standings request for user if possible."""
         from .models import StandingRevocation
 
@@ -461,7 +504,9 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         )
         return True
 
-    def get_or_create_2(self, user: User, contact_id: int, contact_type: str) -> object:
+    def get_or_create_2(
+        self, user: User, contact_id: int, contact_type: str
+    ) -> StandingRequest:
         """Get or create a new standing request
 
         Params:
@@ -469,7 +514,7 @@ class StandingRequestManager(AbstractStandingsRequestManager):
         - contact_id: contact_id to request standings on
         - contact_type: type of this contact
 
-        Restuns the created StandingRequest instance
+        Returns the created StandingRequest instance
         """
         contact_type_id = self.model.contact_type_2_id(contact_type)
         instance, _ = self.get_or_create(
@@ -486,7 +531,7 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
         contact_id: int,
         contact_type: str,
         user: Optional[User] = None,
-        reason: Optional[str] = None,
+        reason: Optional[AbstractStandingsRequest.Reason] = None,
     ) -> object:
         """Add a new standings revocation
 
@@ -497,12 +542,14 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
 
         Returns the created StandingRevocation instance
         """
+        from .models import AbstractStandingsRequest
+
         logger.debug(
             "Adding new standings revocation for contact %d type %s",
             contact_id,
             contact_type,
         )
-        contact_type_id = self.model.contact_type_2_id(contact_type)
+        contact_type_id = AbstractStandingsRequest.contact_type_2_id(contact_type)
         if self.has_pending_request(contact_id):
             logger.debug(
                 "Cannot add revocation for contact %d %s, pending revocation exists",
@@ -510,13 +557,15 @@ class StandingRevocationManager(AbstractStandingsRequestManager):
                 contact_type_id,
             )
             return None
+
         if not reason:
-            reason = self.model.Reason.NONE
+            reason = AbstractStandingsRequest.Reason.NONE
+
         instance = self.create(
             contact_id=contact_id,
             contact_type_id=contact_type_id,
             user=user,
-            reason=reason,
+            reason=AbstractStandingsRequest.Reason(reason),
         )
         return instance
 
@@ -530,9 +579,7 @@ class CharacterAffiliationManager(models.Manager):
             for obj in EveCharacter.objects.values("id", "character_id")
         }
         with transaction.atomic():
-            affiliations = [
-                obj for obj in self.filter(character_id__in=eve_character_id_map.keys())
-            ]
+            affiliations = self.filter(character_id__in=eve_character_id_map.keys())
             for affiliation in affiliations:
                 affiliation.eve_character_id = eve_character_id_map[
                     affiliation.character_id
@@ -588,12 +635,13 @@ class CharacterAffiliationManager(models.Manager):
             except HTTPError:
                 logger.exception("Could not fetch character affiliations from ESI")
                 return []
-            else:
-                affiliations += response
+
+            affiliations += response
+
         return affiliations
 
     def _store_affiliations(self, affiliations) -> None:
-        affiliation_objects = list()
+        affiliation_objects = []
         for affiliation in affiliations:
             character, _ = EveEntity.objects.get_or_create(
                 id=affiliation["character_id"]
@@ -601,18 +649,22 @@ class CharacterAffiliationManager(models.Manager):
             corporation, _ = EveEntity.objects.get_or_create(
                 id=affiliation["corporation_id"]
             )
+
             if affiliation.get("alliance_id"):
                 alliance, _ = EveEntity.objects.get_or_create(
                     id=affiliation["alliance_id"]
                 )
+
             else:
                 alliance = None
+
             if affiliation.get("faction_id"):
                 faction, _ = EveEntity.objects.get_or_create(
                     id=affiliation["faction_id"]
                 )
             else:
                 faction = None
+
             affiliation_objects.append(
                 self.model(
                     character=character,
@@ -621,13 +673,16 @@ class CharacterAffiliationManager(models.Manager):
                     faction=faction,
                 )
             )
+
         with transaction.atomic():
             self.all().delete()
             self.bulk_create(affiliation_objects, batch_size=500)
+
         new_ids = set()
         for obj in affiliation_objects:
             new_ids |= obj.entity_ids()
-        EveEntity.objects.bulk_create_esi(new_ids)
+
+        EveEntity.objects.bulk_resolve_ids(new_ids)
 
 
 class CorporationDetailsManager(models.Manager):
@@ -644,14 +699,11 @@ class CorporationDetailsManager(models.Manager):
                 "eve_entity__character_affiliation__corporation_id", flat=True
             )
         )
-        return set(
-            filter(
-                lambda x: x is not None,
-                contact_corporation_ids | character_affiliation_corporation_ids,
-            )
-        )
+        all_ids = contact_corporation_ids | character_affiliation_corporation_ids
+        all_ids.discard(None)
+        return all_ids
 
-    def update_or_create_from_esi(self, id: int) -> Tuple[models.Model, bool]:
+    def update_or_create_from_esi(self, id: int) -> Tuple[Any, bool]:
         """Updates or create an obj from ESI"""
         logger.info("%s: Fetching corporation from ESI", id)
         data = esi.client.Corporation.get_corporations_corporation_id(
@@ -670,7 +722,7 @@ class CorporationDetailsManager(models.Manager):
             if data.get("faction_id")
             else None
         )
-        EveEntity.objects.bulk_create_esi(
+        EveEntity.objects.bulk_resolve_ids(
             filter(
                 lambda x: x is not None,
                 [id, data.get("alliance_id"), ceo_id, data.get("faction_id")],
@@ -700,27 +752,30 @@ class RequestLogEntryQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 
 class RequestLogEntryManagerBase(models.Manager):
+    # TODO: This method should be called as tasks, and entities should be resolved
     def create_from_standing_request(
-        self, standing_request, action, action_by
-    ) -> Optional[models.Model]:
-        from .models import FrozenAlt, FrozenAuthUser
+        self, standing_request: AbstractStandingsRequest, action, action_by: User
+    ) -> Optional[Any]:
+        from .models import FrozenAlt, FrozenAuthUser, RequestLogEntry
 
-        if standing_request.is_standing_request:
-            request_type = self.model.RequestType.REQUEST
-        else:
-            request_type = self.model.RequestType.REVOCATION
-        requested_for, _ = FrozenAlt.objects.get_or_create_from_standing_request(
-            standing_request
+        requested_for: FrozenAlt = (
+            FrozenAlt.objects.get_or_create_from_standing_request(standing_request)[0]
         )
         if action_by:
-            action_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(action_by)
+            action_by_obj: Optional[
+                FrozenAuthUser
+            ] = FrozenAuthUser.objects.get_or_create_from_user(action_by)[0]
         else:
             action_by_obj = None
-        requested_by_obj, _ = FrozenAuthUser.objects.get_or_create_from_user(
-            standing_request.user
+
+        requested_by_obj: FrozenAuthUser = (
+            FrozenAuthUser.objects.get_or_create_from_user(standing_request.user)[0]
+        )
+        request_type = RequestLogEntry.RequestType.from_standing_request(
+            standing_request
         )
         new_obj = self.create(
-            action=action,
+            action=RequestLogEntry.Action(action),
             action_by=action_by_obj,
             request_type=request_type,
             requested_at=standing_request.request_date,
@@ -728,7 +783,11 @@ class RequestLogEntryManagerBase(models.Manager):
             requested_for=requested_for,
             reason=standing_request.reason,
         )
-        update_unresolved_eve_entities.delay()
+        eve_entity_ids = requested_for.entity_ids() | requested_by_obj.entity_ids()
+        if action_by_obj:
+            eve_entity_ids |= action_by_obj.entity_ids()
+
+        create_eve_entities.delay(list(eve_entity_ids))
         return new_obj
 
 
@@ -742,15 +801,17 @@ class FrozenAuthUserQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 
 class FrozenAuthUserManagerBase(models.Manager):
-    def get_or_create_from_user(self, user) -> Tuple[models.Model, bool]:
+    def get_or_create_from_user(self, user: User) -> Tuple[Any, bool]:
         main_character = user.profile.main_character
         if main_character:
             character_id = main_character.character_id
             corporation_id = main_character.corporation_id
             alliance_id = main_character.alliance_id
             faction_id = main_character.faction_id
+
         else:
             character_id = corporation_id = alliance_id = faction_id = None
+
         try:
             obj = self.get(
                 user_id=user.id,
@@ -760,6 +821,7 @@ class FrozenAuthUserManagerBase(models.Manager):
                 faction_id=faction_id,
             )
             return obj, False
+
         except self.model.DoesNotExist:
             alliance = (
                 EveEntity.objects.get_or_create(id=alliance_id)[0]
@@ -800,9 +862,10 @@ class FrozenAltQuerySet(FrozenQuerySetMixin, models.QuerySet):
 
 class FrozenAltManagerBase(models.Manager):
     def get_or_create_from_standing_request(
-        self, standing_request: object
-    ) -> Tuple[models.Model, bool]:
+        self, standing_request: AbstractStandingsRequest
+    ) -> Tuple[Any, bool]:
         eve_entity, _ = EveEntity.objects.get_or_create(id=standing_request.contact_id)
+
         if standing_request.is_character:
             category = self.model.Category.CHARACTER
             character = eve_entity
@@ -814,6 +877,7 @@ class FrozenAltManagerBase(models.Manager):
                 alliance = None
                 corporation = None
                 faction = None
+
         elif standing_request.is_corporation:
             category = self.model.Category.CORPORATION
             character = None
@@ -824,8 +888,10 @@ class FrozenAltManagerBase(models.Manager):
             except ObjectDoesNotExist:
                 alliance = None
                 faction = None
+
         else:
             raise NotImplementedError()
+
         return self.get_or_create(
             character=character,
             corporation=corporation,

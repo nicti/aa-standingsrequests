@@ -1,4 +1,4 @@
-from datetime import timedelta
+import datetime as dt
 from typing import List, Optional
 
 from django.contrib.auth.models import User
@@ -17,10 +17,17 @@ from allianceauth.services.hooks import get_extension_logger
 from app_utils.helpers import default_if_none
 from app_utils.logging import LoggerAddTag
 
+from standingsrequests.helpers.models import (
+    FrozenModelMixin,
+    GatherEntityIdsMixin,
+    get_or_create_sentinel_user,
+)
+
 from . import __title__
 from .app_settings import SR_REQUIRED_SCOPES, SR_STANDING_TIMEOUT_HOURS
 from .constants import OperationMode
-from .core import BaseConfig, ContactType, MainOrganizations
+from .core import app_config
+from .core.contact_types import ContactTypeId
 from .helpers.evecorporation import EveCorporation
 from .managers import (
     AbstractStandingsRequestManager,
@@ -38,13 +45,8 @@ from .managers import (
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-def get_or_create_sentinel_user() -> User:
-    """Get or create the sentinel user."""
-    return User.objects.get_or_create(username="deleted")[0]
-
-
 class ContactSet(models.Model):
-    """Set of contacts from configured alliance or corporation
+    """Container for contacts from configured alliance or corporation
     which defines its current standings
     """
 
@@ -88,7 +90,7 @@ class ContactSet(models.Model):
         for alt in owned_characters_qs:
             user = alt.character_ownership.user
             if (
-                not MainOrganizations.is_character_a_member(alt)
+                not app_config.is_character_a_member(alt)
                 and not StandingRequest.objects.filter(
                     user=user, contact_id=alt.character_id
                 ).exists()
@@ -124,12 +126,13 @@ class ContactSet(models.Model):
     @staticmethod
     def required_esi_scope() -> str:
         """returns the required ESI scopes for syncing"""
-        if BaseConfig.operation_mode is OperationMode.ALLIANCE:
+        if app_config.operation_mode() is OperationMode.ALLIANCE:
             return "esi-alliances.read_contacts.v1"
-        elif BaseConfig.operation_mode is OperationMode.CORPORATION:
+
+        if app_config.operation_mode() is OperationMode.CORPORATION:
             return "esi-corporations.read_contacts.v1"
-        else:
-            raise NotImplementedError()
+
+        raise NotImplementedError()
 
 
 class ContactLabel(models.Model):
@@ -254,10 +257,6 @@ class AbstractStandingsRequest(models.Model):
             ("request_standings", "User can request standings."),
         )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # self.reason = ""
-
     def __repr__(self) -> str:
         try:
             user_str = f", user='{self.user}'"
@@ -271,11 +270,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_character(self) -> bool:
-        return ContactType.is_character(self.contact_type_id)
+        return ContactTypeId(self.contact_type_id).is_character
 
     @property
     def is_corporation(self) -> bool:
-        return ContactType.is_corporation(self.contact_type_id)
+        return ContactTypeId(self.contact_type_id).is_corporation
 
     @property
     def is_actioned(self) -> bool:
@@ -287,11 +286,11 @@ class AbstractStandingsRequest(models.Model):
 
     @property
     def is_standing_request(self) -> bool:
-        return type(self) is StandingRequest
+        return isinstance(self, StandingRequest)
 
     @property
     def is_standing_revocation(self) -> bool:
-        return type(self) is StandingRevocation
+        return isinstance(self, StandingRevocation)
 
     @classmethod
     def is_standing_satisfied(cls, standing: float) -> bool:
@@ -299,24 +298,27 @@ class AbstractStandingsRequest(models.Model):
             return (
                 cls.EXPECT_STANDING_GTEQ <= float(standing) <= cls.EXPECT_STANDING_LTEQ
             )
-        else:
-            return False
+
+        return False
 
     @classmethod
     def contact_type_2_id(cls, contact_type) -> int:
         if contact_type == cls.ContactType.CHARACTER:
-            return ContactType.character_id
-        elif contact_type == cls.ContactType.CORPORATION:
-            return ContactType.corporation_id
-        else:
-            raise ValueError("Invalid contact type")
+            return ContactTypeId.character_id()
+
+        if contact_type == cls.ContactType.CORPORATION:
+            return ContactTypeId.CORPORATION
+
+        raise ValueError("Invalid contact type")
 
     @classmethod
     def contact_id_2_type(cls, contact_type_id) -> str:
-        if contact_type_id in ContactType.character_ids:
+        if contact_type_id in ContactTypeId.character_ids():
             return cls.ContactType.CHARACTER.value
-        elif contact_type_id in ContactType.corporation_ids:
+
+        if contact_type_id == ContactTypeId.CORPORATION:
             return cls.ContactType.CORPORATION.value
+
         raise ValueError("Invalid contact type")
 
     def evaluate_effective_standing(self, check_only: bool = False) -> bool:
@@ -327,7 +329,7 @@ class AbstractStandingsRequest(models.Model):
         try:
             logger.debug("Checking standing for %d", self.contact_id)
             latest = ContactSet.objects.latest()
-            contact = latest.contacts.get(eve_entity_id=self.contact_id)
+            contact: Contact = latest.contacts.get(eve_entity_id=self.contact_id)
             if self.is_standing_satisfied(contact.standing):
                 # Standing is satisfied
                 logger.debug("Standing satisfied for %d", self.contact_id)
@@ -352,7 +354,7 @@ class AbstractStandingsRequest(models.Model):
         logger.debug("Standing NOT satisfied for %d", self.contact_id)
         return False
 
-    def mark_effective(self, date=None):
+    def mark_effective(self, date: Optional[dt.datetime] = None):
         """
         Marks a standing as effective (standing exists in game)
         from the current or supplied TZ aware datetime
@@ -364,7 +366,12 @@ class AbstractStandingsRequest(models.Model):
         self.effective_date = date if date else now()
         self.save()
 
-    def mark_actioned(self, user, date=None, reason=None):
+    def mark_actioned(
+        self,
+        user,
+        date: Optional[dt.datetime] = None,
+        reason: Optional["AbstractStandingsRequest.Reason"] = None,
+    ):
         """
         Marks a standing as actioned (user has made the change in game)
         with the current or supplied TZ aware datetime
@@ -372,11 +379,15 @@ class AbstractStandingsRequest(models.Model):
         :param date: TZ aware datetime object of when the action was taken
         :return:
         """
+        # pylint: disable = unidiomatic-typecheck
+        if type(self) is AbstractStandingsRequest:
+            raise RuntimeError("Can not be called from abstract")
+
         logger.debug("Marking standing for %d as actioned", self.contact_id)
         self.action_by = user
         self.action_date = date if date else now()
         if reason:
-            self.reason = reason
+            self.reason = reason  # pylint: disable = attribute-defined-outside-init
         self.save()
 
     def check_actioned_timeout(self):
@@ -404,7 +415,7 @@ class AbstractStandingsRequest(models.Model):
         # Reset request that has not become effective after timeout expired
         if (
             self.action_date
-            and self.action_date + timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
+            and self.action_date + dt.timedelta(hours=SR_STANDING_TIMEOUT_HOURS)
             < latest.date
         ):
             logger.info(
@@ -437,9 +448,12 @@ class StandingRequest(AbstractStandingsRequest):
     OR a record representing that a character or corporation currently has standing
 
     Standing Requests (SR) can have one of 3 states:
-    - new: Newly created SRs represent a new request from a user. They are not actioned and not effective
-    - actionied: A standing manager marks a SR as actionied, once he has set the new standing in-game
-    - effective: Once the new standing is returned from the API a SR is marked effective. Effective SRs stay in database to represent that a user has standing.
+    - new: Newly created SRs represent a new request from a user.
+        They are not actioned and not effective
+    - actionied: A standing manager marks a SR as actioned,
+        once he has set the new standing in-game
+    - effective: Once the new standing is returned from the API a SR is marked effective.
+        Effective SRs stay in database to represent that a user has standing.
     """
 
     EXPECT_STANDING_GTEQ = 0.01
@@ -457,8 +471,10 @@ class StandingRequest(AbstractStandingsRequest):
         """Remove this standing request."""
         if self.is_character:
             return self._remove_character_standing()
-        elif self.is_corporation:
+
+        if self.is_corporation:
             return self._remove_corporation_request()
+
         raise NotImplementedError()
 
     def _remove_character_standing(self) -> bool:
@@ -467,7 +483,7 @@ class StandingRequest(AbstractStandingsRequest):
             character = EveCharacter.objects.get(character_id=self.contact_id)
         except EveCharacter.DoesNotExist:
             return False
-        if MainOrganizations.is_character_a_member(character):
+        if app_config.is_character_a_member(character):
             logger.warning(
                 "%s: Character %s of user %s is in organization. Can not remove standing",
                 self,
@@ -518,14 +534,13 @@ class StandingRequest(AbstractStandingsRequest):
         )
         return True
 
-    def delete(
-        self, using=None, keep_parents: bool = False, reason: Optional[str] = None
-    ):
+    def delete(self, *args, **kwargs):
         """
         Add a revocation before deleting if the standing has been
         actioned (pending) or is effective and
         doesn't already have a pending revocation request.
         """
+        reason = kwargs.pop("reason", None)
         if self.action_by is not None or self.is_effective:
             # Check if theres not already a revocation pending
             if not StandingRevocation.objects.has_pending_request(self.contact_id):
@@ -557,7 +572,7 @@ class StandingRequest(AbstractStandingsRequest):
             )
 
         logger.debug("%s: Removing standing request by user %s", self, self.user)
-        super().delete(using, keep_parents)
+        super().delete(*args, **kwargs)
 
     @classmethod
     def can_request_corporation_standing(cls, corporation_id: int, user: User) -> bool:
@@ -579,10 +594,13 @@ class StandingRequest(AbstractStandingsRequest):
 
     @classmethod
     def has_required_scopes_for_request(
-        cls, character: EveCharacter, user: User = None, quick_check: bool = False
+        cls,
+        character: EveCharacter,
+        user: Optional[User] = None,
+        quick_check: bool = False,
     ) -> bool:
-        """returns true if given character has the required scopes
-        for issueing a standings request else false
+        """Returns True if given character has the required scopes
+        for issuing a standings request else False.
 
         Params:
         - user: provide User object to shorten processing time
@@ -595,27 +613,30 @@ class StandingRequest(AbstractStandingsRequest):
                 ).get(character__character_id=character.character_id)
             except CharacterOwnership.DoesNotExist:
                 return False
-            else:
-                user = ownership.user
+
+            user = ownership.user
+
         try:
             state_name = user.profile.state.name
         except ObjectDoesNotExist:
             return False
+
         scopes_string = " ".join(cls.get_required_scopes_for_state(state_name))
         token_qs = Token.objects.filter(
             character_id=character.character_id
         ).require_scopes(scopes_string)
+
         if not quick_check:
             token_qs = token_qs.require_valid()
-        return token_qs.exists()
+
+        result = token_qs.exists()
+        return result
 
     @staticmethod
     def get_required_scopes_for_state(state_name: str) -> list:
         state_name = "" if not state_name else state_name
         return (
-            SR_REQUIRED_SCOPES[state_name]
-            if state_name in SR_REQUIRED_SCOPES
-            else list()
+            SR_REQUIRED_SCOPES[state_name] if state_name in SR_REQUIRED_SCOPES else []
         )
 
 
@@ -636,8 +657,8 @@ class StandingRevocation(AbstractStandingsRequest):
     objects = StandingRevocationManager()
 
 
-class CharacterAffiliation(models.Model):
-    """Affiliation of a character."""
+class CharacterAffiliation(GatherEntityIdsMixin, models.Model):
+    """An affiliation of a character."""
 
     character = models.OneToOneField(
         EveEntity,
@@ -682,22 +703,8 @@ class CharacterAffiliation(models.Model):
         """Return character name for main."""
         return self.character.name if self.character.name else None
 
-    def entity_ids(self) -> set:
-        """Ids of all entities."""
-        return set(
-            filter(
-                lambda x: x is not None,
-                [
-                    self.character_id,
-                    self.corporation_id,
-                    self.alliance_id,
-                    self.faction_id,
-                ],
-            )
-        )
 
-
-class CorporationDetails(models.Model):
+class CorporationDetails(GatherEntityIdsMixin, models.Model):
     """A corporation affiliation."""
 
     corporation = models.OneToOneField(
@@ -737,16 +744,6 @@ class CorporationDetails(models.Model):
         return self.corporation.name
 
 
-class FrozenModelMixin:
-    """Objects of this model type can only be created, but not updated."""
-
-    def save(self, *args, **kwargs) -> None:
-        if self.pk is None:
-            super().save(*args, **kwargs)
-        else:
-            raise RuntimeError("No updates allowed for this object.")
-
-
 class RequestLogEntry(FrozenModelMixin, models.Model):
     class Action(models.TextChoices):
         CONFIRMED = "CN", _("confirmed")
@@ -755,6 +752,15 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
     class RequestType(models.TextChoices):
         REQUEST = "RQ", _("request")
         REVOCATION = "RV", _("revocation")
+
+        @classmethod
+        def from_standing_request(
+            cls, standing_request: AbstractStandingsRequest
+        ) -> "RequestLogEntry.RequestType":
+            """Create obj from a standings request."""
+            if standing_request.is_standing_request:
+                return cls.REQUEST
+            return cls.REVOCATION
 
     action = models.CharField(max_length=2, choices=Action.choices)
     action_by = models.ForeignKey(
@@ -791,8 +797,8 @@ class RequestLogEntry(FrozenModelMixin, models.Model):
         return f"{self.created_at}-{self.action}"
 
 
-class FrozenAuthUser(FrozenModelMixin, models.Model):
-    """Main with user, character and affiliations.
+class FrozenAuthUser(GatherEntityIdsMixin, FrozenModelMixin, models.Model):
+    """A main with user, character and affiliations.
     Objects are frozen at creation and can not be changed.
     """
 
@@ -831,8 +837,10 @@ class FrozenAuthUser(FrozenModelMixin, models.Model):
         return str(self.user)
 
 
-class FrozenAlt(FrozenModelMixin, models.Model):
-    """Alt with alignments. Objects are frozen at creation and can not be changed."""
+class FrozenAlt(GatherEntityIdsMixin, FrozenModelMixin, models.Model):
+    """A character or corporation alt with alignments.
+    Objects are frozen at creation and can not be changed.
+    """
 
     class Category(models.TextChoices):
         CHARACTER = "CH", "character"

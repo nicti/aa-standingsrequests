@@ -87,13 +87,13 @@ def token_required_by_state(new=False):
                         "Returning list of available tokens for %s.", request.user
                     )
                     return select_token(request, scopes=scopes, new=new)
-                else:
-                    logger.debug(
-                        "No tokens found for %s session %s with scopes %s",
-                        request.user,
-                        request.session.session_key[:5],
-                        scopes,
-                    )
+
+                logger.debug(
+                    "No tokens found for %s session %s with scopes %s",
+                    request.user,
+                    request.session.session_key[:5],
+                    scopes,
+                )
 
             # prompt the user to add a new token
             logger.debug(

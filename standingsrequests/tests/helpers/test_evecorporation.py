@@ -1,17 +1,28 @@
 from unittest.mock import patch
 
+from django.test import TestCase
 from eveuniverse.models import EveEntity
 
-from app_utils.testing import NoSocketsTestCase
+from allianceauth.eveonline.models import EveCharacter
+from app_utils.testing import (
+    NoSocketsTestCase,
+    add_character_to_user,
+    create_user_from_evecharacter,
+)
 
-from ..helpers.evecorporation import EveCorporation
-from .my_test_data import esi_get_corporations_corporation_id
+from standingsrequests.helpers.evecorporation import EveCorporation
+from standingsrequests.tests.testdata.my_test_data import (
+    create_eve_objects,
+    esi_get_corporations_corporation_id,
+    get_my_test_data,
+)
 
-MODULE_PATH = "standingsrequests.helpers.evecorporation"
+EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
+MODELS_PATH = "standingsrequests.models"
 
 
-@patch(MODULE_PATH + ".cache")
-@patch(MODULE_PATH + ".esi")
+@patch(EVECORPORATION_PATH + ".cache")
+@patch(EVECORPORATION_PATH + ".esi")
 class TestEveCorporation(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls):
@@ -25,7 +36,6 @@ class TestEveCorporation(NoSocketsTestCase):
             alliance_id=3001,
             alliance_name="Wayne Enterprises",
         )
-        EveEntity.objects.all().delete()
         EveEntity.objects.create(id=3001, name="Wayne Enterprises", category="alliance")
         cls.maxDiff = None
 
@@ -108,3 +118,58 @@ class TestEveCorporation(NoSocketsTestCase):
             ticker="RANCI",
         )
         self.assertIsNone(normal_corp.alliance_name)
+
+
+class TestMemberTokensCountForUser(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        create_eve_objects()
+
+    def test_should_count_valid_characters_only(self):
+        # given
+        user, _ = create_user_from_evecharacter(1001, scopes=["special-scope"])
+        add_character_to_user(
+            user, EveCharacter.objects.get(character_id=1002), scopes=["special-scope"]
+        )  # same corp and valid scope
+        add_character_to_user(
+            user, EveCharacter.objects.get(character_id=1003)
+        )  # same corp, but invalid scope
+        add_character_to_user(
+            user, EveCharacter.objects.get(character_id=1006)
+        )  # different corp
+        obj = EveCorporation(corporation_id=2001)
+
+        # when
+        with patch(MODELS_PATH + ".SR_REQUIRED_SCOPES", {"Guest": {"special-scope"}}):
+            result = obj.member_tokens_count_for_user(user)
+
+        # then
+        self.assertEqual(result, 2)
+
+
+class TestGetManyById(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        create_eve_objects()
+        cls.corporations: dict = get_my_test_data()["EveCorporationInfo"]
+
+    def test_should_return_corporations(self):
+        def my_get_by_id(corporation_id, *args, **kwargs):
+            try:
+                obj = self.corporations[str(corporation_id)]
+            except KeyError:
+                return None
+
+            return EveCorporation(**obj)
+
+        # when
+        with patch(
+            EVECORPORATION_PATH + ".EveCorporation.get_by_id", new=my_get_by_id
+        ), patch(EVECORPORATION_PATH + ".esi") as _:
+            result = EveCorporation.get_many_by_id([2001, 2002, 2987])
+
+        # then
+        corporations = {obj.corporation_id: obj for obj in result}
+        self.assertSetEqual(set(corporations.keys()), {2001, 2002})
