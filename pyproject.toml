@@ -1,13 +1,12 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "aa-standingsrequests"
-dynamic = ["version"]
-description = "App for managing character standing requests, made for Alliance Auth"
+dynamic = ["version", "description"]
 readme = "README.md"
-license = "GPL-3.0"
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
 authors = [
     { name = "Basraah" },
@@ -41,13 +40,8 @@ Source = "https://gitlab.com/ErikKalkoken/aa-standingsrequests"
 Changelog = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/blob/master/CHANGELOG.md"
 Tracker = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/issues"
 
-
-[tool.hatch.version]
-path = "standingsrequests/__init__.py"
-
-[tool.hatch.build]
-include = ["/standingsrequests"]
-
+[tool.flit.module]
+name = "standingsrequests"
 
 [tool.isort]
 profile = "black"

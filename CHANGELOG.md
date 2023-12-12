@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Refactoring
 - Test suite improved
 - Removed local esi spec file
+- Switched build system to flit
 
 ## [1.3.0] - 2023-05-08
 
