@@ -162,17 +162,16 @@ def update_corporation_detail(corporation_id: int):
     CorporationDetails.objects.update_or_create_from_esi(corporation_id)
 
 
-@shared_task(bind=True)
-def purge_stale_standings_data(self):
+@shared_task(name="standings_requests.purge_stale_data", bind=True)
+def purge_stale_data(self):
     """Delete all stale contact sets, but always keep the newest."""
-    cutoff_date = now() - dt.timedelta(hours=SR_STANDINGS_STALE_HOURS)
-
     try:
         latest_standings = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         logger.warning("No ContactSets available, nothing to delete")
         return
 
+    cutoff_date = now() - dt.timedelta(hours=SR_STANDINGS_STALE_HOURS)
     stale_contacts_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
         id=latest_standings.id
     )

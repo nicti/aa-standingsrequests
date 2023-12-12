@@ -82,13 +82,13 @@ class TestOtherTasks(TestCase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(MODULE_PATH + ".SR_STANDINGS_STALE_HOURS", 48)
-class TestPurgeStaleStandingData(TestCase):
+class TestPurgeData(TestCase):
     def test_do_nothing_if_not_contacts_sets(self):
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
 
     def test_one_younger_set_no_purge(self):
         set_1 = create_contacts_set()
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_1.pk}
         self.assertSetEqual(current_pks, expected)
@@ -97,7 +97,7 @@ class TestPurgeStaleStandingData(TestCase):
         set_1 = create_contacts_set()
         set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_1.pk}
         self.assertSetEqual(current_pks, expected)
@@ -105,7 +105,7 @@ class TestPurgeStaleStandingData(TestCase):
     def test_two_younger_sets_no_purge(self):
         set_1 = create_contacts_set()
         set_2 = create_contacts_set()
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_1.pk, set_2.pk}
         self.assertSetEqual(current_pks, expected)
@@ -115,7 +115,7 @@ class TestPurgeStaleStandingData(TestCase):
         set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
         set_2 = create_contacts_set()
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_2.pk}
         self.assertSetEqual(current_pks, expected)
@@ -127,7 +127,7 @@ class TestPurgeStaleStandingData(TestCase):
         set_2 = create_contacts_set()
         set_1.date = now() - timedelta(hours=48, seconds=1)
         set_1.save()
-        tasks.purge_stale_standings_data()
+        tasks.purge_stale_data()
         current_pks = set(ContactSet.objects.values_list("pk", flat=True))
         expected = {set_2.pk}
         self.assertSetEqual(current_pks, expected)
