@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.4.0] - 2023-12-12
+
+## Changed
+
+- Added support for AA4
+- Broke down long running task "standings_update" into smaller tasks
+- Refactoring
+- Test suite improved
+- Removed local esi spec file
+
 ## [1.3.0] - 2023-05-08
 
 ## Changed
