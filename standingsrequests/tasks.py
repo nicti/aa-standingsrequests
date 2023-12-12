@@ -28,39 +28,35 @@ TASK_DEFAULT_PRIORITY = 6
 TASK_LOW_PRIORITY = 8
 
 
-def _determine_task_priority(task_obj: Task) -> Optional[int]:
-    """Return priority of give task or None if not defined."""
-    properties = task_obj.request.get("properties") or {}
-    return properties.get("priority")
-
-
 @shared_task(name="standings_requests.update_all", bind=True)
 def update_all(self, user_pk: int = None):
     """Update all standings and affiliations."""
     priority = _determine_task_priority(self) or TASK_DEFAULT_PRIORITY
-    chain(
+    tasks = [
         standings_update.si().set(priority=priority),
         update_associations_api.si().set(priority=priority),
-        report_result_to_user.si(user_pk).set(priority=priority),
-    ).delay()
+    ]
+    if user_pk:
+        tasks.append(report_result_to_user.si(user_pk).set(priority=priority))
+
+    chain(tasks).delay()
 
 
 @shared_task(name="standings_requests.report_result_to_user")
-def report_result_to_user(user_pk: int = None):
-    if user_pk:
-        try:
-            user = User.objects.get(pk=user_pk)
-        except User.DoesNotExist:
-            logger.warning("Can not find a user with pk %d", user_pk)
-            return
+def report_result_to_user(user_pk: int):
+    try:
+        user = User.objects.get(pk=user_pk)
+    except User.DoesNotExist:
+        logger.warning("Can not find a user with pk %d", user_pk)
+        return
 
-        source_entity = app_config.standings_source_entity()
-        notify(
-            user,
-            _("%s: Standings loaded") % __title__,
-            _("Standings have been successfully loaded for %s") % source_entity.name,
-            level="success",
-        )
+    source_entity = app_config.standings_source_entity()
+    notify(
+        user,
+        _("%s: Standings loaded") % __title__,
+        _("Standings have been successfully loaded for %s") % source_entity.name,
+        level="success",
+    )
 
 
 @shared_task(name="standings_requests.standings_update", bind=True)
@@ -117,12 +113,13 @@ def validate_requests():
     logger.info("Dealt with %d invalid standings requests", count)
 
 
-@shared_task(name="standings_requests.update_associations_api")
-def update_associations_api():
+@shared_task(name="standings_requests.update_associations_api", bind=True)
+def update_associations_api(self):
     """Update character affiliations from ESI and relations to Eve Characters"""
-    update_character_affiliations_from_esi.delay()
-    update_character_affiliations_to_auth.delay()
-    update_all_corporation_details.delay()
+    priority = _determine_task_priority(self) or TASK_DEFAULT_PRIORITY
+    update_character_affiliations_from_esi.apply_async(priority=priority)
+    update_character_affiliations_to_auth.apply_async(priority=priority)
+    update_all_corporation_details.apply_async(priority=priority)
 
 
 @shared_task
@@ -137,8 +134,8 @@ def update_character_affiliations_to_auth():
     logger.info("Finished updating character affiliations to Auth.")
 
 
-@shared_task
-def update_all_corporation_details():
+@shared_task(bind=True)
+def update_all_corporation_details(self):
     existing_corporation_ids = (
         CorporationDetails.objects.corporation_ids_from_contacts()
     )
@@ -150,8 +147,9 @@ def update_all_corporation_details():
         logger.info("No corporations to update.")
         return
 
+    priority = _determine_task_priority(self) or TASK_DEFAULT_PRIORITY
     for corporation_id in existing_corporation_ids:
-        update_corporation_detail.delay(corporation_id)
+        update_corporation_detail.apply_async(args=[corporation_id], priority=priority)
 
     logger.info(
         "Started updating corporation details for %d corporations.",
@@ -195,3 +193,9 @@ def purge_stale_standings_data(self):
 def purge_contact_set(contact_set_pk: int):
     obj = ContactSet.objects.filter(pk=contact_set_pk)
     obj.delete()
+
+
+def _determine_task_priority(task_obj: Task) -> Optional[int]:
+    """Return priority of give task or None if not defined."""
+    properties = task_obj.request.get("properties") or {}
+    return properties.get("priority")

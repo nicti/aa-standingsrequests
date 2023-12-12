@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Added support for AA4
 - Broke down long running task "standings_update" into smaller tasks
+- Make periodic tasks run at lower priority then default
+- Child tasks now inherit the priority of their parent
+- Removed obsolete tasks
 - Refactoring
 - Test suite improved
 - Removed local esi spec file
