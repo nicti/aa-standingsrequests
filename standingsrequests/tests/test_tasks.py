@@ -81,13 +81,6 @@ class TestOtherTasks(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
-class TestPurgeTasks(TestCase):
-    @patch(MODULE_PATH + ".purge_stale_standings_data")
-    def test_purge_stale_data(self, mock_purge_stale_standings_data):
-        tasks.purge_stale_data.delay()
-        self.assertTrue(mock_purge_stale_standings_data.si.called)
-
-
 @patch(MODULE_PATH + ".SR_STANDINGS_STALE_HOURS", 48)
 class TestPurgeStaleStandingData(TestCase):
     def test_do_nothing_if_not_contacts_sets(self):

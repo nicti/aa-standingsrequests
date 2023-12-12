@@ -16,8 +16,6 @@ from .app_settings import SR_STANDINGS_STALE_HOURS, SR_SYNC_BLUE_ALTS_ENABLED
 from .core import app_config
 from .models import (
     CharacterAffiliation,
-    Contact,
-    ContactLabel,
     ContactSet,
     CorporationDetails,
     StandingRequest,
@@ -26,18 +24,18 @@ from .models import (
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
+TASK_DEFAULT_PRIORITY = 6
+TASK_LOW_PRIORITY = 8
+
 
 @shared_task(name="standings_requests.update_all")
 def update_all(user_pk: int = None):
-    """Updates standings and affiliations"""
-    my_chain = chain(
-        [
-            standings_update.si(),
-            update_associations_api.si(),
-            report_result_to_user.si(user_pk),
-        ]
-    )
-    my_chain.delay()
+    """Update all standings and affiliations."""
+    chain(
+        standings_update.si().set(priority=TASK_DEFAULT_PRIORITY),
+        update_associations_api.si().set(priority=TASK_DEFAULT_PRIORITY),
+        report_result_to_user.si(user_pk).set(priority=TASK_DEFAULT_PRIORITY),
+    ).delay()
 
 
 @shared_task(name="standings_requests.report_result_to_user")
@@ -72,10 +70,14 @@ def standings_update():
     tasks = []
 
     if SR_SYNC_BLUE_ALTS_ENABLED:
-        tasks.append(generate_standing_requests_for_blue_alts.si(contact_set.pk))
+        tasks.append(
+            generate_standing_requests_for_blue_alts.si(contact_set.pk).set(
+                priority=TASK_DEFAULT_PRIORITY
+            )
+        )
 
-    tasks.append(process_standing_requests.si())
-    tasks.append(process_standing_revocations.si())
+    tasks.append(process_standing_requests.si().set(priority=TASK_DEFAULT_PRIORITY))
+    tasks.append(process_standing_revocations.si().set(priority=TASK_DEFAULT_PRIORITY))
 
     chain(tasks).delay()
 
@@ -153,20 +155,9 @@ def update_corporation_detail(corporation_id: int):
     CorporationDetails.objects.update_or_create_from_esi(corporation_id)
 
 
-@shared_task(name="standings_requests.purge_stale_data")
-def purge_stale_data():
-    """Delete all the data which is beyond its useful life.
-    There is no harm in disabling this if you wish to keep everything.
-    """
-    my_chain = chain([purge_stale_standings_data.si()])
-    my_chain.delay()
-
-
 @shared_task
 def purge_stale_standings_data():
-    """Deletes all stale (=older than threshold hours) contact sets
-    except the last remaining contact set
-    """
+    """Delete all stale contact sets, but always keep the newest."""
     cutoff_date = now() - dt.timedelta(hours=SR_STANDINGS_STALE_HOURS)
 
     try:
@@ -178,16 +169,20 @@ def purge_stale_standings_data():
     stale_contacts_qs = ContactSet.objects.filter(date__lt=cutoff_date).exclude(
         id=latest_standings.id
     )
-    if not stale_contacts_qs.exists():
+    stale_objs_count = stale_contacts_qs.count()
+    if not stale_objs_count:
         logger.debug("No ContactSets to delete")
         return
 
-    # we can't just do standings.delete()
-    # because with lots of them it uses lots of memory
-    # lets go over them one by one and delete
-    for contact_set in stale_contacts_qs:
-        Contact.objects.filter(contact_set=contact_set).delete()
-        ContactLabel.objects.filter(contact_set=contact_set).delete()
+    logger.info("Found %d stale contact sets to purge", stale_objs_count)
+    tasks = [
+        purge_contact_set.si(obj.pk).set(priority=TASK_LOW_PRIORITY)
+        for obj in stale_contacts_qs
+    ]
+    chain(tasks).delay()
 
-    stale_contacts_qs.delete()
-    logger.info("Deleted stale contact sets")
+
+@shared_task
+def purge_contact_set(contact_set_pk: int):
+    obj = ContactSet.objects.filter(pk=contact_set_pk)
+    obj.delete()
