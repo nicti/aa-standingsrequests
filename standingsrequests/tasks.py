@@ -1,7 +1,7 @@
 import datetime as dt
 from typing import Optional
 
-from celery import chain, shared_task
+from celery import Task, chain, shared_task
 
 from django.contrib.auth.models import User
 from django.utils.timezone import now
@@ -28,13 +28,20 @@ TASK_DEFAULT_PRIORITY = 6
 TASK_LOW_PRIORITY = 8
 
 
-@shared_task(name="standings_requests.update_all")
-def update_all(user_pk: int = None):
+def _determine_task_priority(task_obj: Task) -> Optional[int]:
+    """Return priority of give task or None if not defined."""
+    properties = task_obj.request.get("properties") or {}
+    return properties.get("priority")
+
+
+@shared_task(name="standings_requests.update_all", bind=True)
+def update_all(self, user_pk: int = None):
     """Update all standings and affiliations."""
+    priority = _determine_task_priority(self) or TASK_DEFAULT_PRIORITY
     chain(
-        standings_update.si().set(priority=TASK_DEFAULT_PRIORITY),
-        update_associations_api.si().set(priority=TASK_DEFAULT_PRIORITY),
-        report_result_to_user.si(user_pk).set(priority=TASK_DEFAULT_PRIORITY),
+        standings_update.si().set(priority=priority),
+        update_associations_api.si().set(priority=priority),
+        report_result_to_user.si(user_pk).set(priority=priority),
     ).delay()
 
 
@@ -56,8 +63,8 @@ def report_result_to_user(user_pk: int = None):
         )
 
 
-@shared_task(name="standings_requests.standings_update")
-def standings_update():
+@shared_task(name="standings_requests.standings_update", bind=True)
+def standings_update(self):
     """Updates standings from ESI"""
     logger.info("Standings API update started")
     contact_set: Optional[ContactSet] = ContactSet.objects.create_new_from_api()
@@ -67,17 +74,19 @@ def standings_update():
             "aborting standings update"
         )
 
+    priority = _determine_task_priority(self) or TASK_DEFAULT_PRIORITY
+
     tasks = []
 
     if SR_SYNC_BLUE_ALTS_ENABLED:
         tasks.append(
             generate_standing_requests_for_blue_alts.si(contact_set.pk).set(
-                priority=TASK_DEFAULT_PRIORITY
+                priority=priority
             )
         )
 
-    tasks.append(process_standing_requests.si().set(priority=TASK_DEFAULT_PRIORITY))
-    tasks.append(process_standing_revocations.si().set(priority=TASK_DEFAULT_PRIORITY))
+    tasks.append(process_standing_requests.si().set(priority=priority))
+    tasks.append(process_standing_revocations.si().set(priority=priority))
 
     chain(tasks).delay()
 
@@ -155,8 +164,8 @@ def update_corporation_detail(corporation_id: int):
     CorporationDetails.objects.update_or_create_from_esi(corporation_id)
 
 
-@shared_task
-def purge_stale_standings_data():
+@shared_task(bind=True)
+def purge_stale_standings_data(self):
     """Delete all stale contact sets, but always keep the newest."""
     cutoff_date = now() - dt.timedelta(hours=SR_STANDINGS_STALE_HOURS)
 
@@ -175,9 +184,9 @@ def purge_stale_standings_data():
         return
 
     logger.info("Found %d stale contact sets to purge", stale_objs_count)
+    priority = _determine_task_priority(self) or TASK_LOW_PRIORITY
     tasks = [
-        purge_contact_set.si(obj.pk).set(priority=TASK_LOW_PRIORITY)
-        for obj in stale_contacts_qs
+        purge_contact_set.si(obj.pk).set(priority=priority) for obj in stale_contacts_qs
     ]
     chain(tasks).delay()
 
