@@ -9,11 +9,15 @@ description = "App for managing character standing requests, made for Alliance A
 readme = "README.md"
 license = "GPL-3.0"
 requires-python = ">=3.8"
-authors = [{ name = "Erik Kalkoken", email = "kaloken87@gmail.com" }]
+authors = [
+    { name = "Basraah" },
+    { name = "Erik Kalkoken", email = "kaloken87@gmail.com" },
+]
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
     "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.2",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
@@ -78,7 +82,7 @@ disable = [
     "fixme",
     "cyclic-import",
     "too-many-instance-attributes",
-    "missing-class-docstring",      # temporary
-    "missing-module-docstring",     # temporary
-    "missing-function-docstring",   # temporary
+    "missing-class-docstring",      # FIXME
+    "missing-module-docstring",     # FIXME
+    "missing-function-docstring",   # FIXME
 ]

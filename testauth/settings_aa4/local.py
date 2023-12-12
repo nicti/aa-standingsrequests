@@ -24,7 +24,10 @@ SITE_URL = "http://127.0.0.1:8000"
 DEBUG = False
 
 # Add any additional apps to this list.
-INSTALLED_APPS += ["taskmonitor"]
+INSTALLED_APPS += [
+    "standingsrequests",
+    "eveuniverse",
+]
 
 # Enter credentials to use MySQL/MariaDB. Comment out to use sqlite3
 """
@@ -70,3 +73,16 @@ DEFAULT_FROM_EMAIL = ""
 # workarounds to suppress warnings
 LOGGING = None
 STATICFILES_DIRS = []
+
+# standingsrequests
+STANDINGS_API_CHARID = 1001
+STR_CORP_IDS = []
+STR_ALLIANCE_IDS = [3001]
+
+# This is a map, where the key is the State the user is in
+# and the value is a list of required scopes to check
+SR_REQUIRED_SCOPES = {
+    "Member": ["publicData"],
+    "Blue": ["publicData"],
+    "": [],  # no state
+}
