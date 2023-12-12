@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -94,6 +94,7 @@ class TestContactSetCreateStanding(TestCase):
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
 @patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch("standingsrequests.managers.create_eve_entities", Mock())
 class TestContactSetGenerateStandingRequestsForBlueAlts(TestCase):
     @classmethod
     def setUpClass(cls):
