@@ -1,21 +1,22 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "aa-standingsrequests"
-dynamic = ["version"]
-description = "App for managing character standing requests, made for Alliance Auth"
+dynamic = ["version", "description"]
 readme = "README.md"
-license = "GPL-3.0"
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
 authors = [
+    { name = "Basraah" },
     { name = "Erik Kalkoken", email = "kaloken87@gmail.com" },
 ]
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
     "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.2",
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
@@ -39,15 +40,8 @@ Source = "https://gitlab.com/ErikKalkoken/aa-standingsrequests"
 Changelog = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/blob/master/CHANGELOG.md"
 Tracker = "https://gitlab.com/ErikKalkoken/aa-standingsrequests/-/issues"
 
-
-[tool.hatch.version]
-path = "standingsrequests/__init__.py"
-
-[tool.hatch.build]
-include = [
-    "/standingsrequests",
-]
-
+[tool.flit.module]
+name = "standingsrequests"
 
 [tool.isort]
 profile = "black"
@@ -59,19 +53,30 @@ sections = [
     "DJANGO",
     "ALLIANCEAUTH",
     "FIRSTPARTY",
-    "LOCALFOLDER"
+    "LOCALFOLDER",
 ]
 known_allianceauth = ["allianceauth", "app_utils"]
 known_django = ["django", "django_webtest", "esi", "eveuniverse"]
 
 [tool.pylint.'MASTER']
-ignore-patterns = ["test_.*.py,__init__.py", "generate_.*.py"]
+ignore-patterns = ["__init__.py", "auth_hooks.py", "apps.py"]
+ignore-paths = ["^.*/tests/.*$", "^.*/migrations/.*$"]
 
 [tool.pylint.'BASIC']
-good-names = ["i", "j", "k", "x", "f", "ex"]
+good-names = ["i", "j", "k", "ex"]
 
 [tool.pylint.'FORMAT']
-max-line-length = 100
+max-line-length = 120
 
 [tool.pylint.'MESSAGES CONTROL']
-disable = ["R", "C"]
+disable = [
+    "too-few-public-methods",
+    "import-outside-toplevel",
+    "imported-auth-user",
+    "fixme",
+    "cyclic-import",
+    "too-many-instance-attributes",
+    "missing-class-docstring",      # FIXME
+    "missing-module-docstring",     # FIXME
+    "missing-function-docstring",   # FIXME
+]

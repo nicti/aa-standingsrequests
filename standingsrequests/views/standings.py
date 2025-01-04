@@ -12,9 +12,10 @@ from app_utils.logging import LoggerAddTag
 
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_PAGE_CACHE_SECONDS
-from standingsrequests.core import BaseConfig
+from standingsrequests.core import app_config
+from standingsrequests.core.contact_types import ContactTypeId
 from standingsrequests.helpers.writers import UnicodeWriter
-from standingsrequests.models import ContactSet, ContactType, StandingRequest
+from standingsrequests.models import ContactSet, StandingRequest
 
 from ._common import DEFAULT_ICON_SIZE, add_common_context, label_with_icon
 
@@ -28,7 +29,7 @@ def standings(request):
         contact_set = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contact_set = None
-    organization = BaseConfig.standings_source_entity()
+    organization = app_config.standings_source_entity()
     last_update = contact_set.date if contact_set else None
     context = {
         "lastUpdate": last_update,
@@ -66,7 +67,7 @@ def character_standings_data(request):
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    characters_data = list()
+    characters_data = []
     for contact in character_contacts_qs:
         character_name_html = label_with_icon(
             contact.eve_entity.icon_url(), contact.eve_entity.name
@@ -230,12 +231,12 @@ def corporation_standings_data(request):
         .prefetch_related("labels")
         .order_by("eve_entity__name")
     )
-    corporations_data = list()
+    corporations_data = []
     standings_requests = {
         obj.contact_id: obj
         for obj in (
             StandingRequest.objects.filter(
-                contact_type_id=ContactType.corporation_id
+                contact_type_id=ContactTypeId.CORPORATION
             ).filter(
                 contact_id__in=list(
                     corporations_qs.values_list("eve_entity_id", flat=True)
@@ -329,7 +330,7 @@ def alliance_standings_data(request):
         contacts = ContactSet.objects.latest()
     except ContactSet.DoesNotExist:
         contacts = ContactSet()
-    alliances_data = list()
+    alliances_data = []
     for contact in (
         contacts.contacts.filter_alliances()
         .select_related("eve_entity")

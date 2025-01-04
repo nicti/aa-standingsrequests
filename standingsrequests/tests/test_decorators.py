@@ -2,13 +2,14 @@ from unittest.mock import Mock, patch
 
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase
-from esi.models import CallbackRedirect, Token
+from esi.models import Token
 
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import _generate_token, _store_as_Token, generate_invalid_pk
 
-from ..decorators import token_required_by_state
-from .my_test_data import create_eve_objects
+from standingsrequests.decorators import token_required_by_state
+
+from .testdata.my_test_data import create_eve_objects
 
 MODULE_PATH = "standingsrequests.decorators"
 PATH_MODELS = "standingsrequests.models"
@@ -32,9 +33,6 @@ class TestTokenRequiredByState(TestCase):
         )
         cls.factory = RequestFactory()
 
-    def setUp(self):
-        CallbackRedirect.objects.all().delete()
-
     def generate_get_request(self):
         request = self.factory.get("https://www.example.com/my_view/")
         request.user = self.user
@@ -43,7 +41,7 @@ class TestTokenRequiredByState(TestCase):
         request.session.save()
         return request
 
-    def generate_post_request(self, data=dict(), user=None):
+    def generate_post_request(self, data={}, user=None):
         request = self.factory.post("https://www.example.com/my_view/", data)
         request.user = self.user if not user else user
         middleware = SessionMiddleware(Mock())

@@ -1,15 +1,15 @@
 from allianceauth.eveonline.evelinks import eveimageserver
 
-from ..models import CharacterAffiliation
+from standingsrequests.constants import DEFAULT_IMAGE_SIZE
+from standingsrequests.models import CharacterAffiliation
 
 
 class EveCharacterHelper:
-    """
-    Mimics Alliance Auths EveCharacter with internal standingstool data instead
+    """A character object mimicking Alliance Auth's EveCharacter,
+    but with internal standings tool data instead.
     """
 
-    # Not implemented
-    corporation_ticker = None
+    corporation_ticker = None  # Not implemented
 
     user = None
 
@@ -37,5 +37,5 @@ class EveCharacterHelper:
         )
         self.alliance_name = assoc.alliance.name if assoc and assoc.alliance else None
 
-    def portrait_url(self, size: int = eveimageserver._DEFAULT_IMAGE_SIZE) -> str:
+    def portrait_url(self, size: int = DEFAULT_IMAGE_SIZE) -> str:
         return eveimageserver.character_portrait_url(self.character_id, size)

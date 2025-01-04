@@ -2,19 +2,19 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
-from django.test import override_settings
+from django.test import TestCase, override_settings
 from django.utils.timezone import now
 
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import NoSocketsTestCase, add_character_to_user
+from app_utils.testing import add_character_to_user
 
-from ..models import StandingRequest
-from .my_test_data import (
+from standingsrequests.models import StandingRequest
+
+from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     create_contacts_set,
     create_entity,
-    create_standings_char,
     load_eve_entities,
 )
 
@@ -25,7 +25,7 @@ TEST_REQUIRED_SCOPE = "mind_reading.v1"
 
 @override_settings(CELERY_ALWAYS_EAGER=True, CELERY_EAGER_PROPAGATES_EXCEPTIONS=True)
 @patch(
-    "standingsrequests.core.STR_ALLIANCE_IDS",
+    "standingsrequests.core.app_config.STR_ALLIANCE_IDS",
     [str(TEST_STANDINGS_ALLIANCE_ID)],
 )
 @patch(
@@ -33,7 +33,7 @@ TEST_REQUIRED_SCOPE = "mind_reading.v1"
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
 @patch(PACKAGE_PATH + ".standingsrequests_sync_blue_alts.get_input")
-class TestSyncRequests(NoSocketsTestCase):
+class TestSyncRequests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -44,9 +44,7 @@ class TestSyncRequests(NoSocketsTestCase):
         load_eve_entities()
 
     def setUp(self):
-        create_standings_char()
         self.contacts_set = create_contacts_set()
-        StandingRequest.objects.all().delete()
         self.out = StringIO()
 
     def test_abort_if_input_is_not_y(self, mock_get_input):

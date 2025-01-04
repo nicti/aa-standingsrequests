@@ -13,21 +13,20 @@ from allianceauth.notifications.models import Notification
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import add_character_to_user
 
-from .. import tasks
-from ..core import ContactType
-from ..models import (
+from standingsrequests import tasks
+from standingsrequests.core.contact_types import ContactTypeId
+from standingsrequests.models import (
     Contact,
-    ContactSet,
     RequestLogEntry,
     StandingRequest,
     StandingRevocation,
 )
-from .my_test_data import (
+
+from .testdata.my_test_data import (
     TEST_STANDINGS_ALLIANCE_ID,
     TEST_STANDINGS_API_CHARID,
     create_contacts_set,
     create_eve_objects,
-    create_standings_char,
     esi_get_corporations_corporation_id,
     esi_post_characters_affiliation,
     esi_post_universe_names,
@@ -47,18 +46,18 @@ HELPERS_EVECORPORATION_PATH = "standingsrequests.helpers.evecorporation"
     MODELS_PATH + ".SR_REQUIRED_SCOPES",
     {"Member": [TEST_REQUIRED_SCOPE], "Blue": [], "": []},
 )
-@patch(CORE_PATH + ".STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
+@patch(CORE_PATH + ".app_config.STANDINGS_API_CHARID", TEST_STANDINGS_API_CHARID)
 @patch(MANAGERS_PATH + ".SR_NOTIFICATIONS_ENABLED", True)
-@patch(CORE_PATH + ".STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
+@patch(CORE_PATH + ".app_config.STR_ALLIANCE_IDS", [TEST_STANDINGS_ALLIANCE_ID])
 class TestMainUseCases(WebTest):
     csrf_checks = False
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        create_standings_char()
         create_eve_objects()
         load_eve_entities()
+
         # State is alliance, all members can add standings
         cls.member_state = AuthUtils.get_member_state()
         perm = AuthUtils.get_permission_by_name(StandingRequest.REQUEST_PERMISSION_NAME)
@@ -70,18 +69,12 @@ class TestMainUseCases(WebTest):
             cls.user_requestor,
             cls.main_character_1,
             is_main=True,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         cls.member_state.member_characters.add(cls.main_character_1)
         cls.alt_character_1 = EveCharacter.objects.get(character_id=1007)
         add_character_to_user(
-            cls.user_requestor,
-            cls.alt_character_1,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            cls.user_requestor, cls.alt_character_1, scopes=[TEST_REQUIRED_SCOPE]
         )
         cls.alt_corporation = EveCorporationInfo.objects.get(
             corporation_id=cls.alt_character_1.corporation_id
@@ -90,9 +83,7 @@ class TestMainUseCases(WebTest):
         add_character_to_user(
             cls.user_requestor,
             cls.alt_character_2,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         # Standing manager
         cls.main_character_2 = EveCharacter.objects.get(character_id=1001)
@@ -101,9 +92,7 @@ class TestMainUseCases(WebTest):
             cls.user_manager,
             cls.main_character_2,
             is_main=True,
-            scopes=[
-                TEST_REQUIRED_SCOPE,
-            ],
+            scopes=[TEST_REQUIRED_SCOPE],
         )
         cls.member_state.member_characters.add(cls.main_character_2)
         cls.user_manager = AuthUtils.add_permission_to_user_by_name(
@@ -139,10 +128,10 @@ class TestMainUseCases(WebTest):
     def _create_standing_for_alt(self, alt: object) -> StandingRequest:
         if isinstance(alt, EveCharacter):
             contact_id = alt.character_id
-            contact_type_id = ContactType.character_id
+            contact_type_id = ContactTypeId.character_id()
         elif isinstance(alt, EveCorporationInfo):
             contact_id = alt.corporation_id
-            contact_type_id = ContactType.corporation_id
+            contact_type_id = ContactTypeId.CORPORATION
         else:
             raise NotImplementedError()
 
@@ -189,11 +178,7 @@ class TestMainUseCases(WebTest):
 
     def setUp(self) -> None:
         cache.clear()
-        ContactSet.objects.all().delete()
         self.contact_set = create_contacts_set()
-        StandingRequest.objects.all().delete()
-        StandingRevocation.objects.all().delete()
-        Notification.objects.all().delete()
 
         # requestor as permission
         self.user_requestor = AuthUtils.add_permission_to_user_by_name(

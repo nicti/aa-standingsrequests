@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.utils.translation import gettext_lazy as _
 
-from ..tasks import update_all
+from standingsrequests.tasks import update_all
 
 
 @login_required

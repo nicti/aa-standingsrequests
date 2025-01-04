@@ -11,7 +11,7 @@ from app_utils.logging import LoggerAddTag
 from standingsrequests import __title__
 from standingsrequests.app_settings import SR_NOTIFICATIONS_ENABLED
 from standingsrequests.constants import DATETIME_FORMAT_HTML
-from standingsrequests.core import BaseConfig
+from standingsrequests.core import app_config
 from standingsrequests.models import (
     RequestLogEntry,
     StandingRequest,
@@ -27,7 +27,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 @permission_required("standingsrequests.affect_standings")
 def manage_standings(request):
     context = {
-        "organization": BaseConfig.standings_source_entity(),
+        "organization": app_config.standings_source_entity(),
         "requests_count": StandingRequest.objects.pending_requests().count(),
         "revocations_count": StandingRevocation.objects.pending_requests().count(),
     }
@@ -79,7 +79,8 @@ def manage_requests_write(request, contact_id):
         if actioned > 0:
             return HttpResponse("")
         return HttpResponseNotFound()
-    elif request.method == "DELETE":
+
+    if request.method == "DELETE":
         standing_request = get_object_or_404(StandingRequest, contact_id=contact_id)
         RequestLogEntry.objects.create_from_standing_request(
             standing_request, RequestLogEntry.Action.REJECTED, request.user
@@ -97,6 +98,7 @@ def manage_requests_write(request, contact_id):
 
             notify(user=standing_request.user, title=title, message=message)
         return HttpResponse("")
+
     return HttpResponseNotFound()
 
 
@@ -119,10 +121,13 @@ def manage_revocations_write(request, contact_id):
                 r, RequestLogEntry.Action.CONFIRMED, request.user
             )
             actioned += 1
+
         if actioned > 0:
             return HttpResponse("")
+
         return HttpResponseNotFound
-    elif request.method == "DELETE":
+
+    if request.method == "DELETE":
         standing_revocations_qs = StandingRevocation.objects.filter(
             contact_id=contact_id
         )
@@ -141,4 +146,5 @@ def manage_revocations_write(request, contact_id):
 
             notify(user=standing_revocation.user, title=title, message=message)
         return HttpResponse("")
+
     return HttpResponseNotFound()
